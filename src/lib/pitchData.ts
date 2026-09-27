@@ -402,6 +402,28 @@ export type CancellationRequestRow = {
   created_at: string;
 };
 
+export type MatchRosterRow = {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  team: string | null;
+  status: string;
+};
+
+// Owners can't read match_players/profiles directly — this goes through a
+// function that checks pitch ownership server side and hands back only the
+// players who actually paid/confirmed their spot.
+export async function fetchMatchRosterForOwner(matchId: string): Promise<MatchRosterRow[]> {
+  const { data, error } = await withAbortableTimeout(
+    supabase.rpc('get_match_roster_for_owner', { match_id_input: matchId }),
+    REQUEST_TIMEOUT_MS,
+    'fetchMatchRosterForOwner'
+  );
+
+  if (error) throw error;
+  return (data as MatchRosterRow[]) ?? [];
+}
+
 // A confirmed match can have at most one PENDING request at a time (enforced
 // server side), so this only ever needs the latest one for the badge/banner.
 export async function fetchLatestCancellationRequest(matchId: string): Promise<CancellationRequestRow | null> {
