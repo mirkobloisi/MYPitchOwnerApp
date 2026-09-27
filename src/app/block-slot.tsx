@@ -12,7 +12,7 @@ import RecurrencePicker, {
   validateRecurrence,
 } from '../components/RecurrencePicker';
 import Screen from '../components/Screen';
-import ClockTimePicker from '../components/ClockTimePicker';
+import StartEndTimePicker from '../components/StartEndTimePicker';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../lib/auth';
 import {
@@ -315,7 +315,7 @@ export default function BlockSlotScreen() {
       ) : startOptions.length === 0 ? (
         <Text style={styles.helperText}>{t('blockSlot.noOpenTime')}</Text>
       ) : (
-        <ClockTimePicker
+        <StartEndTimePicker
           startLabel={t('blockSlot.startTimeLabel')}
           endLabel={t('blockSlot.endTimeLabel')}
           startMinutes={startMinutes}
@@ -329,7 +329,9 @@ export default function BlockSlotScreen() {
           onChangeEnd={setEndMinutes}
           startPlaceholder={t('blockSlot.selectTime')}
           endPlaceholder={t('blockSlot.selectTime')}
-          tone="neutral"
+          pickStartTitle={t('blockSlot.startTimeLabel')}
+          pickEndTitle={t('blockSlot.endTimeLabel')}
+          emptyText={t('blockSlot.noSlotsLongEnough')}
         />
       )}
 

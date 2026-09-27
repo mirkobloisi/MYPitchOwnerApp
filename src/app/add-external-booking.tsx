@@ -13,7 +13,7 @@ import RecurrencePicker, {
   validateRecurrence,
 } from '../components/RecurrencePicker';
 import Screen from '../components/Screen';
-import ClockTimePicker from '../components/ClockTimePicker';
+import StartEndTimePicker from '../components/StartEndTimePicker';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../lib/auth';
 import {
@@ -372,7 +372,7 @@ export default function AddExternalBookingScreen() {
       ) : startOptions.length === 0 ? (
         <Text style={styles.helperText}>{t('addExternalBooking.noOpenTime')}</Text>
       ) : (
-        <ClockTimePicker
+        <StartEndTimePicker
           startLabel={t('addExternalBooking.startTimeLabel')}
           endLabel={t('addExternalBooking.endTimeLabel')}
           startMinutes={startMinutes}
@@ -386,7 +386,9 @@ export default function AddExternalBookingScreen() {
           onChangeEnd={setEndMinutes}
           startPlaceholder={t('addExternalBooking.selectTime')}
           endPlaceholder={t('addExternalBooking.selectTime')}
-          tone={isParty ? 'pink' : 'blue'}
+          pickStartTitle={t('addExternalBooking.startTimeLabel')}
+          pickEndTitle={t('addExternalBooking.endTimeLabel')}
+          emptyText={t('addExternalBooking.noSlotsLongEnough')}
         />
       )}
 
