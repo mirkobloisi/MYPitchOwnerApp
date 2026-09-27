@@ -46,6 +46,9 @@ export const darkColors = {
   orange: '#FF9500',
   orangeSoft: 'rgba(255, 149, 0, 0.16)',
 
+  pink: '#FF3B8D',
+  pinkSoft: 'rgba(255, 59, 141, 0.16)',
+
   blackText: '#061006',
 
   // Shared "subtle inset" tokens used inline across screens.
@@ -102,6 +105,9 @@ export const lightColors: typeof darkColors = {
 
   orange: '#C96A0A',
   orangeSoft: 'rgba(201, 106, 10, 0.12)',
+
+  pink: '#C81760',
+  pinkSoft: 'rgba(200, 23, 96, 0.12)',
 
   blackText: '#061006',
 

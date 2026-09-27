@@ -184,6 +184,78 @@ export function busyWithinSpan(
 }
 
 /**
+ * Every valid START point for a fresh booking/block: on a slot boundary,
+ * inside an open period, not in the past, and with at least one slot-step of
+ * clear room before the next conflict or close time.
+ */
+export function buildStartOptions(input: {
+  availability: AvailabilityRow[];
+  day: Date;
+  busy: BusyRange[];
+  /** Times before this are left out — a booking can't start in the past. */
+  notBefore?: Date;
+}): number[] {
+  const { availability, day, busy, notBefore } = input;
+  const dayStart = startOfDay(day);
+  const ranges = rangesForDay(availability, dayStart);
+  const options: number[] = [];
+
+  ranges.forEach((range) => {
+    const open = parseTimeToMinutes(range.open_time);
+    const close = parseTimeToMinutes(range.close_time);
+
+    for (let start = open; start + SLOT_STEP_MINUTES <= close; start += SLOT_STEP_MINUTES) {
+      const slotStart = dateAtMinutes(dayStart, start);
+      if (notBefore && slotStart.getTime() < notBefore.getTime()) continue;
+
+      const minimalEnd = dateAtMinutes(dayStart, start + SLOT_STEP_MINUTES);
+      if (overlapsBusy(slotStart, minimalEnd, busy)) continue;
+
+      options.push(start);
+    }
+  });
+
+  return options.sort((a, b) => a - b);
+}
+
+/**
+ * Every valid END point for a booking/block starting at `startMinutes` — up
+ * to the close of the open period it starts in, or the first conflict,
+ * whichever comes first. A single continuous booking can't skip over a
+ * conflict in the middle, so nothing past the first one is offered either.
+ */
+export function buildEndOptions(input: {
+  availability: AvailabilityRow[];
+  day: Date;
+  busy: BusyRange[];
+  startMinutes: number;
+}): number[] {
+  const { availability, day, busy, startMinutes } = input;
+  const dayStart = startOfDay(day);
+  const ranges = rangesForDay(availability, dayStart);
+
+  const containing = ranges.find((range) => {
+    const open = parseTimeToMinutes(range.open_time);
+    const close = parseTimeToMinutes(range.close_time);
+    return startMinutes >= open && startMinutes < close;
+  });
+
+  if (!containing) return [];
+
+  const close = parseTimeToMinutes(containing.close_time);
+  const slotStart = dateAtMinutes(dayStart, startMinutes);
+  const options: number[] = [];
+
+  for (let end = startMinutes + SLOT_STEP_MINUTES; end <= close; end += SLOT_STEP_MINUTES) {
+    const slotEnd = dateAtMinutes(dayStart, end);
+    if (overlapsBusy(slotStart, slotEnd, busy)) break;
+    options.push(end);
+  }
+
+  return options;
+}
+
+/**
  * Builds the selectable start times for a day. A slot only appears if the
  * whole booking fits inside one open period — a 2-hour booking can't straddle
  * the gap between a morning and an afternoon shift.

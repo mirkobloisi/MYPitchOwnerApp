@@ -93,12 +93,12 @@ function eventStatusMeta(
   t: (path: string) => string
 ) {
   if (event.kind === 'block') {
-    // Orange, so a party reads as neither a match nor an ordinary booking.
+    // Pink, so a party reads as neither a match nor an ordinary booking.
     if (event.block.block_type === 'party') {
       return {
         label: event.block.reference || t('agenda.partyDefault'),
-        color: colors.orange,
-        background: colors.orangeSoft,
+        color: colors.pink,
+        background: colors.pinkSoft,
       };
     }
 
@@ -508,7 +508,7 @@ export default function AgendaScreen() {
           onPress={openAddParty}
           disabled={selectedDayIsPast}
         >
-          <Ionicons name="balloon-outline" size={16} color={colors.orange} />
+          <Ionicons name="balloon-outline" size={16} color={colors.pink} />
           <Text style={styles.actionButtonOutlineText}>{t('agenda.addParty')}</Text>
         </AnimatedPressable>
 

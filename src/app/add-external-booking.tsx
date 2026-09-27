@@ -1,20 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import AnimatedPressable from '../components/AnimatedPressable';
 import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
-import DurationPicker from '../components/DurationPicker';
-import OptionsModal, { PickerOption } from '../components/OptionsModal';
 import RecurrencePicker, {
   initialRecurrence,
   RecurrenceValue,
   validateRecurrence,
 } from '../components/RecurrencePicker';
 import Screen from '../components/Screen';
+import ClockTimePicker from '../components/ClockTimePicker';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../lib/auth';
 import {
@@ -28,7 +27,8 @@ import {
   addDays,
   bookableSpanForDay,
   buildBusyRanges,
-  buildSlots,
+  buildEndOptions,
+  buildStartOptions,
   BusyRange,
   busyWithinSpan,
   dateAtMinutes,
@@ -56,8 +56,9 @@ export default function AddExternalBookingScreen() {
   const params = useLocalSearchParams<{ pitchId: string; date: string; kind?: string }>();
 
   /**
-   * A party takes the pitch for an evening rather than a playing slot, so it
-   * picks its own start and end instead of a length and a slot from the grid.
+   * A party takes the pitch for an evening rather than a playing slot, but
+   * both it and an ordinary external booking pick a start and end time the
+   * same way — directly, rather than a length plus a slot from a grid.
    */
   const isParty = params.kind === 'party';
   const { t } = useTranslation();
@@ -72,23 +73,11 @@ export default function AddExternalBookingScreen() {
 
   const day = useMemo(() => startOfDay(new Date(params.date)), [params.date]);
 
-  const quarterHourOptions: PickerOption[] = useMemo(() => {
-    const options: PickerOption[] = [];
-    for (let minutes = 0; minutes <= 24 * 60; minutes += 15) {
-      options.push({ value: String(minutes), label: minutesToLabel(minutes) });
-    }
-    return options;
-  }, []);
-
   const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
   const [busy, setBusy] = useState<BusyRange[]>([]);
-  const [durationMinutes, setDurationMinutes] = useState(60);
   const [allDay, setAllDay] = useState(false);
-  const [selectedStart, setSelectedStart] = useState<number | null>(null);
-  // Party only: free start and end, in quarter hours.
-  const [partyStart, setPartyStart] = useState(17 * 60);
-  const [partyEnd, setPartyEnd] = useState(20 * 60);
-  const [openPicker, setOpenPicker] = useState<'start' | 'end' | null>(null);
+  const [startMinutes, setStartMinutes] = useState<number | null>(null);
+  const [endMinutes, setEndMinutes] = useState<number | null>(null);
   const [source, setSource] = useState(SOURCE_OPTIONS[0]);
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
@@ -138,10 +127,34 @@ export default function AddExternalBookingScreen() {
   const dayIsPast = isPastDay(day);
 
   // Times already gone are left out — a booking cannot start in the past.
-  const slots = useMemo(
-    () => buildSlots({ availability, day, durationMinutes, busy, notBefore: now }),
-    [availability, day, durationMinutes, busy, now]
+  // A party is free to run past the pitch's own opening hours (an evening
+  // event isn't a playing slot), so it isn't constrained to open periods.
+  const startOptions = useMemo(
+    () =>
+      isParty
+        ? Array.from({ length: 48 }, (_, i) => i * 30).filter(
+            (minutes) => dateAtMinutes(day, minutes).getTime() >= now.getTime()
+          )
+        : buildStartOptions({ availability, day, busy, notBefore: now }),
+    [isParty, availability, day, busy, now]
   );
+
+  const endOptions = useMemo(() => {
+    if (startMinutes === null) return [];
+
+    if (isParty) {
+      const options: number[] = [];
+      for (let end = startMinutes + 30; end <= 48 * 30; end += 30) {
+        const slotStart = dateAtMinutes(day, startMinutes);
+        const slotEnd = dateAtMinutes(day, end);
+        if (busy.some((range) => slotStart < range.end && slotEnd > range.start)) break;
+        options.push(end);
+      }
+      return options;
+    }
+
+    return buildEndOptions({ availability, day, busy, startMinutes });
+  }, [isParty, availability, day, busy, startMinutes]);
 
   const bookableSpan = useMemo(
     () => bookableSpanForDay(availability, day, now),
@@ -153,14 +166,16 @@ export default function AddExternalBookingScreen() {
     [day, bookableSpan, busy]
   );
 
-  // A start time that no longer fits the chosen length can't stay selected.
+  // A start that's no longer offered (the day's data reloaded) can't stay
+  // selected, and an end that's no longer valid for the current start
+  // shouldn't either.
   useEffect(() => {
-    setSelectedStart((current) =>
-      current !== null && slots.some((slot) => slot.startMinutes === current && slot.isFree)
-        ? current
-        : null
-    );
-  }, [slots]);
+    setStartMinutes((current) => (current !== null && startOptions.includes(current) ? current : null));
+  }, [startOptions]);
+
+  useEffect(() => {
+    setEndMinutes((current) => (current !== null && endOptions.includes(current) ? current : null));
+  }, [endOptions]);
 
   async function handleConfirm() {
     if (!session) return;
@@ -169,26 +184,13 @@ export default function AddExternalBookingScreen() {
     let endTime: Date;
 
     if (isParty) {
-      if (partyEnd <= partyStart) {
-        setErrorMessage(t('addExternalBooking.errorPartyOrder'));
+      if (startMinutes === null || endMinutes === null) {
+        setErrorMessage(t('addExternalBooking.errorSelectSlot'));
         return;
       }
 
-      const clash = busy.find(
-        (range) =>
-          range.start < dateAtMinutes(day, partyEnd) &&
-          range.end > dateAtMinutes(day, partyStart)
-      );
-
-      if (clash) {
-        setErrorMessage(
-          t('addExternalBooking.errorDayConflict', { list: formatRange(clash) })
-        );
-        return;
-      }
-
-      startTime = dateAtMinutes(day, partyStart);
-      endTime = dateAtMinutes(day, partyEnd);
+      startTime = dateAtMinutes(day, startMinutes);
+      endTime = dateAtMinutes(day, endMinutes);
     } else if (allDay) {
       if (!bookableSpan) {
         setErrorMessage(
@@ -211,13 +213,13 @@ export default function AddExternalBookingScreen() {
       startTime = dateAtMinutes(day, bookableSpan.startMinutes);
       endTime = dateAtMinutes(day, bookableSpan.endMinutes);
     } else {
-      if (selectedStart === null) {
+      if (startMinutes === null || endMinutes === null) {
         setErrorMessage(t('addExternalBooking.errorSelectSlot'));
         return;
       }
 
-      startTime = dateAtMinutes(day, selectedStart);
-      endTime = dateAtMinutes(day, selectedStart + durationMinutes);
+      startTime = dateAtMinutes(day, startMinutes);
+      endTime = dateAtMinutes(day, endMinutes);
     }
 
     const { error: recurrenceError, untilDate } = validateRecurrence(recurrence, day, t);
@@ -315,42 +317,18 @@ export default function AddExternalBookingScreen() {
       </Text>
 
       {isParty ? (
-        <>
-          <Text style={styles.sectionLabel}>{t('addExternalBooking.partyTimeStep')}</Text>
-
-          <View style={styles.partyRow}>
-            <AnimatedPressable
-              style={styles.partyField}
-              onPress={() => setOpenPicker('start')}
-            >
-              <Text style={styles.partyFieldLabel}>{t('addExternalBooking.partyFrom')}</Text>
-              <Text style={styles.partyFieldValue}>{minutesToLabel(partyStart)}</Text>
-            </AnimatedPressable>
-
-            <AnimatedPressable
-              style={styles.partyField}
-              onPress={() => setOpenPicker('end')}
-            >
-              <Text style={styles.partyFieldLabel}>{t('addExternalBooking.partyTo')}</Text>
-              <Text style={styles.partyFieldValue}>{minutesToLabel(partyEnd)}</Text>
-            </AnimatedPressable>
-          </View>
-
-          <Text style={styles.helperText}>
-            {t('addExternalBooking.partyHint', {
-              hours: ((partyEnd - partyStart) / 60).toFixed(1),
-            })}
-          </Text>
-        </>
+        <Text style={styles.sectionLabel}>{t('addExternalBooking.partyTimeStep')}</Text>
       ) : (
         <>
-          <Text style={styles.sectionLabel}>{t('addExternalBooking.lengthStep')}</Text>
-          <DurationPicker
-            value={durationMinutes}
-            onChange={setDurationMinutes}
-            allDay={allDay}
-            onAllDayChange={setAllDay}
-          />
+          <View style={styles.allDayToggleRow}>
+            <Text style={styles.sectionLabel}>{t('durationPicker.allDay')}</Text>
+            <Switch
+              value={allDay}
+              onValueChange={setAllDay}
+              trackColor={{ false: colors.cardDark, true: colors.blueSoft }}
+              thumbColor={allDay ? colors.blueLight : colors.greyDark}
+            />
+          </View>
 
           <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
             {allDay
@@ -360,9 +338,9 @@ export default function AddExternalBookingScreen() {
         </>
       )}
 
-      {isParty ? null : isLoading ? (
+      {isLoading ? (
         <Text style={styles.helperText}>{t('addExternalBooking.loadingAvailability')}</Text>
-      ) : allDay ? (
+      ) : !isParty && allDay ? (
         <View style={styles.allDayCard}>
           <Ionicons
             name={allDayConflicts.length > 0 ? 'alert-circle-outline' : 'sunny-outline'}
@@ -391,40 +369,25 @@ export default function AddExternalBookingScreen() {
             )}
           </View>
         </View>
-      ) : slots.length === 0 ? (
-        <Text style={styles.helperText}>
-          {bookableSpan
-            ? t('addExternalBooking.noSlotsLongEnough')
-            : t('addExternalBooking.noOpenTime')}
-        </Text>
+      ) : startOptions.length === 0 ? (
+        <Text style={styles.helperText}>{t('addExternalBooking.noOpenTime')}</Text>
       ) : (
-        <View style={styles.slotGrid}>
-          {slots.map((slot) => (
-            <AnimatedPressable
-              key={slot.startMinutes}
-              disabled={!slot.isFree}
-              style={[
-                styles.slot,
-                !slot.isFree && styles.slotDisabled,
-                selectedStart === slot.startMinutes && styles.slotSelected,
-              ]}
-              onPress={() => setSelectedStart(slot.startMinutes)}
-            >
-              <Text
-                style={[
-                  styles.slotText,
-                  !slot.isFree && styles.slotTextDisabled,
-                  selectedStart === slot.startMinutes && styles.slotTextSelected,
-                ]}
-              >
-                {slot.label}
-              </Text>
-              <Text style={[styles.slotStatus, !slot.isFree && styles.slotTextDisabled]}>
-                {slot.isFree ? t('common.free') : t('common.taken')}
-              </Text>
-            </AnimatedPressable>
-          ))}
-        </View>
+        <ClockTimePicker
+          startLabel={t('addExternalBooking.startTimeLabel')}
+          endLabel={t('addExternalBooking.endTimeLabel')}
+          startMinutes={startMinutes}
+          endMinutes={endMinutes}
+          startOptions={startOptions}
+          endOptions={endOptions}
+          onChangeStart={(minutes) => {
+            setStartMinutes(minutes);
+            setEndMinutes(null);
+          }}
+          onChangeEnd={setEndMinutes}
+          startPlaceholder={t('addExternalBooking.selectTime')}
+          endPlaceholder={t('addExternalBooking.selectTime')}
+          tone={isParty ? 'pink' : 'blue'}
+        />
       )}
 
       <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>{t('addExternalBooking.bookingDetailsStep')}</Text>
@@ -492,22 +455,6 @@ export default function AddExternalBookingScreen() {
         actions={[{ label: t('common.ok'), onPress: () => router.back() }]}
         onDismiss={() => setSkippedNotice(null)}
       />
-      <OptionsModal
-        visible={openPicker !== null}
-        title={
-          openPicker === 'end'
-            ? t('addExternalBooking.partyTo')
-            : t('addExternalBooking.partyFrom')
-        }
-        options={quarterHourOptions}
-        value={String(openPicker === 'end' ? partyEnd : partyStart)}
-        onSelect={(value) => {
-          const minutes = Number(value);
-          if (openPicker === 'end') setPartyEnd(minutes);
-          else setPartyStart(minutes);
-        }}
-        onClose={() => setOpenPicker(null)}
-      />
     </Screen>
   );
 }
@@ -528,6 +475,11 @@ const makeStyles = (colors: AppColors) =>
     },
     sectionLabelSpaced: {
       marginTop: spacing.lg,
+    },
+    allDayToggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
     helperText: {
       color: colors.greyDark,
@@ -551,31 +503,6 @@ const makeStyles = (colors: AppColors) =>
       fontSize: scaleFont(13),
       fontWeight: '600',
       lineHeight: scaleLine(19),
-    },
-    partyRow: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      marginBottom: spacing.sm,
-    },
-    partyField: {
-      flex: 1,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radius.lg,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 12,
-    },
-    partyFieldLabel: {
-      color: colors.grey,
-      fontSize: scaleFont(11),
-      fontWeight: '800',
-    },
-    partyFieldValue: {
-      color: colors.white,
-      fontSize: scaleFont(18),
-      fontWeight: '900',
-      marginTop: 2,
     },
     allDayCard: {
       flexDirection: 'row',
@@ -601,44 +528,6 @@ const makeStyles = (colors: AppColors) =>
       fontWeight: '600',
       marginTop: 3,
       lineHeight: scaleLine(17),
-    },
-    slotGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    slot: {
-      width: '31%',
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.card,
-      paddingVertical: 10,
-      alignItems: 'center',
-    },
-    slotDisabled: {
-      opacity: 0.4,
-    },
-    slotSelected: {
-      borderColor: colors.blueLight,
-      backgroundColor: colors.blueSoft,
-    },
-    slotText: {
-      color: colors.white,
-      fontSize: scaleFont(12),
-      fontWeight: '800',
-    },
-    slotTextDisabled: {
-      color: colors.greyDark,
-    },
-    slotTextSelected: {
-      color: colors.blueLight,
-    },
-    slotStatus: {
-      color: colors.greenLight,
-      fontSize: scaleFont(10),
-      fontWeight: '700',
-      marginTop: 3,
     },
     fieldLabel: {
       color: colors.grey,

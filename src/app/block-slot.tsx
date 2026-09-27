@@ -1,19 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
-import AnimatedPressable from '../components/AnimatedPressable';
 import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
-import HourDropdown from '../components/HourDropdown';
 import RecurrencePicker, {
   initialRecurrence,
   RecurrenceValue,
   validateRecurrence,
 } from '../components/RecurrencePicker';
 import Screen from '../components/Screen';
+import ClockTimePicker from '../components/ClockTimePicker';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../lib/auth';
 import {
@@ -27,7 +26,8 @@ import {
   addDays,
   bookableSpanForDay,
   buildBusyRanges,
-  buildSlots,
+  buildEndOptions,
+  buildStartOptions,
   BusyRange,
   busyWithinSpan,
   dateAtMinutes,
@@ -60,9 +60,9 @@ export default function BlockSlotScreen() {
 
   const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
   const [busy, setBusy] = useState<BusyRange[]>([]);
-  const [durationMinutes, setDurationMinutes] = useState(60);
   const [allDay, setAllDay] = useState(false);
-  const [selectedStart, setSelectedStart] = useState<number | null>(null);
+  const [startMinutes, setStartMinutes] = useState<number | null>(null);
+  const [endMinutes, setEndMinutes] = useState<number | null>(null);
   const [reason, setReason] = useState('');
   const [recurrence, setRecurrence] = useState<RecurrenceValue>(initialRecurrence);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,9 +110,14 @@ export default function BlockSlotScreen() {
   const dayIsPast = isPastDay(day);
 
   // Times already gone are left out — a block cannot start in the past.
-  const slots = useMemo(
-    () => buildSlots({ availability, day, durationMinutes, busy, notBefore: now }),
-    [availability, day, durationMinutes, busy, now]
+  const startOptions = useMemo(
+    () => buildStartOptions({ availability, day, busy, notBefore: now }),
+    [availability, day, busy, now]
+  );
+
+  const endOptions = useMemo(
+    () => (startMinutes !== null ? buildEndOptions({ availability, day, busy, startMinutes }) : []),
+    [availability, day, busy, startMinutes]
   );
 
   const bookableSpan = useMemo(
@@ -125,13 +130,16 @@ export default function BlockSlotScreen() {
     [day, bookableSpan, busy]
   );
 
+  // A start that's no longer offered (the day's data reloaded) can't stay
+  // selected, and an end that's no longer valid for the current start
+  // shouldn't either.
   useEffect(() => {
-    setSelectedStart((current) =>
-      current !== null && slots.some((slot) => slot.startMinutes === current && slot.isFree)
-        ? current
-        : null
-    );
-  }, [slots]);
+    setStartMinutes((current) => (current !== null && startOptions.includes(current) ? current : null));
+  }, [startOptions]);
+
+  useEffect(() => {
+    setEndMinutes((current) => (current !== null && endOptions.includes(current) ? current : null));
+  }, [endOptions]);
 
   async function handleConfirm() {
     if (!session) return;
@@ -164,13 +172,13 @@ export default function BlockSlotScreen() {
       startTime = dateAtMinutes(day, bookableSpan.startMinutes);
       endTime = dateAtMinutes(day, bookableSpan.endMinutes);
     } else {
-      if (selectedStart === null) {
+      if (startMinutes === null || endMinutes === null) {
         setErrorMessage(t('blockSlot.errorSelectSlot'));
         return;
       }
 
-      startTime = dateAtMinutes(day, selectedStart);
-      endTime = dateAtMinutes(day, selectedStart + durationMinutes);
+      startTime = dateAtMinutes(day, startMinutes);
+      endTime = dateAtMinutes(day, endMinutes);
     }
 
     const { error: recurrenceError, untilDate } = validateRecurrence(recurrence, day, t);
@@ -261,13 +269,15 @@ export default function BlockSlotScreen() {
         {day.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
       </Text>
 
-      <Text style={styles.sectionLabel}>{t('blockSlot.lengthStep')}</Text>
-      <HourDropdown
-        value={durationMinutes}
-        onChange={setDurationMinutes}
-        allDay={allDay}
-        onAllDayChange={setAllDay}
-      />
+      <View style={styles.allDayToggleRow}>
+        <Text style={styles.sectionLabel}>{t('durationPicker.allDay')}</Text>
+        <Switch
+          value={allDay}
+          onValueChange={setAllDay}
+          trackColor={{ false: colors.cardDark, true: colors.greenSoft }}
+          thumbColor={allDay ? colors.greenLight : colors.greyDark}
+        />
+      </View>
 
       <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>
         {allDay ? t('blockSlot.wholeDayStep') : t('blockSlot.startTimeStep')}
@@ -302,37 +312,25 @@ export default function BlockSlotScreen() {
             )}
           </View>
         </View>
-      ) : slots.length === 0 ? (
-        <Text style={styles.helperText}>
-          {bookableSpan
-            ? t('blockSlot.noSlotsLongEnough')
-            : t('blockSlot.noOpenTime')}
-        </Text>
+      ) : startOptions.length === 0 ? (
+        <Text style={styles.helperText}>{t('blockSlot.noOpenTime')}</Text>
       ) : (
-        <View style={styles.slotGrid}>
-          {slots.map((slot) => (
-            <AnimatedPressable
-              key={slot.startMinutes}
-              disabled={!slot.isFree}
-              style={[
-                styles.slot,
-                !slot.isFree && styles.slotDisabled,
-                selectedStart === slot.startMinutes && styles.slotSelected,
-              ]}
-              onPress={() => setSelectedStart(slot.startMinutes)}
-            >
-              <Text
-                style={[
-                  styles.slotText,
-                  !slot.isFree && styles.slotTextDisabled,
-                  selectedStart === slot.startMinutes && styles.slotTextSelected,
-                ]}
-              >
-                {slot.label}
-              </Text>
-            </AnimatedPressable>
-          ))}
-        </View>
+        <ClockTimePicker
+          startLabel={t('blockSlot.startTimeLabel')}
+          endLabel={t('blockSlot.endTimeLabel')}
+          startMinutes={startMinutes}
+          endMinutes={endMinutes}
+          startOptions={startOptions}
+          endOptions={endOptions}
+          onChangeStart={(minutes) => {
+            setStartMinutes(minutes);
+            setEndMinutes(null);
+          }}
+          onChangeEnd={setEndMinutes}
+          startPlaceholder={t('blockSlot.selectTime')}
+          endPlaceholder={t('blockSlot.selectTime')}
+          tone="neutral"
+        />
       )}
 
       <Text style={[styles.sectionLabel, styles.sectionLabelSpaced]}>{t('blockSlot.reasonStep')}</Text>
@@ -395,6 +393,11 @@ const makeStyles = (colors: AppColors) =>
     sectionLabelSpaced: {
       marginTop: spacing.lg,
     },
+    allDayToggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
     helperText: {
       color: colors.greyDark,
       fontSize: scaleFont(13),
@@ -442,38 +445,6 @@ const makeStyles = (colors: AppColors) =>
       fontWeight: '600',
       marginTop: 3,
       lineHeight: scaleLine(17),
-    },
-    slotGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    slot: {
-      width: '31%',
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.card,
-      paddingVertical: 10,
-      alignItems: 'center',
-    },
-    slotDisabled: {
-      opacity: 0.4,
-    },
-    slotSelected: {
-      borderColor: colors.greyDark,
-      backgroundColor: colors.neutralSoft,
-    },
-    slotText: {
-      color: colors.white,
-      fontSize: scaleFont(12),
-      fontWeight: '800',
-    },
-    slotTextDisabled: {
-      color: colors.greyDark,
-    },
-    slotTextSelected: {
-      color: colors.white,
     },
     input: {
       borderRadius: radius.md,
