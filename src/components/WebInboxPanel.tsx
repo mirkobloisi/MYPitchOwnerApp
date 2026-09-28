@@ -4,8 +4,17 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AnimatedPressable from './AnimatedPressable';
+import AppButton from './AppButton';
 import { useTranslation } from '../i18n/LanguageContext';
-import { Conversation, collapseToOnePerConversation, fetchConversations } from '../lib/academyChat';
+import {
+  Conversation,
+  collapseToOnePerConversation,
+  createGroupChat,
+  ensureStaffMember,
+  fetchConversations,
+  startDirectChat,
+} from '../lib/academyChat';
+import { AcademyRow, fetchEnrolments, fetchMyAcademies } from '../lib/academyData';
 import { AcademyNotice, fetchNotices, markNoticeRead } from '../lib/academyNotices';
 import { useAcademyRealtime } from '../lib/academyRealtime';
 import { INBOX_WIDTH } from '../theme/breakpoints';
@@ -15,6 +24,8 @@ import { radius, spacing } from '../theme/layout';
 import { scaleFont } from '../theme/typography';
 
 type InboxTab = 'messages' | 'notifications';
+
+type RecipientPerson = { id: string; full_name: string };
 
 /** Relative time, short enough for a narrow list row. */
 function timeAgo(iso: string, t: (key: string) => string) {
@@ -54,13 +65,27 @@ export default function WebInboxPanel() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [notices, setNotices] = useState<AcademyNotice[]>([]);
 
+  // Compose ("Personalize"): pick academies, then fine-tune the parents and
+  // coaches pulled in from them, before sending.
+  const [isComposing, setIsComposing] = useState(false);
+  const [academies, setAcademies] = useState<AcademyRow[]>([]);
+  const [selectedAcademyIds, setSelectedAcademyIds] = useState<Set<string>>(new Set());
+  const [academyPeople, setAcademyPeople] = useState<Record<string, RecipientPerson[]>>({});
+  const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set());
+  const [isSending, setIsSending] = useState(false);
+  const [composeError, setComposeError] = useState('');
+
   const loadConversations = useCallback(async () => {
     const rows = collapseToOnePerConversation(await fetchConversations());
     setConversations(rows.filter((row) => row.kind === 'direct' || row.message_count > 0));
   }, []);
 
   const loadNotices = useCallback(async () => {
-    setNotices(await fetchNotices());
+    // Dedicated to academy matches and bookings — 'session' is the notice
+    // type notify_session_change raises for a scheduled, moved or cancelled
+    // match. Messages and enrolment activity live elsewhere.
+    const rows = await fetchNotices();
+    setNotices(rows.filter((row) => row.type === 'session'));
   }, []);
 
   useEffect(() => {
@@ -72,6 +97,137 @@ export default function WebInboxPanel() {
     // `unread` gets a new object on every notifications-table change, which
     // is exactly when the notices list itself needs reloading too.
   }, [loadNotices, unread]);
+
+  function openCompose() {
+    setIsComposing(true);
+    setComposeError('');
+    setSelectedAcademyIds(new Set());
+    setSelectedPeople(new Set());
+    fetchMyAcademies().then(setAcademies);
+  }
+
+  function closeCompose() {
+    setIsComposing(false);
+  }
+
+  async function loadAcademyPeople(academyId: string): Promise<RecipientPerson[]> {
+    const cached = academyPeople[academyId];
+    if (cached) return cached;
+
+    const rows = await fetchEnrolments(academyId);
+    const guardians = rows
+      .filter((row) => row.status === 'approved' && row.member?.member_kind === 'guardian')
+      .map((row) => ({ id: row.member!.id, full_name: row.member!.full_name }));
+
+    setAcademyPeople((current) => ({ ...current, [academyId]: guardians }));
+    return guardians;
+  }
+
+  async function toggleAcademy(academyId: string) {
+    const nextAcademyIds = new Set(selectedAcademyIds);
+
+    if (nextAcademyIds.has(academyId)) {
+      nextAcademyIds.delete(academyId);
+      const people = academyPeople[academyId] ?? [];
+      setSelectedPeople((current) => {
+        const updated = new Set(current);
+        people.forEach((person) => updated.delete(person.id));
+        return updated;
+      });
+    } else {
+      nextAcademyIds.add(academyId);
+      const people = await loadAcademyPeople(academyId);
+      setSelectedPeople((current) => {
+        const updated = new Set(current);
+        people.forEach((person) => updated.add(person.id));
+        return updated;
+      });
+    }
+
+    setSelectedAcademyIds(nextAcademyIds);
+  }
+
+  async function toggleAllAcademies() {
+    if (selectedAcademyIds.size === academies.length) {
+      setSelectedAcademyIds(new Set());
+      setSelectedPeople(new Set());
+      return;
+    }
+
+    for (const academy of academies) {
+      if (!selectedAcademyIds.has(academy.id)) {
+        // eslint-disable-next-line no-await-in-loop
+        await toggleAcademy(academy.id);
+      }
+    }
+  }
+
+  function togglePerson(personId: string) {
+    setSelectedPeople((current) => {
+      const updated = new Set(current);
+      if (updated.has(personId)) updated.delete(personId);
+      else updated.add(personId);
+      return updated;
+    });
+  }
+
+  const visiblePeople = useMemo(() => {
+    const byId = new Map<string, RecipientPerson>();
+    selectedAcademyIds.forEach((academyId) => {
+      (academyPeople[academyId] ?? []).forEach((person) => byId.set(person.id, person));
+    });
+    return [...byId.values()].sort((a, b) => a.full_name.localeCompare(b.full_name));
+  }, [selectedAcademyIds, academyPeople]);
+
+  async function handleSend() {
+    if (selectedPeople.size === 0 || isSending) return;
+
+    setIsSending(true);
+    setComposeError('');
+
+    // A conversation can only ever belong to one academy on the backend, so a
+    // multi-academy pick fans out into one send per academy that actually has
+    // someone selected.
+    const created: { conversationId: string; asMemberId: string }[] = [];
+
+    for (const academyId of selectedAcademyIds) {
+      const people = academyPeople[academyId] ?? [];
+      const ids = people.filter((person) => selectedPeople.has(person.id)).map((person) => person.id);
+      if (ids.length === 0) continue;
+
+      // eslint-disable-next-line no-await-in-loop
+      const staff = await ensureStaffMember(academyId);
+      if (!staff) continue;
+
+      if (ids.length === 1) {
+        // eslint-disable-next-line no-await-in-loop
+        const { id } = await startDirectChat(staff, ids[0]);
+        if (id) created.push({ conversationId: id, asMemberId: staff });
+      } else {
+        const academyName = academies.find((a) => a.id === academyId)?.name ?? '';
+        // eslint-disable-next-line no-await-in-loop
+        const { id } = await createGroupChat(staff, `${academyName} · ${t('inbox.customGroup')}`, ids, true);
+        if (id) created.push({ conversationId: id, asMemberId: staff });
+      }
+    }
+
+    setIsSending(false);
+
+    if (created.length === 0) {
+      setComposeError(t('academyChat.couldNotStart'));
+      return;
+    }
+
+    closeCompose();
+    loadConversations();
+
+    if (created.length === 1) {
+      router.push({
+        pathname: '/academy-chat',
+        params: { conversationId: created[0].conversationId, asMemberId: created[0].asMemberId },
+      } as any);
+    }
+  }
 
   async function openNotice(notice: AcademyNotice) {
     if (!notice.read_at) {
@@ -89,9 +245,99 @@ export default function WebInboxPanel() {
   const messagesUnread = conversations.reduce((sum, row) => sum + row.unread_count, 0);
   const notificationsUnread = notices.filter((notice) => !notice.read_at).length;
 
+  if (isComposing) {
+    return (
+      <View style={styles.panel}>
+        <View style={styles.composeHeader}>
+          <AnimatedPressable style={styles.iconButton} onPress={closeCompose}>
+            <Ionicons name="arrow-back" size={16} color={colors.grey} />
+          </AnimatedPressable>
+          <Text style={styles.title}>{t('inbox.personalize')}</Text>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
+          <View style={styles.composeSectionHeader}>
+            <Text style={styles.composeSectionLabel}>{t('inbox.academies')}</Text>
+            <AnimatedPressable style={styles.allChip} onPress={toggleAllAcademies}>
+              <Text style={styles.allChipText}>{t('inbox.all')}</Text>
+            </AnimatedPressable>
+          </View>
+
+          {academies.length === 0 ? (
+            <Text style={styles.emptyText}>{t('academy.noAcademies')}</Text>
+          ) : (
+            academies.map((item) => {
+              const checked = selectedAcademyIds.has(item.id);
+              return (
+                <AnimatedPressable key={item.id} pressedScale={0.98} onPress={() => toggleAcademy(item.id)}>
+                  <View style={[styles.pickRow, checked && styles.pickRowActive]}>
+                    <Ionicons name="school-outline" size={14} color={colors.blueLight} />
+                    <Text style={styles.pickRowText} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Ionicons
+                      name={checked ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={17}
+                      color={checked ? colors.greenLight : colors.greyDark}
+                    />
+                  </View>
+                </AnimatedPressable>
+              );
+            })
+          )}
+
+          {selectedAcademyIds.size > 0 ? (
+            <>
+              <Text style={[styles.composeSectionLabel, styles.peopleLabel]}>{t('inbox.people')}</Text>
+
+              {visiblePeople.length === 0 ? (
+                <Text style={styles.emptyText}>{t('inbox.noPeople')}</Text>
+              ) : (
+                visiblePeople.map((person) => {
+                  const checked = selectedPeople.has(person.id);
+                  return (
+                    <AnimatedPressable key={person.id} pressedScale={0.98} onPress={() => togglePerson(person.id)}>
+                      <View style={[styles.pickRow, checked && styles.pickRowActive]}>
+                        <Ionicons name="person-outline" size={14} color={colors.greyDark} />
+                        <Text style={styles.pickRowText} numberOfLines={1}>
+                          {person.full_name}
+                        </Text>
+                        <Ionicons
+                          name={checked ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={17}
+                          color={checked ? colors.greenLight : colors.greyDark}
+                        />
+                      </View>
+                    </AnimatedPressable>
+                  );
+                })
+              )}
+            </>
+          ) : null}
+
+          {composeError ? <Text style={styles.errorText}>{composeError}</Text> : null}
+        </ScrollView>
+
+        <AppButton
+          title={t('inbox.send')}
+          loading={isSending}
+          disabled={selectedPeople.size === 0}
+          onPress={handleSend}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.panel}>
       <Text style={styles.title}>{t('inbox.title')}</Text>
+
+      {tab === 'messages' ? (
+        <AnimatedPressable style={styles.sendMessageButton} onPress={openCompose}>
+          <Ionicons name="create-outline" size={14} color={colors.blackText} />
+          <Text style={styles.sendMessageButtonText}>{t('inbox.sendMessage')}</Text>
+        </AnimatedPressable>
+      ) : null}
 
       <View style={styles.tabRow}>
         <TabChip
@@ -255,6 +501,85 @@ const makeStyles = (colors: AppColors) =>
       marginBottom: spacing.md,
       marginLeft: spacing.xs,
     },
+    sendMessageButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: colors.greenLight,
+      borderRadius: radius.round,
+      paddingVertical: 10,
+      marginBottom: spacing.md,
+    },
+    sendMessageButtonText: {
+      color: colors.blackText,
+      fontSize: scaleFont(12.5),
+      fontWeight: '900',
+    },
+    composeHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    composeSectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    composeSectionLabel: {
+      color: colors.greenLight,
+      fontSize: scaleFont(11),
+      fontWeight: '900',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    peopleLabel: {
+      marginTop: spacing.md,
+    },
+    allChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radius.round,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.cardSoft,
+    },
+    allChipText: {
+      color: colors.grey,
+      fontSize: scaleFont(10.5),
+      fontWeight: '800',
+    },
+    pickRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      backgroundColor: colors.cardSoft,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 9,
+      marginBottom: 6,
+    },
+    pickRowActive: {
+      borderColor: colors.borderGreen,
+      backgroundColor: colors.greenSoft,
+    },
+    pickRowText: {
+      flex: 1,
+      minWidth: 0,
+      color: colors.white,
+      fontSize: scaleFont(12.5),
+      fontWeight: '700',
+    },
+    errorText: {
+      color: colors.red,
+      fontSize: scaleFont(11.5),
+      fontWeight: '700',
+      marginTop: spacing.sm,
+    },
     tabRow: {
       flexDirection: 'row',
       gap: spacing.sm,
@@ -322,6 +647,14 @@ const makeStyles = (colors: AppColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.card,
+    },
+    iconButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.cardSoft,
     },
     rowInfo: {
       flex: 1,

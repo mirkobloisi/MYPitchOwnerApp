@@ -17,18 +17,21 @@ export type StatusBadgeTone =
 type StatusBadgeProps = {
   label: string;
   tone?: StatusBadgeTone;
+  /** Smaller padding/text for tight spots like a compact preview card. */
+  compact?: boolean;
 };
 
 export default function StatusBadge({
   label,
   tone = 'neutral',
+  compact = false,
 }: StatusBadgeProps) {
   const { colors } = useAppTheme();
   const { styles, badgeStyles, textStyles } = buildStyles(colors);
 
   return (
-    <View style={[styles.badge, badgeStyles[tone]]}>
-      <Text style={[styles.text, textStyles[tone]]}>{label}</Text>
+    <View style={[styles.badge, compact && styles.badgeCompact, badgeStyles[tone]]}>
+      <Text style={[styles.text, compact && styles.textCompact, textStyles[tone]]}>{label}</Text>
     </View>
   );
 }
@@ -41,9 +44,16 @@ function buildStyles(colors: AppColors) {
       paddingVertical: 6,
       borderWidth: 1,
     },
+    badgeCompact: {
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+    },
     text: {
       fontSize: scaleFont(11),
       fontWeight: '900',
+    },
+    textCompact: {
+      fontSize: scaleFont(9.5),
     },
   });
 
