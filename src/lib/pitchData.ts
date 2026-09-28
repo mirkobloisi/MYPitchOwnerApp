@@ -124,7 +124,7 @@ export type AcademySessionOccurrence = {
   id: string;
   academy_id: string;
   academy_name: string;
-  kind: 'training' | 'match';
+  kind: 'match';
   title: string;
   starts_at: string;
   ends_at: string;

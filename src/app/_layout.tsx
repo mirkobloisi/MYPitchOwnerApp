@@ -41,6 +41,9 @@ function AppGate() {
   const onPendingScreen = inAuthGroup && segments[1] === 'pending';
   const onIndexRoute = group === undefined;
   const onAcceptTermsScreen = group === 'accept-terms';
+  // A parent opening their invite link has no MYPitch account at all — this
+  // page must work signed out, same as login/signup.
+  const onJoinScreen = group === 'join';
 
   useEffect(() => {
     if (isLoading || !themeReady) return;
@@ -59,9 +62,14 @@ function AppGate() {
       // onPendingScreen below and gets bounced straight back to /login the
       // instant it renders, so tapping the link from Login looked like it did
       // nothing.
-      if (!onLoginScreen && !onSignupScreen) router.replace('/login');
+      if (!onLoginScreen && !onSignupScreen && !onJoinScreen) router.replace('/login');
       return;
     }
+
+    // The join page is reachable at any auth state — a signed-out parent
+    // registering, or an owner who tapped their own link to see it — so it
+    // never gets bounced onward by the rules below either.
+    if (onJoinScreen) return;
 
     if (!isApprovedOwner) {
       if (!onPendingScreen) router.replace('/pending');
@@ -100,6 +108,7 @@ function AppGate() {
     onPendingScreen,
     onIndexRoute,
     onAcceptTermsScreen,
+    onJoinScreen,
   ]);
 
   if (isLoading || !themeReady || !fontsReady) {

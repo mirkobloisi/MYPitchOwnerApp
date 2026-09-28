@@ -14,6 +14,9 @@ export type AcademyRow = {
   cover_url: string | null;
   is_active: boolean;
   created_at: string;
+  /** Exactly one per owner — the academy a self-registration link joins. */
+  is_main: boolean;
+  invite_token: string;
 };
 
 export type AcademyMember = {
@@ -22,9 +25,19 @@ export type AcademyMember = {
   date_of_birth: string | null;
   avatar_url: string | null;
   guardian_id: string | null;
+  /** A second guardian, for a couple who registered together. */
+  guardian_id_2: string | null;
+  email: string | null;
+  phone: string | null;
   /** guardian = a parent; player = a child or a self-managing 14+ teenager. */
   member_kind: 'guardian' | 'player';
 };
+
+const ACADEMY_COLUMNS =
+  'id, pitch_owner_id, name, description, city, logo_url, cover_url, is_active, created_at, is_main, invite_token';
+
+const MEMBER_COLUMNS =
+  'id, full_name, date_of_birth, avatar_url, guardian_id, guardian_id_2, email, phone, member_kind';
 
 export type EnrolmentRow = {
   id: string;
@@ -38,7 +51,7 @@ export type EnrolmentRow = {
 export async function fetchMyAcademies(): Promise<AcademyRow[]> {
   const { data, error } = await academy()
     .from('academies')
-    .select('id, pitch_owner_id, name, description, city, logo_url, cover_url, is_active, created_at')
+    .select(ACADEMY_COLUMNS)
     .order('created_at', { ascending: true });
 
   if (error || !data) return [];
@@ -99,7 +112,7 @@ export async function fetchEnrolments(academyId: string): Promise<EnrolmentRow[]
 
   const { data: members } = await academy()
     .from('members')
-    .select('id, full_name, date_of_birth, avatar_url, guardian_id, member_kind')
+    .select(MEMBER_COLUMNS)
     .in('id', memberIds);
 
   const byId = new Map<string, AcademyMember>(
@@ -166,11 +179,74 @@ export async function fetchAcademyCounts(
 export async function fetchAcademy(academyId: string): Promise<AcademyRow | null> {
   const { data } = await academy()
     .from('academies')
-    .select('id, pitch_owner_id, name, description, city, logo_url, cover_url, is_active, created_at')
+    .select(ACADEMY_COLUMNS)
     .eq('id', academyId)
     .maybeSingle();
 
   return (data as AcademyRow) ?? null;
+}
+
+export async function setMainAcademy(academyId: string) {
+  return academy().rpc('set_main_academy', { target_academy_id: academyId });
+}
+
+export async function regenerateInviteToken(academyId: string): Promise<string | null> {
+  const { data, error } = await academy().rpc('regenerate_invite_token', {
+    target_academy_id: academyId,
+  });
+  return error ? null : (data as string);
+}
+
+export type PublicAcademy = {
+  id: string;
+  name: string;
+  city: string | null;
+  logo_url: string | null;
+  is_active: boolean;
+};
+
+/** Public, unauthenticated lookup — what the join page shows before anyone signs anything. */
+export async function fetchAcademyByInviteToken(token: string): Promise<PublicAcademy | null> {
+  const { data } = await academy().rpc('get_academy_by_invite_token', { token });
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as PublicAcademy) ?? null;
+}
+
+export type RegisterFamilyInput = {
+  inviteToken: string;
+  guardians: { fullName: string; email?: string | null; phone?: string | null }[];
+  children: { fullName: string; dateOfBirth: string | null }[];
+};
+
+/** The whole self-registration flow in one call: 1-2 guardians + their children, auto-approved. */
+export async function registerFamily(input: RegisterFamilyInput) {
+  return academy().rpc('register_family', {
+    invite_token: input.inviteToken,
+    guardians: input.guardians.map((g) => ({
+      full_name: g.fullName,
+      email: g.email ?? null,
+      phone: g.phone ?? null,
+    })),
+    children: input.children.map((c) => ({
+      full_name: c.fullName,
+      date_of_birth: c.dateOfBirth,
+    })),
+  });
+}
+
+/** Adds a member the owner already runs elsewhere into one more of their own academies. */
+export async function ownerAddEnrolment(memberId: string, academyId: string) {
+  return academy().rpc('owner_add_enrolment', {
+    target_member_id: memberId,
+    target_academy_id: academyId,
+  });
+}
+
+export async function ownerRemoveEnrolment(memberId: string, academyId: string) {
+  return academy().rpc('owner_remove_enrolment', {
+    target_member_id: memberId,
+    target_academy_id: academyId,
+  });
 }
 
 export async function respondToEnrolment(enrolmentId: string, approve: boolean) {
@@ -205,7 +281,9 @@ export async function fetchMyPitches(pitchOwnerId: string): Promise<OwnerPitch[]
   return (data ?? []) as OwnerPitch[];
 }
 
-export type SessionKind = 'training' | 'match';
+// Trainings were removed — every session is a match now. The type stays a
+// union of one so call sites that pass 'kind' don't need touching.
+export type SessionKind = 'match';
 
 export type SessionRow = {
   id: string;
@@ -313,6 +391,21 @@ export async function cancelSession(sessionId: string, cancelled: boolean) {
 
 export async function deleteSession(sessionId: string) {
   return academy().from('sessions').delete().eq('id', sessionId);
+}
+
+/** Splits an academy's matches into upcoming vs already played, for the stat row. */
+export function scheduledPlayedMatchCounts(sessions: SessionRow[]) {
+  const now = Date.now();
+  let scheduled = 0;
+  let played = 0;
+
+  for (const session of sessions) {
+    if (session.is_cancelled) continue;
+    if (new Date(session.starts_at).getTime() > now) scheduled += 1;
+    else played += 1;
+  }
+
+  return { scheduled, played };
 }
 
 
