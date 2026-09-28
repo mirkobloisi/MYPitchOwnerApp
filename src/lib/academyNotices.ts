@@ -59,6 +59,14 @@ export async function fetchNotices(): Promise<AcademyNotice[]> {
   return (data ?? []) as AcademyNotice[];
 }
 
+/** Marks one notice read — tapping it in the inbox panel is what counts as reading it. */
+export async function markNoticeRead(id: string) {
+  return academy()
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', id);
+}
+
 /**
  * Marks everything in one area read. Called when the owner opens that tab —
  * looking at it is what counts as having read it, so there is no separate

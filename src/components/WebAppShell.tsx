@@ -1,14 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { usePathname } from 'expo-router';
-import { TabList, TabSlot, TabTrigger, TabTriggerSlotProps, Tabs } from 'expo-router/ui';
-import React, { forwardRef, ReactNode, useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
+import { usePathname, useRouter } from 'expo-router';
+import React, { ReactNode, useMemo } from 'react';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import WebInboxPanel from './WebInboxPanel';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAcademyRealtime } from '../lib/academyRealtime';
 import {
   BOTTOM_BAR_HEIGHT,
+  INBOX_WIDTH,
   SIDEBAR_WIDTH,
   useBreakpoint,
 } from '../theme/breakpoints';
@@ -30,106 +30,128 @@ const NAV_ITEMS: { name: string; href: string; labelKey: string; icon: IconName 
 ];
 
 /**
- * Browser navigation for the Pitch Owner app. On a monitor it is a left
- * sidebar; in a narrow window it falls back to the same bottom bar the phone
- * app uses. Built on expo-router's headless tab primitives so the layout is
- * ours while routing stays standard.
- *
- * Native keeps using the platform tab navigator — see (tabs)/_layout.tsx.
+ * A detail screen reached from a tab (a booking, an academy's own page)
+ * still highlights the tab it came from, rather than showing no active item.
  */
-export default function WebTabsLayout() {
-  const { isDesktop } = useBreakpoint();
+const ROUTE_TAB_OVERRIDE: Record<string, string> = {
+  '/academy-details': '/academy',
+  '/academy-chat': '/academy',
+  '/academy-group': '/academy',
+  '/booking-details': '/agenda',
+  '/block-slot': '/agenda',
+  '/add-external-booking': '/agenda',
+  '/booking-settings': '/agenda',
+  '/manage-block': '/agenda',
+};
+
+/**
+ * Browser navigation for the Pitch Owner app, kept mounted at the root so it
+ * never disappears — not for the seven tabs, and not for a detail screen
+ * (an academy's own page, a booking) reached by drilling into one of them.
+ *
+ * On a wide enough monitor a second panel on the right surfaces messages and
+ * notifications without leaving whatever screen is open. Native keeps the
+ * platform tab bar and has no equivalent of either panel — see
+ * (tabs)/_layout.tsx.
+ */
+export default function WebAppShell({ children }: { children: ReactNode }) {
+  const { isDesktop, hasInboxPanel } = useBreakpoint();
   const { t } = useTranslation();
   const pathname = usePathname();
+  const router = useRouter();
   const { unread } = useAcademyRealtime();
+  const { colors } = useAppTheme();
+  const themed = useMemo(() => makeStyles(colors), [colors]);
 
-  // A bell sits on the tab a notice came from, so the owner is pointed at the
-  // thing that changed rather than at an inbox to sift through.
+  if (Platform.OS !== 'web') return <>{children}</>;
+
   const waiting: Record<string, number> = {
     academy: unread.players + unread.parents + unread.messages,
   };
 
+  const effectivePath = ROUTE_TAB_OVERRIDE[pathname] ?? pathname;
+
   return (
-    <Tabs style={styles.root}>
-      <Animated.View
-        key={pathname}
-        // Reanimated switches entering animations off when the OS asks for
-        // reduced motion. This one only cross-fades opacity — nothing moves —
-        // so it's safe to keep either way.
-        entering={FadeIn.duration(240).reduceMotion(ReduceMotion.Never)}
+    <View style={styles.root}>
+      <View
         style={[
-          styles.slot,
+          styles.content,
           isDesktop ? { paddingLeft: SIDEBAR_WIDTH } : { paddingBottom: BOTTOM_BAR_HEIGHT },
+          hasInboxPanel ? { paddingRight: INBOX_WIDTH } : null,
         ]}
       >
-        <TabSlot style={styles.slot} />
-      </Animated.View>
-
-      <TabList asChild>
-        <NavBar isDesktop={isDesktop}>
-          {NAV_ITEMS.map((item) => (
-            <TabTrigger key={item.name} name={item.name} href={item.href} asChild>
-              <NavItem
-                label={t(item.labelKey)}
-                icon={item.icon}
-                isDesktop={isDesktop}
-                waiting={waiting[item.name] ?? 0}
-              />
-            </TabTrigger>
-          ))}
-        </NavBar>
-      </TabList>
-    </Tabs>
-  );
-}
-
-function NavBar({ children, isDesktop }: { children?: ReactNode; isDesktop: boolean }) {
-  const { colors } = useAppTheme();
-  const { t } = useTranslation();
-  const themed = useMemo(() => makeStyles(colors), [colors]);
-
-  if (!isDesktop) {
-    return <View style={[themed.bottomBar]}>{children}</View>;
-  }
-
-  return (
-    <View style={themed.sidebar}>
-      <View style={themed.brandRow}>
-        <Image
-          source={require('../../assets/images/mypitch-logo.png')}
-          style={themed.brandLogo}
-          resizeMode="contain"
-          accessibilityLabel="MYPitch"
-        />
-        <Text style={themed.brandRole}>{t('login.subtitle')}</Text>
+        {children}
       </View>
 
-      <View style={themed.navGroup}>{children}</View>
+      {isDesktop ? (
+        <View style={themed.sidebar}>
+          <View style={themed.brandRow}>
+            <Image
+              source={require('../../assets/images/mypitch-logo.png')}
+              style={themed.brandLogo}
+              resizeMode="contain"
+              accessibilityLabel="MYPitch"
+            />
+            <Text style={themed.brandRole}>{t('login.subtitle')}</Text>
+          </View>
+
+          <View style={themed.navGroup}>
+            {NAV_ITEMS.map((item) => (
+              <NavItem
+                key={item.name}
+                label={t(item.labelKey)}
+                icon={item.icon}
+                isDesktop
+                isFocused={effectivePath === item.href}
+                waiting={waiting[item.name] ?? 0}
+                onPress={() => router.replace(item.href as any)}
+              />
+            ))}
+          </View>
+        </View>
+      ) : (
+        <View style={themed.bottomBar}>
+          {NAV_ITEMS.map((item) => (
+            <NavItem
+              key={item.name}
+              label={t(item.labelKey)}
+              icon={item.icon}
+              isDesktop={false}
+              isFocused={effectivePath === item.href}
+              waiting={waiting[item.name] ?? 0}
+              onPress={() => router.replace(item.href as any)}
+            />
+          ))}
+        </View>
+      )}
+
+      {hasInboxPanel ? <WebInboxPanel /> : null}
     </View>
   );
 }
 
-type NavItemProps = TabTriggerSlotProps & {
+function NavItem({
+  label,
+  icon,
+  isDesktop,
+  isFocused,
+  waiting,
+  onPress,
+}: {
   label: string;
   icon: IconName;
   isDesktop: boolean;
-  /** How many notices are waiting on this tab; 0 draws no bell. */
+  isFocused: boolean;
   waiting: number;
-};
-
-const NavItem = forwardRef<View, NavItemProps>(function NavItem(
-  { label, icon, isDesktop, waiting, isFocused, children, ...pressableProps },
-  ref
-) {
+  onPress: () => void;
+}) {
   const { colors } = useAppTheme();
   const themed = useMemo(() => makeStyles(colors), [colors]);
-
   const tint = isFocused ? colors.greenLight : colors.greyDark;
 
   return (
     <Pressable
-      ref={ref}
-      {...pressableProps}
+      onPress={onPress}
       style={(state) => [
         isDesktop ? themed.sidebarItem : themed.bottomItem,
         isDesktop && isFocused && themed.sidebarItemActive,
@@ -160,21 +182,19 @@ const NavItem = forwardRef<View, NavItemProps>(function NavItem(
       </Text>
     </Pressable>
   );
-});
+}
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  slot: {
+  content: {
     flex: 1,
   },
 });
 
 const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
-    // A bell rather than a plain dot: it says what kind of thing is waiting,
-    // not merely that something is.
     bell: {
       position: 'absolute',
       right: -6,
@@ -205,7 +225,6 @@ const makeStyles = (colors: AppColors) =>
     brandLogo: {
       width: '100%',
       maxWidth: 182,
-      // Matches the exported asset (600 x 177) so it never distorts.
       aspectRatio: 600 / 177,
     },
     brandRole: {

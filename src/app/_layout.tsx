@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import WebAppShell from '../components/WebAppShell';
 import { AcademyRealtimeProvider } from '../lib/academyRealtime';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { useAppTheme, ThemeProvider } from '../theme/ThemeContext';
@@ -126,43 +127,52 @@ function AppGate() {
     );
   }
 
+  // Nothing to put a nav shell around before the owner is actually in the
+  // app: signed-out screens, the terms gate, and a parent's invite link have
+  // no owner context (or, for accept-terms, no navigating away yet anyway).
+  const showAppShell = !inAuthGroup && !onAcceptTermsScreen && !onJoinScreen;
+
+  const stack = (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+        animation: 'fade',
+        animationDuration: 180,
+      }}
+    >
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="accept-terms" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="(tabs)" />
+      {/* `presentation: 'modal'` gives native its sheet transition, but on
+          web it has none of its own — so state the slide explicitly. */}
+      <Stack.Screen
+        name="add-external-booking"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="block-slot"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="booking-settings"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="booking-details"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="manage-block"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+    </Stack>
+  );
+
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-          animation: 'fade',
-          animationDuration: 180,
-        }}
-      >
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="accept-terms" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="(tabs)" />
-        {/* `presentation: 'modal'` gives native its sheet transition, but on
-            web it has none of its own — so state the slide explicitly. */}
-        <Stack.Screen
-          name="add-external-booking"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="block-slot"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="booking-settings"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="booking-details"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="manage-block"
-          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-        />
-      </Stack>
+      {showAppShell ? <WebAppShell>{stack}</WebAppShell> : stack}
     </>
   );
 }

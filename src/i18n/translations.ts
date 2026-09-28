@@ -57,6 +57,14 @@ export const translations = {
       transactions: 'Transactions',
       profile: 'Profile',
     },
+    inbox: {
+      title: 'Inbox',
+      messages: 'Messages',
+      notifications: 'Notifications',
+      noMessages: 'No conversations yet.',
+      noNotifications: 'Nothing yet.',
+      justNow: 'Now',
+    },
     academy: {
       title: 'Academy',
       subtitle: 'Your academies, members and enrolment requests',
@@ -653,6 +661,14 @@ export const translations = {
       stats: 'Στατιστικά',
       transactions: 'Συναλλαγές',
       profile: 'Προφίλ',
+    },
+    inbox: {
+      title: 'Εισερχόμενα',
+      messages: 'Μηνύματα',
+      notifications: 'Ειδοποιήσεις',
+      noMessages: 'Καμία συνομιλία ακόμη.',
+      noNotifications: 'Τίποτα ακόμη.',
+      justNow: 'Τώρα',
     },
     academy: {
       title: 'Ακαδημία',
@@ -1253,6 +1269,14 @@ export const translations = {
       stats: 'Статистика',
       transactions: 'Транзакции',
       profile: 'Профиль',
+    },
+    inbox: {
+      title: 'Входящие',
+      messages: 'Сообщения',
+      notifications: 'Уведомления',
+      noMessages: 'Пока нет переписок.',
+      noNotifications: 'Пока ничего нет.',
+      justNow: 'Сейчас',
     },
     academy: {
       title: 'Академия',

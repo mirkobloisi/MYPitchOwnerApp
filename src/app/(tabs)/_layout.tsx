@@ -1,9 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
+import { Stack, Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
 
-import WebTabsLayout from '../../components/WebTabsLayout';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { useAcademyRealtime } from '../../lib/academyRealtime';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -14,11 +13,19 @@ export default function TabsLayout() {
   const { t } = useTranslation();
   const { unread } = useAcademyRealtime();
 
-  // In a browser the app uses a sidebar layout; phones and tablets keep the
-  // platform tab bar untouched. Platform.OS never changes at runtime, so this
-  // branch can't cause a remount.
+  // The browser's nav (sidebar on a monitor, a bottom bar otherwise) is
+  // drawn once at the root — see WebAppShell — so it stays put across tabs
+  // *and* the detail screens reached from them. This is just a plain stack
+  // of the same seven screens for that shell to wrap. Phones and tablets
+  // keep the platform tab bar untouched. Platform.OS never changes at
+  // runtime, so this branch can't cause a remount.
   if (Platform.OS === 'web') {
-    return <WebTabsLayout />;
+    return (
+      <Stack
+        initialRouteName="agenda"
+        screenOptions={{ headerShown: false, animation: 'none' }}
+      />
+    );
   }
 
   return (
