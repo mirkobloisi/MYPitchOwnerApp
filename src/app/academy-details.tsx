@@ -40,7 +40,7 @@ import {
   signedMemberAvatars,
 } from '../lib/avatarUpload';
 import { AppColors } from '../theme/palettes';
-import { useBreakpoint } from '../theme/breakpoints';
+import { WIDE_CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius, spacing } from '../theme/layout';
 import { scaleFont } from '../theme/typography';
@@ -279,7 +279,7 @@ export default function AcademyDetailsScreen() {
 
   if (isLoading) {
     return (
-      <Screen maxWidth={1040}>
+      <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH}>
         <AppHeader title={t('academy.title')} />
         <ActivityIndicator color={colors.greenLight} style={styles.loading} />
       </Screen>
@@ -288,7 +288,7 @@ export default function AcademyDetailsScreen() {
 
   if (!item) {
     return (
-      <Screen maxWidth={1040}>
+      <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH}>
         <AppHeader title={t('academy.title')} />
         <View style={styles.emptyBox}>
           <Text style={styles.emptyText}>{t('academy.notFound')}</Text>
@@ -443,7 +443,7 @@ export default function AcademyDetailsScreen() {
   );
 
   return (
-    <Screen maxWidth={1040}>
+    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH}>
       <AppHeader
         title={item.name}
         subtitle={item.city ?? undefined}
