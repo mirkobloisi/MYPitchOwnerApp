@@ -1,8 +1,20 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import AnimatedPressable from '../components/AnimatedPressable';
 import AppButton from '../components/AppButton';
@@ -47,15 +59,43 @@ import { scaleFont } from '../theme/typography';
 
 const JOIN_LINK_BASE = 'https://mypitch-owner-app.vercel.app/join';
 const REMOVE_VALUE = '__remove__';
+const DRAWER_ANIM_MS = 260;
 
 export default function AcademyDetailsScreen() {
   const { academyId } = useLocalSearchParams<{ academyId: string }>();
   const router = useRouter();
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const { isWide } = useBreakpoint();
+  const { width } = useBreakpoint();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { markRead } = useAcademyRealtime();
+
+  // Players & parents live in a drawer that slides in from the right rather
+  // than always taking up screen space. `isRosterMounted` keeps the Modal
+  // alive for the close animation to finish before it unmounts.
+  const [isRosterOpen, setIsRosterOpen] = useState(false);
+  const [isRosterMounted, setIsRosterMounted] = useState(false);
+  const drawerAnim = useRef(new Animated.Value(0)).current;
+  const drawerWidth = Math.min(380, width * 0.9);
+
+  function openRoster() {
+    setIsRosterMounted(true);
+    setIsRosterOpen(true);
+  }
+
+  function closeRoster() {
+    setIsRosterOpen(false);
+  }
+
+  useEffect(() => {
+    Animated.timing(drawerAnim, {
+      toValue: isRosterOpen ? 1 : 0,
+      duration: DRAWER_ANIM_MS,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && !isRosterOpen) setIsRosterMounted(false);
+    });
+  }, [isRosterOpen, drawerAnim]);
 
   const [item, setItem] = useState<AcademyRow | null>(null);
   const [enrolments, setEnrolments] = useState<EnrolmentRow[]>([]);
@@ -360,13 +400,6 @@ export default function AcademyDetailsScreen() {
         </>
       ) : null}
 
-      {!isWide ? (
-        <>
-          <Text style={styles.heading}>{t('academy.rosterHeading')}</Text>
-          {roster}
-        </>
-      ) : null}
-
       <Text style={styles.heading}>{t('academy.tabMatches')}</Text>
 
       {matches.length === 0 ? (
@@ -448,19 +481,26 @@ export default function AcademyDetailsScreen() {
         title={item.name}
         subtitle={item.city ?? undefined}
         right={
-          <AnimatedPressable
-            style={styles.editButton}
-            onPress={() => setIsEditingDetails((v) => !v)}
-          >
-            <Ionicons
-              name={isEditingDetails ? 'close' : 'create-outline'}
-              size={15}
-              color={colors.greenLight}
-            />
-            <Text style={styles.editButtonText}>
-              {isEditingDetails ? t('common.cancel') : t('common.edit')}
-            </Text>
-          </AnimatedPressable>
+          <View style={styles.headerActions}>
+            <AnimatedPressable style={styles.rosterButton} onPress={openRoster}>
+              <Ionicons name="people-outline" size={15} color={colors.blueLight} />
+              <Text style={styles.rosterButtonText}>{t('academy.rosterButton')}</Text>
+            </AnimatedPressable>
+
+            <AnimatedPressable
+              style={styles.editButton}
+              onPress={() => setIsEditingDetails((v) => !v)}
+            >
+              <Ionicons
+                name={isEditingDetails ? 'close' : 'create-outline'}
+                size={15}
+                color={colors.greenLight}
+              />
+              <Text style={styles.editButtonText}>
+                {isEditingDetails ? t('common.cancel') : t('common.edit')}
+              </Text>
+            </AnimatedPressable>
+          </View>
         }
       />
 
@@ -541,17 +581,41 @@ export default function AcademyDetailsScreen() {
         </View>
       ) : null}
 
-      {isWide ? (
-        <View style={styles.wideLayout}>
-          <View style={styles.mainColumn}>{mainColumn}</View>
-          <View style={styles.sideColumn}>
-            <Text style={styles.heading}>{t('academy.rosterHeading')}</Text>
-            {roster}
+      {mainColumn}
+
+      <Modal transparent visible={isRosterMounted} animationType="none" onRequestClose={closeRoster}>
+        <Animated.View style={[styles.drawerBackdrop, { opacity: drawerAnim }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeRoster} />
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            styles.drawer,
+            {
+              width: drawerWidth,
+              transform: [
+                {
+                  translateX: drawerAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [drawerWidth, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.drawerHeader}>
+            <Text style={styles.drawerTitle}>{t('academy.rosterHeading')}</Text>
+            <AnimatedPressable style={styles.iconButton} onPress={closeRoster}>
+              <Ionicons name="close" size={18} color={colors.grey} />
+            </AnimatedPressable>
           </View>
-        </View>
-      ) : (
-        mainColumn
-      )}
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.drawerContent}>
+            {roster}
+          </ScrollView>
+        </Animated.View>
+      </Modal>
 
       <AvatarCropModal
         visible={!!pickedLogo}
@@ -741,6 +805,11 @@ const makeStyles = (colors: AppColors) =>
     loading: {
       marginTop: spacing.xl,
     },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
     editButton: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -756,6 +825,57 @@ const makeStyles = (colors: AppColors) =>
       color: colors.greenLight,
       fontSize: scaleFont(12),
       fontWeight: '800',
+    },
+    rosterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: radius.round,
+      borderWidth: 1,
+      borderColor: colors.borderBlue,
+      backgroundColor: colors.blueSoft,
+    },
+    rosterButtonText: {
+      color: colors.blueLight,
+      fontSize: scaleFont(12),
+      fontWeight: '800',
+    },
+    drawerBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+    },
+    drawer: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.background,
+      borderLeftWidth: 1,
+      borderColor: colors.border,
+      paddingTop: 50,
+      paddingHorizontal: spacing.md,
+    },
+    drawerHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    drawerTitle: {
+      color: colors.greenLight,
+      fontSize: scaleFont(14),
+      fontWeight: '900',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    drawerContent: {
+      paddingBottom: spacing.xl,
     },
     logoRow: {
       flexDirection: 'row',
@@ -812,19 +932,6 @@ const makeStyles = (colors: AppColors) =>
       color: colors.blackText,
       fontSize: scaleFont(11),
       fontWeight: '900',
-    },
-    wideLayout: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.lg,
-    },
-    mainColumn: {
-      flex: 2,
-      minWidth: 0,
-    },
-    sideColumn: {
-      flex: 1,
-      minWidth: 260,
     },
     statRow: {
       flexDirection: 'row',
