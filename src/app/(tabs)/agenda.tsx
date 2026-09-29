@@ -627,7 +627,6 @@ export default function AgendaScreen() {
       { label: t('nav.pitches'), route: '/(tabs)/pitches' },
       { label: t('nav.stats'), route: '/(tabs)/stats' },
       { label: t('nav.transactions'), route: '/(tabs)/transactions' },
-      { label: t('nav.profile'), route: '/(tabs)/profile' },
     ];
 
     return (
