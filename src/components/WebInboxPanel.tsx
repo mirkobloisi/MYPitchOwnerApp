@@ -398,6 +398,7 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
       {tab === 'notifications' && notificationsUnread > 0 ? (
         <AnimatedPressable
           style={styles.markAllRead}
+          contentStyle={styles.actionContent}
           onPress={markAllNoticesRead}
           disabled={isMarkingNoticesRead}
           accessibilityRole="button"
@@ -532,7 +533,13 @@ function TabChip({
   onPress: () => void;
 }) {
   return (
-    <AnimatedPressable style={[styles.tabChip, active && styles.tabChipActive]} onPress={onPress}>
+    <AnimatedPressable
+      style={[styles.tabChip, active && styles.tabChipActive]}
+      contentStyle={styles.actionContent}
+      onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+    >
       <Text style={[styles.tabChipText, active && styles.tabChipTextActive]}>{label}</Text>
       {count > 0 ? (
         <View style={styles.tabChipBell}>
@@ -707,6 +714,13 @@ const makeStyles = (colors: AppColors, isWeb: boolean) =>
       flexDirection: 'row',
       gap: 8,
       marginBottom: 9,
+    },
+    actionContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      maxWidth: '100%',
     },
     tabChip: {
       flex: 1,

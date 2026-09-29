@@ -375,7 +375,7 @@ export default function AvailabilityScreen() {
           </View>
           <View style={styles.desktopPitchBadge}>
             <View style={styles.desktopPitchDot} />
-            <Text style={styles.desktopPitchText} numberOfLines={1}>{pitchOwner?.business_name || activePitch.name}</Text>
+            <Text style={styles.desktopPitchText} numberOfLines={1}>{pitchOwner?.business_name?.trim() || t('availability.sportsCenter')}</Text>
           </View>
         </View>
       ) : <AppHeader title={t('availability.title')} subtitle={t('availability.subtitle')} showBack={false} />}
@@ -421,6 +421,8 @@ export default function AvailabilityScreen() {
                             pressedScale={0.9}
                             style={styles.removeButton}
                             onPress={() => removeRange(draft.dayOfWeek, range.key)}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('availability.removePeriod', { index: index + 1 })}
                           >
                             <Ionicons name="close" size={14} color={colors.red} />
                           </AnimatedPressable>
@@ -463,7 +465,10 @@ export default function AvailabilityScreen() {
                   <AnimatedPressable
                     pressedScale={0.97}
                     style={styles.addRangeButton}
+                    contentStyle={styles.actionContent}
                     onPress={() => addRange(draft.dayOfWeek)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${DAY_LABELS[draft.dayOfWeek]}: ${t('availability.addAnotherPeriod')}`}
                   >
                     <Ionicons name="add" size={15} color={colors.blueLight} />
                     <Text style={styles.addRangeText}>{t('availability.addAnotherPeriod')}</Text>
@@ -480,8 +485,11 @@ export default function AvailabilityScreen() {
 
           <AnimatedPressable
             style={styles.saveAllButton}
+            contentStyle={styles.actionContent}
             onPress={saveAll}
             disabled={isSavingAll}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSavingAll, busy: isSavingAll }}
           >
             {isSavingAll ? (
               <ActivityIndicator color={colors.background} size="small" />
@@ -627,7 +635,7 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     removeButton: {
       width: 24,
       height: 24,
-      borderRadius: radius.round,
+      borderRadius: desktop ? 7 : radius.round,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.redSoft,
@@ -647,7 +655,7 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       marginBottom: 4,
     },
     timeInput: {
-      borderRadius: radius.sm,
+      borderRadius: desktop ? 7 : radius.sm,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.cardDark,
@@ -660,7 +668,7 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     addRangeButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      justifyContent: 'center',
       alignSelf: 'flex-start',
       flexGrow: desktop ? 0 : undefined,
       flexShrink: desktop ? 0 : undefined,
@@ -678,6 +686,12 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       color: colors.blueLight,
       fontSize: desktop ? 13 : scaleFont(12),
       fontWeight: desktop ? '600' : '800',
+    },
+    actionContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
     },
     closedText: {
       color: colors.greyDark,
