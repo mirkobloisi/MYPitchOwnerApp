@@ -158,7 +158,7 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
   </Screen>;
 }
 const styles = StyleSheet.create({
-  root: { backgroundColor: '#090F16' }, background: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100%' }, content: { flex: 1, paddingHorizontal: 0, paddingVertical: 0 },
+  root: { backgroundColor: '#090F16' }, background: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100%' }, content: { flex: 1, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0 },
   header: { height: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: c.borderSoft }, headerButton: { width: 35, height: 40, justifyContent: 'center' }, logo: { width: 112, height: 38 },
   titleRow: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 15 }, heading: { color: c.white, fontSize: 25, fontWeight: '700' }, subtitle: { color: c.grey, fontSize: 12, marginTop: 4 },
   scroll: { flex: 1 }, form: { paddingHorizontal: 20, paddingBottom: 24, gap: 17 }, field: { flex: 1, minWidth: 0, gap: 7 }, label: { color: c.grey, fontSize: 12, fontWeight: '600' },
