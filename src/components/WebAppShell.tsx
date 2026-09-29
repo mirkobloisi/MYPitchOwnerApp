@@ -204,7 +204,7 @@ function NavItem({
       ]}
     >
       <View>
-        <Ionicons name={icon} size={isDesktop ? (weekline ? 15 : 18) : 20} color={tint} />
+        <Ionicons name={icon} size={isDesktop ? (weekline ? 17 : 18) : 20} color={tint} />
 
         {waiting > 0 ? (
           <View style={themed.bell}>
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   weeklineNavHeading: {
     color: '#84A5BC',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   weeklineNavText: {
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: '500',
   },
   weeklineNavTextActive: {
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   weeklineInboxLabel: {
-    fontSize: 12.5,
+    fontSize: 14,
   },
   weeklineOwnerFooter: {
     marginTop: 'auto',
