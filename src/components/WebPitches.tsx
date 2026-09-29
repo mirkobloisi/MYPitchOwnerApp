@@ -110,12 +110,14 @@ function DesktopPitches({
   const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
   const filtered = pitches.filter((pitch) => statusFilter === 'all' || pitch.status === statusFilter);
+  const displayedPitch = filtered.find((pitch) => pitch.id === selectedPitch?.id) ?? filtered[0];
   return (
-    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} ambientGlows={false} style={styles.canvas} contentStyle={styles.desktopContent}>
+    <Screen scroll={false} maxWidth={WIDE_CONTENT_MAX_WIDTH} ambientGlows={false} style={styles.canvas} contentStyle={styles.desktopContent}>
       <View style={[styles.heading, styles.desktopHeading]}>
         <View style={styles.headingText}><Text accessibilityRole="header" style={styles.title}>{t('pitches.title')}</Text><Text style={styles.subtitle}>{t('pitches.subtitle')}</Text></View>
-        <View style={styles.centerBadge}><Ionicons name="business-outline" size={15} color={colors.blueLight} /><Text style={styles.centerName} numberOfLines={1}>{pitchOwner?.business_name?.trim() || t('availability.sportsCenter')}</Text><Ionicons name="chevron-down" size={15} color={colors.grey} /></View>
+        <View style={styles.desktopPitchBadge}><Ionicons name="business-outline" size={15} color={colors.blueLight} /><Text style={styles.centerName} numberOfLines={1}>{pitchOwner?.business_name?.trim() || t('availability.sportsCenter')}</Text></View>
       </View>
+      <View style={styles.desktopMain}>
       <View style={styles.desktopTableCard}>
         <View style={styles.desktopTableToolbar}>
           <View><Text style={styles.desktopTableTitle}>Your pitches</Text><Text style={styles.desktopTableCount}>{pitches.length} {pitches.length === 1 ? 'pitch' : 'pitches'}</Text></View>
@@ -124,11 +126,14 @@ function DesktopPitches({
             {(['all', 'active', 'paused'] as const).map((filter) => <Pressable key={filter} onPress={() => setStatusFilter(filter)} style={[styles.desktopFilter, statusFilter === filter && styles.desktopFilterSelected]}><Text style={[styles.desktopFilterText, statusFilter === filter && styles.desktopFilterTextSelected]}>{filter === 'all' ? 'All' : filter[0].toUpperCase() + filter.slice(1)}</Text></Pressable>)}
           </View>
         </View>
-        <View style={styles.desktopTableHeader}>{['Pitch', 'Format', 'Type', 'Price / hour', 'Durations', 'Status', 'Actions'].map((label) => <Text key={label} style={styles.desktopColumnLabel}>{label}</Text>)}</View>
-        {filtered.map((pitch) => <DesktopPitchRow key={pitch.id} pitch={pitch} selected={pitch.id === selectedPitch?.id} onPress={() => setPreviewId(pitch.id)} />)}
-        {filtered.length === 0 ? <Text style={styles.empty}>{t('pitches.noSearchResults')}</Text> : null}
+        <View style={styles.desktopTableHeader}>{['Pitch', 'Format', 'Type', 'Price / hour', 'Durations', 'Status', 'Actions'].map((label, index) => <Text key={label} style={[styles.desktopColumnLabel, [styles.desktopColPitch, styles.desktopColFormat, styles.desktopColType, styles.desktopColPrice, styles.desktopColDuration, styles.desktopColStatus, styles.desktopColActions][index]]}>{label}</Text>)}</View>
+        <ScrollView style={styles.desktopPitchRows} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
+          {filtered.map((pitch) => <DesktopPitchRow key={pitch.id} pitch={pitch} selected={pitch.id === displayedPitch?.id} onPress={() => setPreviewId(pitch.id)} />)}
+          {filtered.length === 0 ? <Text style={styles.empty}>{pitches.length === 0 ? t('pitches.noPitches') : t('pitches.noSearchResults')}</Text> : null}
+        </ScrollView>
       </View>
-      {selectedPitch ? <DesktopPitchDetails pitch={selectedPitch} /> : null}
+      {displayedPitch ? <DesktopPitchDetails pitch={displayedPitch} /> : null}
+      </View>
     </Screen>
   );
 }
@@ -139,10 +144,10 @@ function DesktopPitchRow({ pitch, selected, onPress }: { pitch: PitchRecord; sel
   const router = useRouter();
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
   return <Pressable onPress={onPress} style={[styles.desktopPitchRow, selected && styles.desktopPitchRowSelected]}>
-    <View style={styles.desktopPitchCell}><View style={styles.desktopRowPhoto}><PitchPhoto uri={pitch.image_urls?.[0]} label={pitch.name} /></View><View style={styles.desktopPitchName}><Text style={styles.desktopCellStrong} numberOfLines={1}>{pitch.name}</Text><Text style={styles.desktopCellMuted}><Ionicons name="location" size={14} color={colors.blueLight} /> {pitch.city || pitch.area}</Text></View></View>
-    <Text style={styles.desktopCellStrong}>{pitch.format}</Text><Text style={styles.desktopCellMuted}>{pitch.pitch_type || 'Outdoor'}</Text><Text style={styles.desktopCellStrong}>€{Number(pitch.price_per_hour).toFixed(0)}</Text><Text style={styles.desktopCellMuted}>{durations.map((minutes) => `${minutes} min`).join(' / ')}</Text>
-    <View><PitchStatus status={pitch.status} /><Text style={styles.desktopCellMuted}>{pitch.id === activePitch?.id ? 'Selected in Agenda' : 'Not in Agenda'}</Text></View>
-    <View style={styles.desktopRowActions}><Pressable style={styles.desktopOutlineButton} onPress={() => router.push({ pathname: '/booking-settings', params: { pitchId: pitch.id } })}><Ionicons name="settings-outline" size={16} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.manageBookingSettings')}</Text></Pressable><Pressable style={styles.desktopPrimaryButton} onPress={() => setActivePitchId(pitch.id)}><Ionicons name="calendar-outline" size={16} color={colors.blackText} /><Text style={styles.desktopPrimaryText}>Use in Agenda</Text></Pressable></View>
+    <View style={[styles.desktopPitchCell, styles.desktopColPitch]}><View style={styles.desktopRowPhoto}><PitchPhoto uri={pitch.image_urls?.[0]} label={pitch.name} /></View><View style={styles.desktopPitchName}><Text style={styles.desktopCellStrong} numberOfLines={1}>{pitch.name}</Text><Text style={styles.desktopCellMuted}><Ionicons name="location" size={14} color={colors.blueLight} /> {pitch.city || pitch.area}</Text></View></View>
+    <View style={styles.desktopColFormat}><Text style={styles.desktopCellStrong}>{pitch.format}</Text></View><View style={styles.desktopColType}><Text style={styles.desktopCellMuted} numberOfLines={2}>{pitch.pitch_type || 'Outdoor'}</Text></View><View style={styles.desktopColPrice}><Text style={styles.desktopCellStrong}>€{Number(pitch.price_per_hour).toFixed(0)}</Text></View><View style={styles.desktopColDuration}><Text style={styles.desktopCellMuted}>{durations.map((minutes) => `${minutes} min`).join(' / ')}</Text></View>
+    <View style={styles.desktopColStatus}><PitchStatus status={pitch.status} /><Text style={styles.desktopCellMuted}>{pitch.id === activePitch?.id ? 'Selected in Agenda' : 'Not in Agenda'}</Text></View>
+    <View style={[styles.desktopRowActions, styles.desktopColActions]}><Pressable style={styles.desktopOutlineButton} onPress={() => router.push({ pathname: '/booking-settings', params: { pitchId: pitch.id } })}><Ionicons name="settings-outline" size={15} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.manageBookingSettings')}</Text></Pressable><Pressable style={styles.desktopPrimaryButton} onPress={() => setActivePitchId(pitch.id)}><Ionicons name="calendar-outline" size={15} color={colors.blackText} /><Text style={styles.desktopPrimaryText}>Use in Agenda</Text></Pressable></View>
   </Pressable>;
 }
 
@@ -152,7 +157,7 @@ function DesktopPitchDetails({ pitch }: { pitch: PitchRecord }) {
   const photos = (pitch.image_urls ?? []).filter(Boolean);
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
   return <View style={styles.desktopDetailCard}>
-    <View style={styles.desktopDetailTop}><View style={styles.desktopDetailTitleRow}><Text style={styles.desktopDetailTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /><View style={styles.desktopDetailDivider} /><Text style={styles.desktopSelectedText}>{t('pitches.showingInAgenda')}</Text></View><Pressable style={styles.desktopOutlineButton} onPress={() => pitch.maps_url && Linking.openURL(pitch.maps_url)}><Ionicons name="open-outline" size={16} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.openInMaps')}</Text></Pressable></View>
+    <View style={styles.desktopDetailTop}><View style={styles.desktopDetailTitleRow}><Text style={styles.desktopDetailTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View><Pressable style={styles.desktopOutlineButton} onPress={() => pitch.maps_url && Linking.openURL(pitch.maps_url)}><Ionicons name="open-outline" size={16} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.openInMaps')}</Text></Pressable></View>
     <View style={styles.desktopDetailBody}><View style={styles.desktopDetailImage}><PitchPhoto uri={photos[0]} label={pitch.name} large /></View><View style={styles.desktopDescriptionColumn}>{pitch.description ? <Text style={styles.desktopDescription}>{pitch.description}</Text> : null}<Text style={styles.desktopFacilitiesTitle}>{t('pitches.facilitiesLabel')}</Text><View style={styles.desktopDetailFacilities}>{(pitch.facilities ?? []).map((facility, index) => <View key={`${facility}-${index}`} style={styles.desktopDetailFacility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={21} color={colors.blueLight} /><Text style={styles.desktopCellMuted}>{facility}</Text></View>)}</View></View><View style={styles.desktopDetailStats}><SpecLine label={t('pitches.formatLabel')} value={pitch.format} /><SpecLine label={t('pitches.typeLabel')} value={pitch.pitch_type || 'Outdoor'} /><SpecLine label={t('pitches.priceLabel')} value={`€${Number(pitch.price_per_hour).toFixed(0)}`} /><SpecLine label={t('pitches.matchDurationLabel')} value={durations.map((minutes) => `${minutes} min`).join(' / ')} /><SpecLine label={t('pitches.locationLabel')} value={pitch.city || pitch.area || ''} /></View></View>
     <View style={styles.desktopDetailNote}><Ionicons name="information-circle-outline" size={18} color={colors.grey} /><Text style={styles.supportText}>{t('pitches.noteText')}</Text></View>
   </View>;
@@ -241,8 +246,8 @@ function Spec({ icon, label, value }: { icon: IconName; label: string; value: st
 const styles = StyleSheet.create({
   canvas: { backgroundColor: '#08111A' },
   content: { paddingTop: 18, paddingBottom: 100 },
-  desktopContent: { paddingTop: 14, paddingBottom: 12, minHeight: 0 },
-  desktopHeading: { marginBottom: 12, flexShrink: 0 },
+  desktopContent: { flex: 1, minHeight: 0, paddingTop: 14, paddingBottom: 12 },
+  desktopHeading: { marginBottom: 12, flexShrink: 0, minHeight: 44 },
   desktopWorkspace: { flex: 1, minHeight: 0 },
   desktopNavigator: { width: 280, minHeight: 0 },
   // The list scrolls independently; it cannot push the detail panel off screen.
@@ -260,50 +265,60 @@ const styles = StyleSheet.create({
   desktopFacilities: { gap: 12 },
   desktopActions: { marginTop: 16, paddingTop: 12, flexShrink: 0 },
   desktopSupportNote: { marginTop: 12, justifyContent: 'flex-start', flexShrink: 0 },
-  desktopTableCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft, overflow: 'hidden' },
-  desktopTableToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 20, padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
-  desktopTableTitle: { color: colors.white, fontSize: 20, fontWeight: '600' },
-  desktopTableCount: { color: colors.grey, fontSize: 13, marginTop: 4 },
-  desktopTableFilters: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  desktopSearch: { width: 320, height: 42, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 6, backgroundColor: colors.card },
-  desktopSearchInput: { flex: 1, color: colors.white, fontSize: 14, paddingVertical: 8 },
-  desktopFilter: { height: 42, minWidth: 86, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 6 },
-  desktopFilterSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueLight },
-  desktopFilterText: { color: colors.greyLight, fontSize: 14 },
-  desktopFilterTextSelected: { color: colors.blackText, fontWeight: '700' },
-  desktopTableHeader: { flexDirection: 'row', alignItems: 'center', minHeight: 50, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.backgroundSoft },
-  desktopColumnLabel: { color: colors.grey, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', flex: 1 },
-  desktopPitchRow: { flexDirection: 'row', alignItems: 'center', minHeight: 112, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 16 },
+  desktopMain: { flex: 1, minHeight: 0, gap: 12 },
+  desktopPitchBadge: { maxWidth: 250, minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  desktopTableCard: { flex: 1, minHeight: 180, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft, overflow: 'hidden' },
+  desktopTableToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  desktopTableTitle: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  desktopTableCount: { color: colors.grey, fontSize: 12, marginTop: 3 },
+  desktopTableFilters: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  desktopSearch: { width: 250, height: 36, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 7, backgroundColor: colors.card },
+  desktopSearchInput: { flex: 1, color: colors.white, fontSize: 13, paddingVertical: 6 },
+  desktopFilter: { height: 32, minWidth: 58, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 11, borderWidth: 1, borderColor: colors.border, borderRadius: 7, backgroundColor: colors.card },
+  desktopFilterSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
+  desktopFilterText: { color: colors.greyLight, fontSize: 12, fontWeight: '500' },
+  desktopFilterTextSelected: { color: colors.blueLight, fontWeight: '600' },
+  desktopTableHeader: { flexDirection: 'row', alignItems: 'center', minHeight: 32, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.backgroundSoft },
+  desktopPitchRows: { flex: 1, minHeight: 0 },
+  desktopColumnLabel: { color: colors.grey, fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
+  desktopColPitch: { flex: 2.2, minWidth: 0 },
+  desktopColFormat: { flex: 0.7, minWidth: 50 },
+  desktopColType: { flex: 1, minWidth: 65 },
+  desktopColPrice: { flex: 0.8, minWidth: 60 },
+  desktopColDuration: { flex: 0.9, minWidth: 68 },
+  desktopColStatus: { flex: 1, minWidth: 86 },
+  desktopColActions: { flex: 2.8, minWidth: 300 },
+  desktopPitchRow: { flexDirection: 'row', alignItems: 'center', minHeight: 74, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
   desktopPitchRowSelected: { backgroundColor: colors.blueSoft, borderLeftWidth: 3, borderLeftColor: colors.blueLight },
-  desktopPitchCell: { flex: 1.8, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  desktopRowPhoto: { width: 88, height: 68, borderRadius: 5, overflow: 'hidden', flexShrink: 0 },
+  desktopPitchCell: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  desktopRowPhoto: { width: 64, height: 48, borderRadius: 5, overflow: 'hidden', flexShrink: 0 },
   desktopPitchName: { flex: 1, minWidth: 0, gap: 7 },
   desktopCellStrong: { color: colors.white, fontSize: 14, fontWeight: '600' },
   desktopCellMuted: { color: colors.grey, fontSize: 13, lineHeight: 20, flex: 1 },
-  desktopRowActions: { flex: 2.1, flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-  desktopOutlineButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 14, borderWidth: 1, borderColor: colors.borderBlue, borderRadius: 5 },
-  desktopPrimaryButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 14, borderRadius: 5, backgroundColor: colors.blueLight },
+  desktopRowActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 7 },
+  desktopOutlineButton: { minHeight: 31, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: colors.borderBlue, borderRadius: 7 },
+  desktopPrimaryButton: { minHeight: 31, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 7, backgroundColor: colors.blueLight },
   desktopButtonText: { color: colors.blueLight, fontSize: 13, fontWeight: '600' },
-  desktopPrimaryText: { color: colors.blackText, fontSize: 13, fontWeight: '700' },
-  desktopDetailCard: { marginTop: 20, padding: 22, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft },
-  desktopDetailTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 18, marginBottom: 22 },
+  desktopPrimaryText: { color: colors.blackText, fontSize: 13, fontWeight: '600' },
+  desktopDetailCard: { flexShrink: 0, padding: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft },
+  desktopDetailTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 12 },
   desktopDetailTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
-  desktopDetailTitle: { color: colors.white, fontSize: 21, fontWeight: '600' },
+  desktopDetailTitle: { color: colors.white, fontSize: 18, fontWeight: '600' },
   desktopDetailDivider: { width: 1, height: 22, backgroundColor: colors.border, marginHorizontal: 3 },
   desktopSelectedText: { color: colors.blueLight, fontSize: 13 },
-  desktopDetailBody: { flexDirection: 'row', gap: 22, minHeight: 208 },
-  desktopDetailImage: { flex: 1.25, height: 208, borderRadius: 5, overflow: 'hidden' },
-  desktopDescriptionColumn: { flex: 1.55, paddingVertical: 5, borderRightWidth: 1, borderRightColor: colors.border, paddingRight: 22 },
-  desktopFacilitiesTitle: { color: colors.white, fontSize: 14, fontWeight: '600', marginTop: 28, marginBottom: 12 },
-  desktopDetailFacilities: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
-  desktopDetailFacility: { alignItems: 'center', gap: 5, minWidth: 65 },
-  desktopDetailStats: { flex: 1, justifyContent: 'space-between', paddingVertical: 4 },
+  desktopDetailBody: { flexDirection: 'row', gap: 16, minHeight: 150, maxHeight: 175 },
+  desktopDetailImage: { flex: 1.1, height: 160, borderRadius: 5, overflow: 'hidden' },
+  desktopDescriptionColumn: { flex: 1.5, paddingVertical: 3, borderRightWidth: 1, borderRightColor: colors.border, paddingRight: 16 },
+  desktopFacilitiesTitle: { color: colors.white, fontSize: 13, fontWeight: '600', marginTop: 14, marginBottom: 8 },
+  desktopDetailFacilities: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  desktopDetailFacility: { alignItems: 'center', gap: 3, minWidth: 56 },
+  desktopDetailStats: { flex: 1, justifyContent: 'space-between', paddingVertical: 2 },
   desktopSpecLine: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
-  desktopDetailNote: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 22, paddingTop: 18, borderTopWidth: 1, borderTopColor: colors.border },
+  desktopDetailNote: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
   heading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 22 },
   headingText: { flexGrow: 1, flexBasis: 260 },
-  title: { color: colors.white, fontSize: 24, fontWeight: '600', letterSpacing: -0.6 },
-  subtitle: { color: colors.grey, fontSize: 12, marginTop: 3 },
+  title: { color: colors.white, fontSize: 24, lineHeight: 30, fontWeight: '600', letterSpacing: -0.6 },
+  subtitle: { color: colors.grey, fontSize: 12, lineHeight: 16, marginTop: 3 },
   centerBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, minHeight: 36, maxWidth: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 7, backgroundColor: colors.card },
   centerName: { color: colors.white, fontSize: 13, fontWeight: '600', flexShrink: 1 },
   workspace: { flexDirection: 'row', alignItems: 'stretch', borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft, overflow: 'hidden' },
