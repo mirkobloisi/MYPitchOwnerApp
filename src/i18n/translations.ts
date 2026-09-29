@@ -49,6 +49,8 @@ export const translations = {
       taken: 'Taken',
     },
     nav: {
+      workspace: 'Workspace',
+      ownerWorkspace: 'Owner workspace',
       agenda: 'Agenda',
       availability: 'Availability',
       pitches: 'Pitches',
@@ -663,6 +665,8 @@ export const translations = {
       taken: 'Κατειλημμένο',
     },
     nav: {
+      workspace: 'Χώρος εργασίας',
+      ownerWorkspace: 'Χώρος ιδιοκτήτη',
       agenda: 'Ατζέντα',
       availability: 'Διαθεσιμότητα',
       pitches: 'Γήπεδα',
@@ -1280,6 +1284,8 @@ export const translations = {
       taken: 'Занято',
     },
     nav: {
+      workspace: 'Рабочая область',
+      ownerWorkspace: 'Кабинет владельца',
       agenda: 'Расписание',
       availability: 'Доступность',
       pitches: 'Поля',
