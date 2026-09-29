@@ -17,6 +17,8 @@ type AppHeaderProps = {
   showBack?: boolean;
   right?: ReactNode;
   onBackPress?: () => void;
+  colorsOverride?: AppColors;
+  refined?: boolean;
 };
 
 export default function AppHeader({
@@ -25,9 +27,12 @@ export default function AppHeader({
   showBack = true,
   right,
   onBackPress,
+  colorsOverride,
+  refined = false,
 }: AppHeaderProps) {
   const router = useRouter();
-  const { colors } = useAppTheme();
+  const { colors: appColors } = useAppTheme();
+  const colors = colorsOverride ?? appColors;
   const { t } = useTranslation();
   const { unread } = useAcademyRealtime();
   const totalUnread = unread.players + unread.parents + unread.messages;
@@ -60,7 +65,7 @@ export default function AppHeader({
           <View style={styles.headerSide} />
         )}
 
-        <Text numberOfLines={1} style={styles.headerTitle}>
+        <Text numberOfLines={1} style={[styles.headerTitle, refined && styles.refinedHeaderTitle]}>
           {title}
         </Text>
 
@@ -135,6 +140,11 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: scaleFont(20),
     fontWeight: '900',
     textAlign: 'center',
+  },
+  refinedHeaderTitle: {
+    fontSize: scaleFont(19),
+    fontWeight: '600',
+    letterSpacing: -0.4,
   },
   subtitle: {
     color: colors.grey,
