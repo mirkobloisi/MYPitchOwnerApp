@@ -54,14 +54,14 @@ function noticeIcon(type: string): keyof typeof Ionicons.glyphMap {
  * switchable, so either is a glance away from whatever screen they're on.
  * Website only — see WebAppShell.
  */
-export default function WebInboxPanel() {
+export default function WebInboxPanel({ initialTab = 'messages' }: { initialTab?: InboxTab }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const router = useRouter();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { unread, messagesVersion } = useAcademyRealtime();
 
-  const [tab, setTab] = useState<InboxTab>('messages');
+  const [tab, setTab] = useState<InboxTab>(initialTab);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [notices, setNotices] = useState<AcademyNotice[]>([]);
 
