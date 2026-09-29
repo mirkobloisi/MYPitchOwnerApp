@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -47,8 +48,18 @@ export default function Screen({
   const { colors: appColors } = useAppTheme();
   const { isWide, isDesktop } = useBreakpoint();
   const { language } = useLanguage();
-  const colors = Platform.OS === 'web' && isDesktop ? weeklineColors : appColors;
+  const isDesktopWeb = Platform.OS === 'web' && isDesktop;
+  const colors = isDesktopWeb ? weeklineColors : appColors;
   const styles = makeStyles(colors);
+  const screenBackground = background ?? (
+    isDesktopWeb ? (
+      <Image
+        source={require('../../assets/images/weekline-soft-halo.png')}
+        style={styles.weeklineBackground}
+        resizeMode="stretch"
+      />
+    ) : undefined
+  );
 
   // Only constrain on a roomy screen; a phone keeps using its full width.
   const widthStyle: ViewStyle = isWide
@@ -57,10 +68,10 @@ export default function Screen({
 
   return (
     <AnimatedBackground
-      style={[styles.root, Platform.OS === 'web' && isDesktop && styles.desktopWebCanvas, style]}
+      style={[styles.root, isDesktopWeb && styles.desktopWebCanvas, style]}
       ambientGlows={ambientGlows}
     >
-      {background}
+      {screenBackground}
       <SafeAreaView style={styles.safeArea} edges={safeAreaEdges}>
         <KeyboardAvoidingView
           style={styles.container}
@@ -98,6 +109,13 @@ const makeStyles = (colors: AppColors) =>
     },
     desktopWebCanvas: {
       backgroundColor: '#08111A',
+    },
+    weeklineBackground: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
     },
     safeArea: {
       flex: 1,
