@@ -32,8 +32,8 @@ export default function WebPitches() {
     ?? visiblePitches[0];
 
   return (
-    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} ambientGlows={false} style={styles.canvas} contentStyle={styles.content}>
-      <View style={styles.heading}>
+    <Screen scroll={!isDesktop} maxWidth={WIDE_CONTENT_MAX_WIDTH} ambientGlows={false} style={styles.canvas} contentStyle={isDesktop ? styles.desktopContent : styles.content}>
+      <View style={[styles.heading, isDesktop && styles.desktopHeading]}>
         <View style={styles.headingText}>
           <Text accessibilityRole="header" style={styles.title}>{t('pitches.title')}</Text>
           <Text style={styles.subtitle}>{t('pitches.subtitle')}</Text>
@@ -45,8 +45,8 @@ export default function WebPitches() {
       </View>
 
       {pitches.length === 0 ? <Text style={styles.empty}>{t('pitches.noPitches')}</Text> : (
-        <View style={[styles.workspace, !isDesktop && styles.workspaceCompact]}>
-          <View style={[styles.navigator, !isDesktop && styles.navigatorCompact]}>
+        <View style={[styles.workspace, isDesktop ? styles.desktopWorkspace : styles.workspaceCompact]}>
+          <View style={[styles.navigator, isDesktop ? styles.desktopNavigator : styles.navigatorCompact]}>
             <View style={styles.search}>
               <Ionicons name="search-outline" size={16} color={colors.grey} />
               <TextInput
@@ -84,12 +84,12 @@ export default function WebPitches() {
             </ScrollView>
           </View>
 
-          {selectedPitch ? <PitchDetails key={selectedPitch.id} pitch={selectedPitch} /> : (
+          {selectedPitch ? <PitchDetails key={selectedPitch.id} pitch={selectedPitch} desktop={isDesktop} /> : (
             <View style={styles.detail}><Text style={styles.empty}>{t('pitches.noSearchResults')}</Text></View>
           )}
         </View>
       )}
-      <View style={styles.supportNote}>
+      <View style={[styles.supportNote, isDesktop && styles.desktopSupportNote]}>
         <Ionicons name="information-circle-outline" size={15} color={colors.greyDark} />
         <Text style={styles.supportText}>{t('pitches.noteText')}</Text>
       </View>
@@ -117,7 +117,7 @@ function PitchStatus({ status }: { status: PitchRecord['status'] }) {
   return <View style={styles.status}><View style={[styles.statusDot, { backgroundColor: color }]} /><Text style={[styles.statusText, { color }]}>{t(label)}</Text></View>;
 }
 
-function PitchDetails({ pitch }: { pitch: PitchRecord }) {
+function PitchDetails({ pitch, desktop }: { pitch: PitchRecord; desktop: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const { activePitch, setActivePitchId } = useAuth();
@@ -128,17 +128,17 @@ function PitchDetails({ pitch }: { pitch: PitchRecord }) {
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
 
   return (
-    <View style={styles.detail}>
-      <View style={styles.hero}><PitchPhoto key={photo ?? 'empty'} uri={photo} label={pitch.name} large /></View>
+    <View style={[styles.detail, desktop && styles.desktopDetail]}>
+      <View style={[styles.hero, desktop && styles.desktopHero]}><PitchPhoto key={photo ?? 'empty'} uri={photo} label={pitch.name} large /></View>
       {photos.length > 1 ? (
-        <ScrollView horizontal style={styles.gallery} contentContainerStyle={styles.galleryContent} showsHorizontalScrollIndicator>
-          {photos.map((uri, index) => <Pressable key={`${uri}-${index}`} onPress={() => setPhotoIndex(index)} accessibilityRole="button" accessibilityLabel={t('pitches.viewPhoto', { index: index + 1 })} accessibilityState={{ selected: uri === photo }} style={[styles.thumbnail, uri === photo && styles.thumbnailSelected]}>
+        <ScrollView horizontal style={[styles.gallery, desktop && styles.desktopGallery]} contentContainerStyle={styles.galleryContent} showsHorizontalScrollIndicator>
+          {photos.map((uri, index) => <Pressable key={`${uri}-${index}`} onPress={() => setPhotoIndex(index)} accessibilityRole="button" accessibilityLabel={t('pitches.viewPhoto', { index: index + 1 })} accessibilityState={{ selected: uri === photo }} style={[styles.thumbnail, desktop && styles.desktopThumbnail, uri === photo && styles.thumbnailSelected]}>
             <PitchPhoto uri={uri} label={t('pitches.viewPhoto', { index: index + 1 })} />
           </Pressable>)}
         </ScrollView>
       ) : null}
 
-      <View style={styles.detailHeading}>
+      <View style={[styles.detailHeading, desktop && styles.desktopDetailHeading]}>
         <View style={styles.detailHeadingText}>
           <View style={styles.nameRow}><Text accessibilityRole="header" style={styles.pitchTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View>
           <View style={styles.location}><Ionicons name="location-outline" size={15} color={colors.grey} /><Text style={styles.locationText}>{[pitch.city, pitch.area].filter(Boolean).join(' · ')}</Text></View>
@@ -149,17 +149,19 @@ function PitchDetails({ pitch }: { pitch: PitchRecord }) {
         )}
       </View>
 
-      <View style={styles.specs}>
+      <View style={[styles.specs, desktop && styles.desktopSpecs]}>
         <Spec icon="people-outline" label={t('pitches.formatLabel')} value={pitch.format} />
         {pitch.pitch_type ? <Spec icon="layers-outline" label={t('pitches.typeLabel')} value={pitch.pitch_type} /> : null}
         <Spec icon="pricetag-outline" label={t('pitches.priceLabel')} value={t('pitches.perHour', { price: Number(pitch.price_per_hour).toFixed(2) })} />
         <Spec icon="time-outline" label={t('pitches.matchDurationLabel')} value={durations.map((minutes) => t('pitches.minutesSuffix', { minutes })).join(' / ')} />
       </View>
-      {pitch.description ? <View style={styles.section}><Text style={styles.sectionTitle}>{t('pitches.descriptionLabel')}</Text><Text style={styles.description}>{pitch.description}</Text></View> : null}
-      {pitch.facilities?.length ? <View style={styles.section}><Text style={styles.sectionTitle}>{t('pitches.facilitiesLabel')}</Text><View style={styles.facilities}>
+      <View style={desktop ? styles.desktopSections : undefined}>
+      {pitch.description ? <View style={[styles.section, desktop && styles.desktopSection]}><Text style={styles.sectionTitle}>{t('pitches.descriptionLabel')}</Text><Text style={[styles.description, desktop && styles.desktopDescription]}>{pitch.description}</Text></View> : null}
+      {pitch.facilities?.length ? <View style={[styles.section, desktop && styles.desktopSection]}><Text style={styles.sectionTitle}>{t('pitches.facilitiesLabel')}</Text><View style={[styles.facilities, desktop && styles.desktopFacilities]}>
         {pitch.facilities.map((facility, index) => <View key={`${facility}-${index}`} style={styles.facility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={19} color={colors.grey} /><Text style={styles.facilityText}>{facility}</Text></View>)}
       </View></View> : null}
-      <View style={styles.actions}>
+      </View>
+      <View style={[styles.actions, desktop && styles.desktopActions]}>
         {pitch.maps_url ? <Pressable style={styles.outlineButton} onPress={() => Linking.openURL(pitch.maps_url!)} accessibilityRole="link"><Ionicons name="location-outline" size={15} color={colors.blueLight} /><Text style={styles.actionText}>{t('pitches.openInMaps')}</Text></Pressable> : null}
         <Pressable style={styles.primaryButton} accessibilityRole="button" onPress={() => router.push({ pathname: '/booking-settings', params: { pitchId: pitch.id } })}>
           <Ionicons name="options-outline" size={15} color={colors.blackText} /><Text style={styles.primaryText}>{t('pitches.manageBookingSettings')}</Text>
@@ -176,6 +178,24 @@ function Spec({ icon, label, value }: { icon: IconName; label: string; value: st
 const styles = StyleSheet.create({
   canvas: { backgroundColor: '#08111A' },
   content: { paddingTop: 18, paddingBottom: 100 },
+  desktopContent: { paddingTop: 14, paddingBottom: 12, minHeight: 0 },
+  desktopHeading: { marginBottom: 12, flexShrink: 0 },
+  desktopWorkspace: { flex: 1, minHeight: 0 },
+  desktopNavigator: { width: 240, minHeight: 0 },
+  // The list scrolls independently; it cannot push the detail panel off screen.
+  desktopDetail: { padding: 12, minHeight: 0, overflowY: 'auto' } as any,
+  // Spend only the remaining vertical space on photography, keeping text/actions readable.
+  desktopHero: { flexGrow: 1, flexShrink: 1, flexBasis: 180, aspectRatio: undefined, minHeight: 70, maxHeight: 260 },
+  desktopGallery: { marginTop: 6, flexShrink: 0, height: 46 },
+  desktopThumbnail: { width: 68, height: 40 },
+  desktopDetailHeading: { marginVertical: 10, gap: 8, flexShrink: 0 },
+  desktopSpecs: { paddingVertical: 10, gap: 10, flexShrink: 0 },
+  desktopSections: { flexDirection: 'row', gap: 20, flexShrink: 0 },
+  desktopSection: { flex: 1, minWidth: 0, marginTop: 12, gap: 6 },
+  desktopDescription: { fontSize: 12, lineHeight: 18 },
+  desktopFacilities: { gap: 10 },
+  desktopActions: { marginTop: 12, paddingTop: 10, flexShrink: 0 },
+  desktopSupportNote: { marginTop: 8, flexShrink: 0 },
   heading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 22 },
   headingText: { flexGrow: 1, flexBasis: 260 },
   title: { color: colors.white, fontSize: 24, fontWeight: '600', letterSpacing: -0.6 },
@@ -189,7 +209,7 @@ const styles = StyleSheet.create({
   search: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 7, paddingHorizontal: 10, marginBottom: 12, backgroundColor: colors.backgroundSoft },
   searchInput: { flex: 1, minWidth: 0, color: colors.white, fontSize: 13, paddingVertical: 8 },
   clearSearch: { padding: 4 },
-  pitchList: { maxHeight: 640 },
+  pitchList: { flex: 1, minHeight: 0 },
   pitchListCompact: { maxHeight: 230 },
   pitchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, marginBottom: 8, borderRadius: 7, borderWidth: 1, borderColor: 'transparent' },
   pitchRowSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
