@@ -1,12 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
-import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
 import StatusBadge from '../../components/StatusBadge';
+import WebPitches from '../../components/WebPitches';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { PitchRecord, useAuth } from '../../lib/auth';
 import { AppColors } from '../../theme/palettes';
@@ -41,6 +42,10 @@ function facilityIcon(label: string): keyof typeof Ionicons.glyphMap | null {
 }
 
 export default function PitchesScreen() {
+  return Platform.OS === 'web' ? <WebPitches /> : <NativePitchesScreen />;
+}
+
+function NativePitchesScreen() {
   const { colors } = useAppTheme();
   const router = useRouter();
   const { pitches, activePitch, setActivePitchId } = useAuth();
