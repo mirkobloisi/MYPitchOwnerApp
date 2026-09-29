@@ -20,24 +20,6 @@ import { scaleFont } from '../theme/typography';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-// Soft Halo background selected for the desktop Weekline Agenda.
-const WEEKLINE_HALO_URI = 'data:image/svg+xml,' + encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="none">
-  <defs>
-    <radialGradient id="top" gradientUnits="userSpaceOnUse" cx="960" cy="70" r="820">
-      <stop stop-color="#206790" stop-opacity=".24"/>
-      <stop offset=".73" stop-color="#206790" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="bottom" gradientUnits="userSpaceOnUse" cx="510" cy="940" r="650">
-      <stop stop-color="#114063" stop-opacity=".20"/>
-      <stop offset=".74" stop-color="#114063" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="900" fill="#08111a"/>
-  <rect width="1200" height="900" fill="url(#top)"/>
-  <rect width="1200" height="900" fill="url(#bottom)"/>
-</svg>`);
-
 const NAV_ITEMS: { name: string; href: string; labelKey: string; icon: IconName }[] = [
   { name: 'agenda', href: '/agenda', labelKey: 'nav.agenda', icon: 'calendar-outline' },
   { name: 'availability', href: '/availability', labelKey: 'nav.availability', icon: 'time-outline' },
@@ -101,11 +83,6 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
           isDesktop ? { paddingLeft: SIDEBAR_WIDTH } : { paddingBottom: BOTTOM_BAR_HEIGHT },
         ]}
       >
-        {isWeeklineAgenda && (
-          <View style={styles.weeklineHaloBackground} pointerEvents="none">
-            <Image source={{ uri: WEEKLINE_HALO_URI }} style={StyleSheet.absoluteFill} resizeMode="stretch" />
-          </View>
-        )}
         {children}
       </View>
 
@@ -260,13 +237,6 @@ const styles = StyleSheet.create({
   weeklineContent: {
     backgroundColor: '#08111a',
   },
-  weeklineHaloBackground: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: SIDEBAR_WIDTH,
-    right: 0,
-  },
   weeklineSidebar: {
     backgroundColor: weeklineColors.backgroundSoft,
     paddingHorizontal: 11,
@@ -275,7 +245,7 @@ const styles = StyleSheet.create({
   weeklineBrandRow: {
     height: 65,
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#30495B',
     marginBottom: 16,
