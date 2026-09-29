@@ -302,12 +302,12 @@ const styles = StyleSheet.create({
   },
   weeklineOwnerName: {
     color: weeklineColors.white,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
   },
   weeklineOwnerCaption: {
     color: weeklineColors.greyDark,
-    fontSize: 10,
+    fontSize: 11,
     marginTop: 3,
   },
   inboxOverlay: {
