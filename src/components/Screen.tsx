@@ -8,7 +8,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useLanguage } from '../i18n/LanguageContext';
 import { CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
@@ -31,6 +31,7 @@ type ScreenProps = {
    */
   maxWidth?: number;
   ambientGlows?: boolean;
+  safeAreaEdges?: readonly Edge[];
 };
 
 export default function Screen({
@@ -41,6 +42,7 @@ export default function Screen({
   contentStyle,
   maxWidth = CONTENT_MAX_WIDTH,
   ambientGlows = true,
+  safeAreaEdges,
 }: ScreenProps) {
   const { colors } = useAppTheme();
   const { isWide } = useBreakpoint();
@@ -55,7 +57,7 @@ export default function Screen({
   return (
     <AnimatedBackground style={[styles.root, style]} ambientGlows={ambientGlows}>
       {background}
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={safeAreaEdges}>
         <KeyboardAvoidingView
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

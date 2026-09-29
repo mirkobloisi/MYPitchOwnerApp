@@ -141,9 +141,14 @@ export default function AgendaScreen() {
   const WEEKDAY_LABELS = tList('agenda.weekdays');
   const MONTH_LABELS = tList('agenda.months');
 
-  const [viewMode, setViewMode] = useState<ViewMode>(() => isDesktop ? 'week' : 'month');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => Platform.OS !== 'web' || isDesktop ? 'week' : 'month');
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+  const [weekStart, setWeekStart] = useState(() => {
+    const today = new Date();
+    return Platform.OS !== 'web'
+      ? new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      : startOfWeek(today);
+  });
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -170,15 +175,16 @@ export default function AgendaScreen() {
 
   useEffect(() => {
     if (!monthStripWidth) return;
-    const selectedIndex = viewMode === 'week'
-      ? Math.max(0, (selectedDate.getDay() + 6) % 7 - (selectedDate.getDate() - (selectedDate.getDay() + 6) % 7 < 1 ? 1 : 0))
+    const selectedIndex = viewMode === 'week' && isNativeMobile
+      ? Math.max(0, Math.round((Date.UTC(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
+        - Date.UTC(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate())) / 86400000))
       : selectedDate.getDate() - 1;
     const itemWidth = 53;
     monthStripRef.current?.scrollTo({
       x: Math.max(0, selectedIndex * itemWidth - (monthStripWidth - itemWidth) / 2),
       animated: false,
     });
-  }, [monthStripWidth, selectedDate, visibleMonth, viewMode]);
+  }, [monthStripWidth, selectedDate, visibleMonth, viewMode, weekStart, isNativeMobile]);
 
   useEffect(() => {
     if (!isNativeMobile) return;
@@ -199,7 +205,7 @@ export default function AgendaScreen() {
     try {
       const rangeStart = startOfCalendarGrid(visibleMonth);
       const rangeEnd = new Date(rangeStart);
-      rangeEnd.setDate(rangeEnd.getDate() + 42);
+      rangeEnd.setDate(rangeEnd.getDate() + (isNativeMobile ? 49 : 42));
 
       const { matches, blocks, academySessions } = await fetchAgendaRange(
         activePitch.id,
@@ -249,7 +255,7 @@ export default function AgendaScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [activePitch, visibleMonth]);
+  }, [activePitch, visibleMonth, isNativeMobile]);
 
   useFocusEffect(
     useCallback(() => {
@@ -276,6 +282,14 @@ export default function AgendaScreen() {
       days.push(day);
     }
     return days;
+  }, [weekStart]);
+
+  const mobileWeekDays = useMemo(() => {
+    return Array.from({ length: 8 }, (_, index) => {
+      const day = new Date(weekStart);
+      day.setDate(day.getDate() + index);
+      return day;
+    });
   }, [weekStart]);
 
   const eventsByDay = useMemo(() => {
@@ -371,6 +385,7 @@ export default function AgendaScreen() {
     const next = new Date(year, monthIndex, day);
     setVisibleMonth(startOfMonth(next));
     setSelectedDate(next);
+    if (isNativeMobile && viewMode === 'week') setWeekStart(next);
     setMonthMenuOpen(false);
   }
 
@@ -394,6 +409,14 @@ export default function AgendaScreen() {
     setWeekStart(next);
   }
 
+  function navigateMobileWeek(direction: -1 | 1) {
+    const next = new Date(weekStart);
+    next.setDate(next.getDate() + direction * 7);
+    setWeekStart(next);
+    setSelectedDate(next);
+    setVisibleMonth(startOfMonth(next));
+  }
+
   function goToPrevious() {
     if (viewMode === 'week') goToPreviousWeek();
     else goToPreviousMonth();
@@ -406,7 +429,9 @@ export default function AgendaScreen() {
 
   function selectViewMode(mode: ViewMode) {
     if (mode === 'week') {
-      const newWeekStart = startOfWeek(selectedDate);
+      const newWeekStart = isNativeMobile
+        ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
+        : startOfWeek(selectedDate);
       ensureMonthLoadedFor(newWeekStart);
       setWeekStart(newWeekStart);
     } else {
@@ -583,7 +608,7 @@ export default function AgendaScreen() {
 
   if (isNativeMobile) {
     const visibleMobileDays = viewMode === 'week'
-      ? weekDays.filter((day) => day.getMonth() === visibleMonth.getMonth() && day.getFullYear() === visibleMonth.getFullYear())
+      ? mobileWeekDays
       : mobileMonthDays;
     const timelineHeight = HOURS.length * 64;
     const eventRanges = selectedDayEvents.map((event) => ({
@@ -612,6 +637,7 @@ export default function AgendaScreen() {
         background={<Image source={require('../../../assets/images/weekline-soft-halo.png')} style={styles.nativeBackground} resizeMode="stretch" />}
         style={styles.nativeRoot}
         contentStyle={styles.nativeScreenContent}
+        safeAreaEdges={['top', 'right', 'left']}
       >
         <View style={styles.nativeHeader}>
           <Pressable style={styles.nativeHeaderButton} onPress={() => setMobileMenuOpen((open) => !open)} accessibilityRole="button" accessibilityLabel={t('nav.more')}>
@@ -687,27 +713,39 @@ export default function AgendaScreen() {
               </Pressable>
             ))}
           </View>
-          <ScrollView
-            ref={monthStripRef}
-            horizontal
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-            style={styles.nativeDaysStrip}
-            contentContainerStyle={styles.nativeDaysContent}
-            onLayout={(event) => setMonthStripWidth(event.nativeEvent.layout.width)}
-          >
-            {visibleMobileDays.map((day) => {
-              const isSelected = isSameDay(day, selectedDate);
-              const dayEvents = eventsByDay.get(day.toDateString()) ?? [];
-              return (
-                <Pressable key={day.toISOString()} style={[styles.nativeDay, isSelected && styles.nativeDaySelected]} onPress={() => setSelectedDate(day)} accessibilityRole="button" accessibilityState={{ selected: isSelected }}>
-                  <Text style={[styles.nativeDayName, isSelected && styles.nativeDayTextSelected]}>{WEEKDAY_LABELS[(day.getDay() + 6) % 7]}</Text>
-                  <Text style={[styles.nativeDayNumber, isSelected && styles.nativeDayTextSelected]}>{day.getDate()}</Text>
-                  <View style={styles.nativeDayDots}>{dayEvents.slice(0, 3).map((event) => <View key={event.id} style={[styles.nativeDayDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />)}</View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <View style={styles.nativeDayNavigator}>
+            {viewMode === 'week' ? (
+              <Pressable style={styles.nativeDayArrow} onPress={() => navigateMobileWeek(-1)} accessibilityRole="button" accessibilityLabel={t('agenda.previousWeek')}>
+                <Ionicons name="chevron-back" size={21} color={colors.greySoft} />
+              </Pressable>
+            ) : null}
+            <ScrollView
+              ref={monthStripRef}
+              horizontal
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator={false}
+              style={styles.nativeDaysStrip}
+              contentContainerStyle={styles.nativeDaysContent}
+              onLayout={(event) => setMonthStripWidth(event.nativeEvent.layout.width)}
+            >
+              {visibleMobileDays.map((day) => {
+                const isSelected = isSameDay(day, selectedDate);
+                const dayEvents = eventsByDay.get(day.toDateString()) ?? [];
+                return (
+                  <Pressable key={day.toISOString()} style={[styles.nativeDay, isSelected && styles.nativeDaySelected]} onPress={() => setSelectedDate(day)} accessibilityRole="button" accessibilityState={{ selected: isSelected }}>
+                    <Text style={[styles.nativeDayName, isSelected && styles.nativeDayTextSelected]}>{WEEKDAY_LABELS[(day.getDay() + 6) % 7]}</Text>
+                    <Text style={[styles.nativeDayNumber, isSelected && styles.nativeDayTextSelected]}>{day.getDate()}</Text>
+                    <View style={styles.nativeDayDots}>{dayEvents.slice(0, 3).map((event) => <View key={event.id} style={[styles.nativeDayDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />)}</View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {viewMode === 'week' ? (
+              <Pressable style={styles.nativeDayArrow} onPress={() => navigateMobileWeek(1)} accessibilityRole="button" accessibilityLabel={t('agenda.nextWeek')}>
+                <Ionicons name="chevron-forward" size={21} color={colors.greySoft} />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         <Text style={styles.nativeSelectedDate}>{selectedDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
@@ -1333,7 +1371,7 @@ const makeStyles = (colors: AppColors) =>
       minHeight: 0,
       paddingHorizontal: 16,
       paddingTop: 4,
-      paddingBottom: 8,
+      paddingBottom: 2,
       backgroundColor: 'transparent',
     },
     nativeBackground: {
@@ -1569,7 +1607,21 @@ const makeStyles = (colors: AppColors) =>
     nativeViewButtonTextActive: {
       color: colors.blueLight,
     },
+    nativeDayNavigator: {
+      height: 78,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    nativeDayArrow: {
+      width: 29,
+      height: 76,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     nativeDaysStrip: {
+      flex: 1,
+      minWidth: 0,
       height: 78,
     },
     nativeDaysContent: {
@@ -1622,7 +1674,7 @@ const makeStyles = (colors: AppColors) =>
     nativeTimelineFrame: {
       flex: 1,
       minHeight: 80,
-      marginBottom: 8,
+      marginBottom: 4,
       overflow: 'hidden',
     },
     nativeTimelineScroll: {
@@ -1723,7 +1775,7 @@ const makeStyles = (colors: AppColors) =>
       flexDirection: 'row',
       gap: 8,
       paddingTop: 2,
-      paddingBottom: 3,
+      paddingBottom: 0,
     },
     nativeAction: {
       flex: 1,
