@@ -270,10 +270,10 @@ const makeStyles = (colors: AppColors) =>
     brandRow: {
       paddingHorizontal: spacing.xs,
       marginBottom: spacing.xl,
+      alignItems: 'center',
     },
     brandLogo: {
-      width: '100%',
-      maxWidth: 138,
+      width: 138,
       aspectRatio: 600 / 177,
     },
     brandRole: {
@@ -281,7 +281,6 @@ const makeStyles = (colors: AppColors) =>
       fontSize: scaleFont(10),
       fontWeight: '800',
       marginTop: 6,
-      marginLeft: 2,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },

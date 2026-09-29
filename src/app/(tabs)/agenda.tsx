@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AnimatedSelectable from '../../components/AnimatedSelectable';
@@ -507,37 +507,34 @@ export default function AgendaScreen() {
         )}
 
       <View style={[styles.actionsRow, isDesktopWeek && styles.weeklineActions]}>
-        <AnimatedPressable
+        <Pressable
           style={[styles.actionButtonOutline, isDesktopWeek && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
-          hoverScale={1.03}
           onPress={openBlockSlot}
           disabled={selectedDayIsPast}
         >
           <Ionicons name="lock-closed-outline" size={16} color={colors.white} />
-          <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]}>{t('agenda.blockSlot')}</Text>
-        </AnimatedPressable>
+          <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.blockSlot')}</Text>
+        </Pressable>
 
         {/* A party takes the pitch for an evening rather than a playing
             slot, so it gets its own button and its own time selection. */}
-        <AnimatedPressable
+        <Pressable
           style={[styles.actionButtonOutline, isDesktopWeek && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
-          hoverScale={1.03}
           onPress={openAddParty}
           disabled={selectedDayIsPast}
         >
           <Ionicons name="balloon-outline" size={16} color={colors.pink} />
-          <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]}>{t('agenda.addParty')}</Text>
-        </AnimatedPressable>
+          <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.addParty')}</Text>
+        </Pressable>
 
-        <AnimatedPressable
+        <Pressable
           style={[styles.actionButtonPrimary, isDesktopWeek && styles.weeklineActionButton, isDesktopWeek && styles.weeklinePrimaryButton, selectedDayIsPast && styles.actionDisabled]}
-          hoverScale={1.02}
           onPress={openAddExternalBooking}
           disabled={selectedDayIsPast}
         >
           <Ionicons name="add" size={18} color={colors.blackText} />
-          <Text style={[styles.actionButtonPrimaryText, isDesktopWeek && styles.weeklinePrimaryText]}>{t('agenda.addExternalBooking')}</Text>
-        </AnimatedPressable>
+          <Text style={[styles.actionButtonPrimaryText, isDesktopWeek && styles.weeklinePrimaryText]} numberOfLines={1}>{t('agenda.addExternalBooking')}</Text>
+        </Pressable>
       </View>
       </View>
 
@@ -549,7 +546,7 @@ export default function AgendaScreen() {
         <View style={[styles.pitchSelectorInline, isDesktopWeek && styles.weeklinePitchSelector]}>
           {isDesktopWeek ? (
             <View style={styles.pitchDropdown}>
-              <AnimatedPressable
+              <Pressable
                 style={styles.pitchDropdownTrigger}
                 onPress={() => setPitchMenuOpen((open) => !open)}
                 accessibilityRole="button"
@@ -559,11 +556,11 @@ export default function AgendaScreen() {
                 <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
                 <Text style={styles.pitchDropdownText} numberOfLines={1}>{activePitch.name}</Text>
                 <Ionicons name={pitchMenuOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.grey} />
-              </AnimatedPressable>
+              </Pressable>
               {pitchMenuOpen && (
                 <View style={styles.pitchDropdownMenu}>
                   {pitches.map((pitch, index) => (
-                    <AnimatedPressable
+                    <Pressable
                       key={pitch.id}
                       style={[styles.pitchDropdownOption, pitch.id === activePitch.id && styles.pitchDropdownOptionActive]}
                       onPress={() => { setActivePitchId(pitch.id); setPitchMenuOpen(false); }}
@@ -572,7 +569,7 @@ export default function AgendaScreen() {
                       <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[index % PITCH_COLORS.length] }]} />
                       <Text style={styles.pitchDropdownText} numberOfLines={1}>{pitch.name}</Text>
                       {pitch.id === activePitch.id && <Ionicons name="checkmark" size={15} color={colors.greenLight} />}
-                    </AnimatedPressable>
+                    </Pressable>
                   ))}
                 </View>
               )}
@@ -1037,6 +1034,10 @@ const makeStyles = (colors: AppColors) =>
       backgroundColor: colors.background,
     },
     weeklineTop: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       gap: 10,
       marginBottom: 12,
     },
@@ -1053,9 +1054,9 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineActions: {
       marginBottom: 0,
-      gap: 8,
+      gap: 6,
       flexWrap: 'wrap',
-      justifyContent: 'flex-start',
+      justifyContent: 'flex-end',
     },
     weeklineActionButton: {
       flexGrow: 0,
