@@ -148,12 +148,15 @@ export default function AgendaScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
   const [monthMenuOpen, setMonthMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [monthStripWidth, setMonthStripWidth] = useState(0);
   const monthStripRef = useRef<ScrollView>(null);
+  const mobileTimelineRef = useRef<ScrollView>(null);
+  const isNativeMobile = Platform.OS !== 'web';
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   const isDesktopMonth = Platform.OS === 'web' && isDesktop && viewMode === 'month';
   const isDesktopAgenda = isDesktopWeek || isDesktopMonth;
-  const colors = Platform.OS === 'web' && isDesktop ? weeklineColors : appColors;
+  const colors = isNativeMobile || (Platform.OS === 'web' && isDesktop) ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const desktopHourHeight = 56;
   const desktopGridHeight = HOURS.length * desktopHourHeight;
@@ -165,13 +168,21 @@ export default function AgendaScreen() {
 
   useEffect(() => {
     if (!monthStripWidth) return;
-    const selectedIndex = selectedDate.getDate() - 1;
-    const itemWidth = 48;
+    const selectedIndex = viewMode === 'week'
+      ? Math.max(0, (selectedDate.getDay() + 6) % 7 - (selectedDate.getDate() - (selectedDate.getDay() + 6) % 7 < 1 ? 1 : 0))
+      : selectedDate.getDate() - 1;
+    const itemWidth = 53;
     monthStripRef.current?.scrollTo({
       x: Math.max(0, selectedIndex * itemWidth - (monthStripWidth - itemWidth) / 2),
       animated: false,
     });
-  }, [monthStripWidth, selectedDate, visibleMonth]);
+  }, [monthStripWidth, selectedDate, visibleMonth, viewMode]);
+
+  useEffect(() => {
+    if (!isNativeMobile) return;
+    const initialHour = Math.min(Math.max(new Date().getHours() - 1, HOURS_START), HOURS_END - 5);
+    mobileTimelineRef.current?.scrollTo({ y: (initialHour - HOURS_START) * 64, animated: false });
+  }, [isNativeMobile]);
 
   const loadMonth = useCallback(async () => {
     if (!activePitch) {
@@ -563,6 +574,190 @@ export default function AgendaScreen() {
       <Screen>
         <AppHeader title={t('agenda.title')} showBack={false} />
         <Text style={styles.emptyText}>{t('agenda.noPitchLinked')}</Text>
+      </Screen>
+    );
+  }
+
+  if (isNativeMobile) {
+    const visibleMobileDays = viewMode === 'week'
+      ? weekDays.filter((day) => day.getMonth() === visibleMonth.getMonth() && day.getFullYear() === visibleMonth.getFullYear())
+      : mobileMonthDays;
+    const timelineHeight = HOURS.length * 64;
+    const eventRanges = selectedDayEvents.map((event) => ({
+      event,
+      start: clamp((hourFraction(event.startsAt) - HOURS_START) * 64, 0, timelineHeight),
+      end: clamp((hourFraction(event.endsAt) - HOURS_START) * 64, 0, timelineHeight),
+    })).filter(({ end, start }) => end > start).sort((a, b) => a.start - b.start);
+    const openRanges: Array<{ start: number; end: number }> = [];
+    let cursor = 0;
+    eventRanges.forEach(({ start, end }) => {
+      if (start - cursor >= 54) openRanges.push({ start: cursor, end: start });
+      cursor = Math.max(cursor, end);
+    });
+    if (timelineHeight - cursor >= 54) openRanges.push({ start: cursor, end: timelineHeight });
+    const mobileMenuItems = [
+      { label: t('nav.pitches'), route: '/(tabs)/pitches' },
+      { label: t('nav.stats'), route: '/(tabs)/stats' },
+      { label: t('nav.transactions'), route: '/(tabs)/transactions' },
+      { label: t('nav.profile'), route: '/(tabs)/profile' },
+    ];
+
+    return (
+      <Screen
+        scroll={false}
+        ambientGlows={false}
+        background={<Image source={require('../../../assets/images/weekline-soft-halo.png')} style={styles.nativeBackground} resizeMode="stretch" />}
+        style={styles.nativeRoot}
+        contentStyle={styles.nativeScreenContent}
+      >
+        <View style={styles.nativeHeader}>
+          <Pressable style={styles.nativeHeaderButton} onPress={() => setMobileMenuOpen((open) => !open)} accessibilityRole="button" accessibilityLabel={t('nav.more')}>
+            <Ionicons name="menu-outline" size={26} color={colors.white} />
+          </Pressable>
+          <Image source={require('../../../assets/images/mypitch-weekline-logo.png')} style={styles.nativeLogo} resizeMode="contain" />
+          <Pressable style={styles.nativeHeaderButton} onPress={() => router.push('/(tabs)/inbox' as any)} accessibilityRole="button" accessibilityLabel={t('inbox.notifications')}>
+            <Ionicons name="notifications-outline" size={21} color={colors.white} />
+          </Pressable>
+          {mobileMenuOpen ? (
+            <View style={styles.nativeQuickMenu}>
+              {mobileMenuItems.map((item) => (
+                <Pressable key={item.route} style={styles.nativeQuickMenuItem} onPress={() => { setMobileMenuOpen(false); router.push(item.route as any); }}>
+                  <Text style={styles.nativeQuickMenuText}>{item.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.nativeTitleRow}>
+          <Text style={styles.nativeTitle}>{t('agenda.title')}</Text>
+          <View style={styles.nativePickerWrap}>
+            <Pressable style={styles.nativeMonthTrigger} onPress={() => { setMonthMenuOpen((open) => !open); setPitchMenuOpen(false); }} accessibilityRole="button" accessibilityState={{ expanded: monthMenuOpen }}>
+              <Text style={styles.nativeMonthText}>{MONTH_LABELS[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</Text>
+              <Ionicons name={monthMenuOpen ? 'chevron-up' : 'chevron-down'} size={15} color={colors.blueLight} />
+            </Pressable>
+            {monthMenuOpen ? (
+              <View style={styles.nativeMonthMenu}>
+                <View style={styles.nativeMonthYearRow}>
+                  <Pressable style={styles.nativeYearButton} onPress={() => changeMonthMenuYear(-1)} accessibilityLabel="Previous year"><Ionicons name="chevron-back" size={16} color={colors.grey} /></Pressable>
+                  <Text style={styles.nativeYearText}>{visibleMonth.getFullYear()}</Text>
+                  <Pressable style={styles.nativeYearButton} onPress={() => changeMonthMenuYear(1)} accessibilityLabel="Next year"><Ionicons name="chevron-forward" size={16} color={colors.grey} /></Pressable>
+                </View>
+                <ScrollView style={styles.nativeMonthOptions} nestedScrollEnabled>
+                  {MONTH_LABELS.map((month, index) => (
+                    <Pressable key={month} style={[styles.nativeMonthOption, index === visibleMonth.getMonth() && styles.nativeMonthOptionActive]} onPress={() => selectMobileMonth(index)}>
+                      <Text style={[styles.nativeMonthOptionText, index === visibleMonth.getMonth() && styles.nativeMonthOptionTextActive]}>{month}</Text>
+                      {index === visibleMonth.getMonth() ? <Ionicons name="checkmark" size={15} color={colors.blueLight} /> : null}
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.nativePitchWrap}>
+          <Pressable style={styles.nativePitchTrigger} onPress={() => { setPitchMenuOpen((open) => !open); setMonthMenuOpen(false); }} accessibilityRole="button" accessibilityState={{ expanded: pitchMenuOpen }}>
+            <View style={[styles.nativePitchDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
+            <Text style={styles.nativePitchName} numberOfLines={1}>{activePitch.name}</Text>
+            <Ionicons name={pitchMenuOpen ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
+          </Pressable>
+          {pitchMenuOpen ? (
+            <View style={styles.nativePitchMenu}>
+              {pitches.map((pitch, index) => (
+                <Pressable key={pitch.id} style={styles.nativePitchOption} onPress={() => { setActivePitchId(pitch.id); setPitchMenuOpen(false); }}>
+                  <View style={[styles.nativePitchDot, { backgroundColor: PITCH_COLORS[index % PITCH_COLORS.length] }]} />
+                  <Text style={styles.nativePitchName} numberOfLines={1}>{pitch.name}</Text>
+                  {pitch.id === activePitch.id ? <Ionicons name="checkmark" size={17} color={colors.blueLight} /> : null}
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.nativeViewAndDays}>
+          <View style={styles.nativeViewToggle}>
+            {(['week', 'month'] as ViewMode[]).map((mode) => (
+              <Pressable key={mode} style={[styles.nativeViewButton, viewMode === mode && styles.nativeViewButtonActive]} onPress={() => selectViewMode(mode)}>
+                <Text style={[styles.nativeViewButtonText, viewMode === mode && styles.nativeViewButtonTextActive]}>{mode === 'week' ? t('agenda.viewWeek') : t('agenda.viewMonth')}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <ScrollView
+            ref={monthStripRef}
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            style={styles.nativeDaysStrip}
+            contentContainerStyle={styles.nativeDaysContent}
+            onLayout={(event) => setMonthStripWidth(event.nativeEvent.layout.width)}
+          >
+            {visibleMobileDays.map((day) => {
+              const isSelected = isSameDay(day, selectedDate);
+              const dayEvents = eventsByDay.get(day.toDateString()) ?? [];
+              return (
+                <Pressable key={day.toISOString()} style={[styles.nativeDay, isSelected && styles.nativeDaySelected]} onPress={() => setSelectedDate(day)} accessibilityRole="button" accessibilityState={{ selected: isSelected }}>
+                  <Text style={[styles.nativeDayName, isSelected && styles.nativeDayTextSelected]}>{WEEKDAY_LABELS[(day.getDay() + 6) % 7]}</Text>
+                  <Text style={[styles.nativeDayNumber, isSelected && styles.nativeDayTextSelected]}>{day.getDate()}</Text>
+                  <View style={styles.nativeDayDots}>{dayEvents.slice(0, 3).map((event) => <View key={event.id} style={[styles.nativeDayDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />)}</View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        <Text style={styles.nativeSelectedDate}>{selectedDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
+        <View style={styles.nativeTimelineFrame}>
+          {isLoading ? <ActivityIndicator color={colors.blueLight} /> : errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : (
+            <ScrollView ref={mobileTimelineRef} style={styles.nativeTimelineScroll} contentContainerStyle={{ height: timelineHeight }} nestedScrollEnabled showsVerticalScrollIndicator>
+              <View style={[styles.nativeTimelineCanvas, { height: timelineHeight }]}>
+                {HOURS.map((hour, index) => (
+                  <View key={hour} style={[styles.nativeHourRow, { top: index * 64, height: 64 }]}>
+                    <Text style={styles.nativeHourLabel}>{formatHourLabel(hour)}</Text>
+                    <View style={styles.nativeHourRule} />
+                  </View>
+                ))}
+                {openRanges.map(({ start, end }, index) => (
+                  <Pressable key={`open-${index}`} style={[styles.nativeOpenSlot, { top: start + 4, height: Math.max(42, end - start - 8) }]} onPress={openAddExternalBooking} disabled={selectedDayIsPast}>
+                    <Ionicons name="add" size={15} color={colors.blueLight} />
+                    <Text style={styles.nativeOpenSlotText}>{t('agenda.available')}</Text>
+                  </Pressable>
+                ))}
+                {eventRanges.map(({ event, start, end }) => {
+                  const meta = eventStatusMeta(event, colors, t);
+                  const detail = event.kind === 'match'
+                      ? t('agenda.playersLabel', { paid: event.match.players_paid_count, required: event.match.players_required })
+                    : event.kind === 'block'
+                      ? event.block.block_type === 'external_booking' ? (event.block.reference || t('agenda.externalBookingDefault')) : (event.block.reason || t('agenda.blockedDefault'))
+                      : event.session.title;
+                  return (
+                    <Pressable key={event.id} style={[styles.nativeEventCard, { top: start + 4, height: Math.max(52, end - start - 8), borderColor: meta.color, backgroundColor: meta.background }]} onPress={() => openEventDetails(event)}>
+                      <View style={[styles.nativeEventAccent, { backgroundColor: meta.color }]} />
+                      <View style={styles.nativeEventCopy}>
+                        <Text style={styles.nativeEventTitle} numberOfLines={1}>{meta.label}</Text>
+                        <Text style={styles.nativeEventDetail} numberOfLines={1}>{detail}</Text>
+                      </View>
+                      <Text style={[styles.nativeEventTime, { color: meta.color }]}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
+                    </Pressable>
+                  );
+                })}
+                {selectedDayEvents.length === 0 ? <View style={styles.nativeEmptyState}><Text style={styles.nativeEmptyText}>{t('agenda.nothingScheduled')}</Text></View> : null}
+              </View>
+            </ScrollView>
+          )}
+        </View>
+
+        <View style={styles.nativeActions}>
+          <Pressable style={[styles.nativeAction, styles.nativeExternalAction, selectedDayIsPast && styles.actionDisabled]} onPress={openAddExternalBooking} disabled={selectedDayIsPast}>
+            <Ionicons name="calendar-outline" size={22} color={colors.blueLight} /><Text style={[styles.nativeActionText, { color: colors.blueLight }]} numberOfLines={1}>{t('agenda.externalShort')}</Text>
+          </Pressable>
+          <Pressable style={[styles.nativeAction, styles.nativeBlockAction, selectedDayIsPast && styles.actionDisabled]} onPress={openBlockSlot} disabled={selectedDayIsPast}>
+            <Ionicons name="ban-outline" size={22} color={colors.grey} /><Text style={[styles.nativeActionText, { color: colors.grey }]}>{t('agenda.blockShort')}</Text>
+          </Pressable>
+          <Pressable style={[styles.nativeAction, styles.nativePartyAction, selectedDayIsPast && styles.actionDisabled]} onPress={openAddParty} disabled={selectedDayIsPast}>
+            <Ionicons name="people-outline" size={22} color={colors.pink} /><Text style={[styles.nativeActionText, { color: colors.pink }]}>{t('agenda.partyShort')}</Text>
+          </Pressable>
+        </View>
       </Screen>
     );
   }
@@ -1126,6 +1321,420 @@ export default function AgendaScreen() {
 
 const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
+    nativeRoot: {
+      backgroundColor: '#08111A',
+    },
+    nativeScreenContent: {
+      flex: 1,
+      minHeight: 0,
+      paddingHorizontal: 16,
+      paddingTop: 4,
+      paddingBottom: 8,
+      backgroundColor: 'transparent',
+    },
+    nativeBackground: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+    },
+    nativeHeader: {
+      height: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      position: 'relative',
+      zIndex: 30,
+      marginBottom: 5,
+    },
+    nativeHeaderButton: {
+      width: 42,
+      height: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nativeLogo: {
+      width: 170,
+      height: 38,
+      position: 'absolute',
+      left: '50%',
+      transform: [{ translateX: -85 }],
+    },
+    nativeQuickMenu: {
+      position: 'absolute',
+      top: 46,
+      left: 0,
+      width: 210,
+      padding: 5,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      backgroundColor: colors.card,
+      zIndex: 80,
+      elevation: 15,
+    },
+    nativeQuickMenuItem: {
+      minHeight: 42,
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+      borderRadius: 6,
+    },
+    nativeQuickMenuText: {
+      color: colors.white,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    nativeTitleRow: {
+      minHeight: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      zIndex: 20,
+      marginBottom: 8,
+    },
+    nativeTitle: {
+      color: colors.white,
+      fontSize: 32,
+      fontWeight: '700',
+      letterSpacing: -0.8,
+    },
+    nativePickerWrap: {
+      position: 'relative',
+      zIndex: 40,
+    },
+    nativeMonthTrigger: {
+      minWidth: 132,
+      height: 40,
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      borderWidth: 1,
+      borderColor: colors.borderBlue,
+      borderRadius: 22,
+      backgroundColor: 'rgba(19,48,68,0.76)',
+    },
+    nativeMonthText: {
+      color: colors.blueLight,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    nativeMonthMenu: {
+      position: 'absolute',
+      top: 45,
+      right: 0,
+      width: 190,
+      padding: 7,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      zIndex: 60,
+      elevation: 15,
+    },
+    nativeMonthYearRow: {
+      height: 36,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 5,
+    },
+    nativeYearButton: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nativeYearText: {
+      color: colors.white,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    nativeMonthOptions: {
+      maxHeight: 290,
+    },
+    nativeMonthOption: {
+      minHeight: 35,
+      paddingHorizontal: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderRadius: 6,
+    },
+    nativeMonthOptionActive: {
+      backgroundColor: colors.blueSoft,
+    },
+    nativeMonthOptionText: {
+      color: colors.greySoft,
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    nativeMonthOptionTextActive: {
+      color: colors.blueLight,
+      fontWeight: '700',
+    },
+    nativePitchWrap: {
+      position: 'relative',
+      zIndex: 15,
+      marginBottom: 8,
+    },
+    nativePitchTrigger: {
+      minHeight: 48,
+      paddingHorizontal: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      backgroundColor: 'rgba(16,28,39,0.78)',
+    },
+    nativePitchDot: {
+      width: 13,
+      height: 13,
+      borderRadius: 7,
+    },
+    nativePitchName: {
+      flex: 1,
+      color: colors.white,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    nativePitchMenu: {
+      position: 'absolute',
+      top: 51,
+      left: 0,
+      right: 0,
+      padding: 5,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      zIndex: 60,
+      elevation: 15,
+    },
+    nativePitchOption: {
+      minHeight: 42,
+      paddingHorizontal: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    nativeViewAndDays: {
+      zIndex: 1,
+      marginBottom: 6,
+    },
+    nativeViewToggle: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      padding: 3,
+      gap: 2,
+      borderRadius: 8,
+      backgroundColor: 'rgba(255,255,255,0.055)',
+      marginBottom: 5,
+    },
+    nativeViewButton: {
+      minWidth: 72,
+      height: 29,
+      paddingHorizontal: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 6,
+    },
+    nativeViewButtonActive: {
+      backgroundColor: colors.blueSoft,
+    },
+    nativeViewButtonText: {
+      color: colors.grey,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    nativeViewButtonTextActive: {
+      color: colors.blueLight,
+    },
+    nativeDaysStrip: {
+      height: 78,
+    },
+    nativeDaysContent: {
+      alignItems: 'center',
+      gap: 5,
+      paddingRight: 6,
+    },
+    nativeDay: {
+      width: 48,
+      height: 76,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+    },
+    nativeDaySelected: {
+      backgroundColor: colors.blueLight,
+    },
+    nativeDayName: {
+      color: colors.grey,
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    nativeDayNumber: {
+      color: colors.white,
+      fontSize: 17,
+      fontWeight: '600',
+    },
+    nativeDayTextSelected: {
+      color: '#06131C',
+    },
+    nativeDayDots: {
+      height: 5,
+      flexDirection: 'row',
+      gap: 3,
+    },
+    nativeDayDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+    },
+    nativeSelectedDate: {
+      color: colors.white,
+      fontSize: 20,
+      fontWeight: '700',
+      letterSpacing: -0.25,
+      marginTop: 2,
+      marginBottom: 7,
+    },
+    nativeTimelineFrame: {
+      flex: 1,
+      minHeight: 80,
+      marginBottom: 8,
+      overflow: 'hidden',
+    },
+    nativeTimelineScroll: {
+      flex: 1,
+    },
+    nativeTimelineCanvas: {
+      position: 'relative',
+      marginRight: 2,
+    },
+    nativeHourRow: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+    },
+    nativeHourLabel: {
+      width: 48,
+      color: colors.grey,
+      fontSize: 12,
+      paddingTop: 2,
+    },
+    nativeHourRule: {
+      flex: 1,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(147,177,195,0.30)',
+      marginTop: 2,
+    },
+    nativeOpenSlot: {
+      position: 'absolute',
+      left: 54,
+      right: 0,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: 'rgba(97,186,251,0.56)',
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 5,
+      backgroundColor: 'rgba(8,17,26,0.2)',
+    },
+    nativeOpenSlotText: {
+      color: colors.blueLight,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    nativeEventCard: {
+      position: 'absolute',
+      left: 54,
+      right: 0,
+      borderWidth: 1,
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    nativeEventAccent: {
+      width: 8,
+      alignSelf: 'stretch',
+      marginRight: 11,
+    },
+    nativeEventCopy: {
+      flex: 1,
+      gap: 3,
+      minWidth: 0,
+    },
+    nativeEventTitle: {
+      color: colors.white,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    nativeEventDetail: {
+      color: colors.greySoft,
+      fontSize: 12,
+    },
+    nativeEventTime: {
+      fontSize: 11,
+      fontWeight: '600',
+      paddingHorizontal: 8,
+    },
+    nativeEmptyState: {
+      position: 'absolute',
+      top: 8,
+      left: 55,
+      right: 0,
+      height: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      backgroundColor: 'rgba(255,255,255,0.035)',
+    },
+    nativeEmptyText: {
+      color: colors.grey,
+      fontSize: 13,
+    },
+    nativeActions: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingTop: 2,
+      paddingBottom: 3,
+    },
+    nativeAction: {
+      flex: 1,
+      minWidth: 0,
+      height: 68,
+      borderWidth: 1,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(8,17,26,0.35)',
+    },
+    nativeExternalAction: {
+      borderColor: colors.blueLight,
+    },
+    nativeBlockAction: {
+      borderColor: colors.greyDark,
+    },
+    nativePartyAction: {
+      borderColor: colors.pink,
+      backgroundColor: 'rgba(255,59,141,0.055)',
+    },
+    nativeActionText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
     screenContent: {
       paddingTop: 4,
     },
