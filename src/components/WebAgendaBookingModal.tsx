@@ -5,28 +5,18 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { useLanguage } from '../i18n/LanguageContext';
 import { useAuth } from '../lib/auth';
 import { composeBookingNotes } from '../lib/bookingReference';
+import { bookingFormLabels, REASONS, reasonLabels } from '../lib/bookingFormLabels';
 import { createPitchBlock, createRecurringPitchBlocks, fetchAgendaRange, fetchAvailability } from '../lib/pitchData';
 import { addDays, buildBusyRanges, buildEndOptions, buildStartOptions, dateAtMinutes, overlapsBusy, startOfDay } from '../lib/slots';
 import { weeklineColors as c } from '../theme/palettes';
 
 type Kind = 'blocked' | 'party' | 'external_booking';
 type Props = { kind: Kind | null; selectedDate: Date; initialPitchId: string; onClose: () => void; onSaved: () => void };
-const REASONS = ['Bad Weather', 'Maintenance', 'Health Issue', 'Insufficient Staff', 'Other'] as const;
 const WebInput = 'input' as any;
 const WebSelect = 'select' as any;
 const WebOption = 'option' as any;
 const WebTextArea = 'textarea' as any;
 const inputStyle = { width: '100%', height: 38, boxSizing: 'border-box', border: `1px solid ${c.border}`, borderRadius: 7, background: c.cardDark, color: c.white, padding: '7px 10px', fontSize: 13, fontFamily: 'inherit', colorScheme: 'dark' };
-const labels = {
-  en: { blocked: 'Block slot', party: 'Party', external_booking: 'External booking', title: 'Title (optional)', description: 'Brief description (optional)', startDate: 'Start date', endDate: 'End date', date: 'Date', from: 'From', to: 'To', pitches: 'Pitches', pitch: 'Pitch', reason: 'Reason', choose: 'Select a reason', notes: 'Additional notes (optional)', reference: 'Reference name (optional)', phone: 'Reference phone number (optional)', repeat: 'Repeat weekly', repeatUntil: 'Repeat until', cancel: 'Cancel', save: 'Save', saving: 'Saving…', required: 'Select a valid future date, time range, and pitch.', reasonRequired: 'Select a reason.', range: 'The end date must be on or after the start date (up to 31 days).', rangeHint: 'Up to 31 consecutive days.', repeatDate: 'Select a repeat end date within two years.', conflict: 'That time is unavailable for {pitch} on {date}.', failed: 'Could not save. Check availability and try again.', partial: '{count} entries saved before an error. Refresh the Agenda before retrying.', skipped: 'Saved. {count} weekly dates were unavailable and skipped.' },
-  el: { blocked: 'Αποκλεισμός', party: 'Πάρτι', external_booking: 'Εξωτερική κράτηση', title: 'Τίτλος (προαιρετικό)', description: 'Σύντομη περιγραφή (προαιρετικό)', startDate: 'Ημερομηνία έναρξης', endDate: 'Ημερομηνία λήξης', date: 'Ημερομηνία', from: 'Από', to: 'Έως', pitches: 'Γήπεδα', pitch: 'Γήπεδο', reason: 'Αιτία', choose: 'Επιλέξτε αιτία', notes: 'Επιπλέον σημειώσεις (προαιρετικό)', reference: 'Όνομα αναφοράς (προαιρετικό)', phone: 'Τηλέφωνο αναφοράς (προαιρετικό)', repeat: 'Επανάληψη κάθε εβδομάδα', repeatUntil: 'Επανάληψη έως', cancel: 'Ακύρωση', save: 'Αποθήκευση', saving: 'Αποθήκευση…', required: 'Επιλέξτε έγκυρη ημερομηνία, ώρες και γήπεδο.', reasonRequired: 'Επιλέξτε αιτία.', range: 'Η λήξη πρέπει να είναι μετά την έναρξη (έως 31 ημέρες).', rangeHint: 'Έως 31 συνεχόμενες ημέρες.', repeatDate: 'Επιλέξτε λήξη επανάληψης εντός δύο ετών.', conflict: 'Η ώρα δεν είναι διαθέσιμη για {pitch} στις {date}.', failed: 'Δεν αποθηκεύτηκε. Ελέγξτε τη διαθεσιμότητα.', partial: '{count} εγγραφές αποθηκεύτηκαν πριν το σφάλμα. Ανανεώστε την Ατζέντα.', skipped: 'Αποθηκεύτηκε. {count} εβδομαδιαίες ημερομηνίες παραλείφθηκαν.' },
-  ru: { blocked: 'Блокировка', party: 'Мероприятие', external_booking: 'Внешнее бронирование', title: 'Название (необязательно)', description: 'Краткое описание (необязательно)', startDate: 'Дата начала', endDate: 'Дата окончания', date: 'Дата', from: 'С', to: 'До', pitches: 'Поля', pitch: 'Поле', reason: 'Причина', choose: 'Выберите причину', notes: 'Дополнительные заметки (необязательно)', reference: 'Имя для справки (необязательно)', phone: 'Контактный номер (необязательно)', repeat: 'Повторять еженедельно', repeatUntil: 'Повторять до', cancel: 'Отмена', save: 'Сохранить', saving: 'Сохранение…', required: 'Выберите дату, время и поле.', reasonRequired: 'Выберите причину.', range: 'Дата окончания должна быть не раньше начала (до 31 дня).', rangeHint: 'До 31 дня подряд.', repeatDate: 'Укажите окончание повтора в пределах двух лет.', conflict: 'Время недоступно для {pitch} на {date}.', failed: 'Не удалось сохранить. Проверьте доступность.', partial: 'Сохранено записей: {count}. Обновите календарь перед повтором.', skipped: 'Сохранено. Пропущено недель: {count}.' },
-};
-const reasonLabels = {
-  en: REASONS,
-  el: ['Κακοκαιρία', 'Συντήρηση', 'Πρόβλημα υγείας', 'Έλλειψη προσωπικού', 'Άλλο'],
-  ru: ['Плохая погода', 'Обслуживание', 'Проблемы со здоровьем', 'Нехватка персонала', 'Другое'],
-};
 function dateValue(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 function parseDate(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -39,7 +29,7 @@ const TIMES = Array.from({ length: 49 }, (_, index) => ({ value: index * 30, lab
 export default function WebAgendaBookingModal({ kind, selectedDate, initialPitchId, onClose, onSaved }: Props) {
   const { language } = useLanguage();
   const { session, pitches } = useAuth();
-  const l = labels[language] ?? labels.en;
+  const l = bookingFormLabels[language] ?? bookingFormLabels.en;
   const [startDate, setStartDate] = useState(dateValue(selectedDate));
   const [endDate, setEndDate] = useState(dateValue(selectedDate));
   const [repeatUntil, setRepeatUntil] = useState('');
