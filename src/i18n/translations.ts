@@ -235,6 +235,7 @@ export const translations = {
     },
     agenda: {
       title: 'Agenda',
+      today: 'Today',
       subtitle: 'Manage your bookings and pitch schedule.',
       noPitchLinked: 'No pitch is linked to your account yet. Contact MYPitch support to get set up.',
       blockSlot: 'Block Slot',
@@ -863,6 +864,7 @@ export const translations = {
     },
     agenda: {
       title: 'Ατζέντα',
+      today: 'Σήμερα',
       subtitle: 'Διαχειριστείτε τις κρατήσεις και το πρόγραμμα του γηπέδου σας.',
       noPitchLinked:
         'Δεν υπάρχει ακόμη γήπεδο συνδεδεμένο με τον λογαριασμό σας. Επικοινωνήστε με την υποστήριξη της MYPitch για να ρυθμιστεί.',
@@ -1494,6 +1496,7 @@ export const translations = {
     },
     agenda: {
       title: 'Расписание',
+      today: 'Сегодня',
       subtitle: 'Управляйте бронированиями и графиком вашего поля.',
       noPitchLinked:
         'К вашей учётной записи ещё не привязано поле. Обратитесь в службу поддержки MYPitch для настройки.',
