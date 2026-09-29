@@ -6,8 +6,8 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTranslation } from '../../i18n/LanguageContext';
 import { useAcademyRealtime } from '../../lib/academyRealtime';
-import { useAppTheme } from '../../theme/ThemeContext';
 import { BOTTOM_BAR_HEIGHT } from '../../theme/breakpoints';
+import { weeklineColors } from '../../theme/palettes';
 import { scaleFont } from '../../theme/typography';
 
 const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -22,9 +22,9 @@ const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 const PRIMARY_TABS = ['agenda', 'availability', 'academy', 'profile'];
 
 function OwnerMobileTabBar({ state, navigation, insets }: BottomTabBarProps) {
-  const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { unread } = useAcademyRealtime();
+  const colors = weeklineColors;
   const activeRoute = state.routes[state.index]?.name ?? 'agenda';
 
   function selectRoute(route: (typeof state.routes)[number]) {
@@ -36,7 +36,7 @@ function OwnerMobileTabBar({ state, navigation, insets }: BottomTabBarProps) {
 
   return (
     <View style={[nativeStyles.barRoot, { height: BOTTOM_BAR_HEIGHT + insets.bottom }]}>
-      <View style={[nativeStyles.bar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom }]}>
+      <View style={[nativeStyles.bar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
         {PRIMARY_TABS.map((name) => {
           const route = state.routes.find((item) => item.name === name);
           if (!route) return null;
@@ -45,10 +45,11 @@ function OwnerMobileTabBar({ state, navigation, insets }: BottomTabBarProps) {
           return (
             <Pressable key={route.key} style={nativeStyles.tabItem} onPress={() => selectRoute(route)} accessibilityRole="button" accessibilityState={{ selected: focused }}>
               <View style={nativeStyles.tabIconWrap}>
-                <Ionicons name={TAB_ICONS[name]} size={21} color={focused ? colors.greenLight : colors.greyDark} />
-                {academyUnread > 0 ? <View style={[nativeStyles.tabBadge, { backgroundColor: colors.greenLight }]}><Text style={[nativeStyles.tabBadgeText, { color: colors.blackText }]}>{academyUnread}</Text></View> : null}
+                <Ionicons name={TAB_ICONS[name]} size={21} color={focused ? colors.blueLight : colors.grey} />
+                {academyUnread > 0 ? <View style={[nativeStyles.tabBadge, { backgroundColor: colors.blueLight }]}><Text style={[nativeStyles.tabBadgeText, { color: colors.blackText }]}>{academyUnread}</Text></View> : null}
               </View>
-              <Text style={[nativeStyles.tabLabel, { color: focused ? colors.greenLight : colors.greyDark }]} numberOfLines={1}>{t(`nav.${name}`)}</Text>
+              <Text style={[nativeStyles.tabLabel, { color: focused ? colors.blueLight : colors.grey }]} numberOfLines={1}>{t(`nav.${name}`)}</Text>
+              {focused ? <View style={nativeStyles.activeUnderline} /> : null}
             </Pressable>
           );
         })}
@@ -165,6 +166,8 @@ const nativeStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 1,
+    borderTopColor: '#203542',
+    backgroundColor: '#07121B',
   },
   tabItem: {
     flex: 1,
@@ -172,15 +175,21 @@ const nativeStyles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
   },
   tabIconWrap: {
     position: 'relative',
   },
   tabLabel: {
     maxWidth: '100%',
-    fontSize: scaleFont(10.5),
-    fontWeight: '700',
+    fontSize: scaleFont(10),
+    fontWeight: '600',
+  },
+  activeUnderline: {
+    width: 30,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#61BAFB',
   },
   tabBadge: {
     position: 'absolute',
