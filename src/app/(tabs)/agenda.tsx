@@ -155,6 +155,7 @@ export default function AgendaScreen() {
   });
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [events, setEvents] = useState<AgendaEvent[]>([]);
+  const [monthEvents, setMonthEvents] = useState<AgendaEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
@@ -202,6 +203,7 @@ export default function AgendaScreen() {
     const loadVersion = ++loadVersionRef.current;
     if (!activePitch) {
       setEvents([]);
+      setMonthEvents([]);
       setIsLoading(false);
       return;
     }
@@ -214,11 +216,15 @@ export default function AgendaScreen() {
       const rangeEnd = new Date(rangeStart);
       rangeEnd.setDate(rangeEnd.getDate() + (isNativeMobile ? 49 : 42));
 
-      const { matches, blocks, academySessions } = await fetchAgendaRange(
-        activePitch.id,
-        rangeStart,
-        rangeEnd
+      const pitchResults = await Promise.all(
+        pitches.map(async (pitch) => ({
+          pitchId: pitch.id,
+          data: await fetchAgendaRange(pitch.id, rangeStart, rangeEnd),
+        }))
       );
+      const selectedPitchData = pitchResults.find(({ pitchId }) => pitchId === activePitch.id)?.data;
+      if (!selectedPitchData) throw new Error('Selected pitch is unavailable');
+      const { matches, blocks, academySessions } = selectedPitchData;
 
       // A cancelled match frees up its slot everywhere else (the User App's
       // booking list drops it, and get_pitch_busy_ranges stops counting it as
@@ -258,6 +264,18 @@ export default function AgendaScreen() {
 
       if (loadVersion === loadVersionRef.current) {
         setEvents([...matchEvents, ...blockEvents, ...academyEvents]);
+        setMonthEvents(pitchResults.flatMap(({ data }) => [
+          ...data.matches.filter((match) => match.status !== 'cancelled').map((match): AgendaEvent => ({
+            kind: 'match', id: match.id, startsAt: new Date(match.starts_at), endsAt: new Date(match.ends_at), match,
+          })),
+          ...data.blocks.map((block): AgendaEvent => ({
+            kind: 'block', id: block.id, startsAt: new Date(block.start_time), endsAt: new Date(block.end_time), block,
+          })),
+          ...data.academySessions.filter((session) => !session.is_cancelled).map((session): AgendaEvent => ({
+            kind: 'academy', id: `${session.id}:${session.starts_at}`,
+            startsAt: new Date(session.starts_at), endsAt: new Date(session.ends_at), session,
+          })),
+        ]));
       }
     } catch (error) {
       if (loadVersion === loadVersionRef.current) {
@@ -266,7 +284,7 @@ export default function AgendaScreen() {
     } finally {
       if (loadVersion === loadVersionRef.current) setIsLoading(false);
     }
-  }, [activePitch, visibleMonth, isNativeMobile]);
+  }, [activePitch, pitches, visibleMonth, isNativeMobile]);
 
   useFocusEffect(
     useCallback(() => {
@@ -293,9 +311,14 @@ export default function AgendaScreen() {
       if (document.visibilityState === 'visible') refresh();
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
+    // Recover missed Realtime events after a socket or browser connection interruption.
+    const fallbackTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, 15000);
 
     return () => {
       if (refreshTimer) clearTimeout(refreshTimer);
+      clearInterval(fallbackTimer);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       void supabase.removeChannel(channel);
     };
@@ -332,7 +355,7 @@ export default function AgendaScreen() {
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, AgendaEvent[]>();
-    events.forEach((event) => {
+    monthEvents.forEach((event) => {
       const key = event.startsAt.toDateString();
       const list = map.get(key) ?? [];
       list.push(event);
@@ -389,7 +412,7 @@ export default function AgendaScreen() {
       unavailable,
       total: confirmedMatches + pendingMatches + externalBookings + parties + unavailable,
     };
-  }, [events, visibleMonth]);
+  }, [monthEvents, visibleMonth]);
 
   // The month grid always loads a fixed 42-day (6-week) window. A week the
   // owner browses to in Week view can fall outside that window (e.g. flipping
