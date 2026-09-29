@@ -1,8 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import React, { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useTranslation } from '../i18n/LanguageContext';
+import { useAcademyRealtime } from '../lib/academyRealtime';
 import { AppColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius } from '../theme/layout';
@@ -26,6 +28,10 @@ export default function AppHeader({
 }: AppHeaderProps) {
   const router = useRouter();
   const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const { unread } = useAcademyRealtime();
+  const totalUnread = unread.players + unread.parents + unread.messages;
+  const showNotificationBell = Platform.OS !== 'web' && !showBack;
   const styles = makeStyles(colors);
 
   function handleBack() {
@@ -58,7 +64,19 @@ export default function AppHeader({
           {title}
         </Text>
 
-        <View style={styles.headerSide}>{right}</View>
+        <View style={styles.headerSide}>
+          {showNotificationBell ? (
+            <Pressable
+              style={[styles.notificationButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => router.push('/(tabs)/inbox' as any)}
+              accessibilityRole="button"
+              accessibilityLabel={t('inbox.notifications')}
+            >
+              <Ionicons name="notifications-outline" size={19} color={colors.white} />
+              {totalUnread > 0 ? <View style={[styles.notificationBadge, { backgroundColor: colors.greenLight }]}><Text style={[styles.notificationBadgeText, { color: colors.blackText }]}>{totalUnread}</Text></View> : null}
+            </Pressable>
+          ) : right}
+        </View>
       </View>
 
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -87,6 +105,29 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  notificationButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    right: -3,
+    top: -3,
+    minWidth: 15,
+    height: 15,
+    paddingHorizontal: 3,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
   },
   headerTitle: {
     flex: 1,
