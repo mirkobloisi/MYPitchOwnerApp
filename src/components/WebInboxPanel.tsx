@@ -60,7 +60,7 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
   const colors = isWeb ? weeklineColors : themeColors;
   const { t } = useTranslation();
   const router = useRouter();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, isWeb), [colors, isWeb]);
   const { unread, messagesVersion } = useAcademyRealtime();
 
   const [tab, setTab] = useState<InboxTab>(initialTab);
@@ -562,7 +562,7 @@ function EmptyState({
   );
 }
 
-const makeStyles = (colors: AppColors) =>
+const makeStyles = (colors: AppColors, isWeb: boolean) =>
   StyleSheet.create({
     panel: {
       position: 'absolute',
@@ -597,8 +597,10 @@ const makeStyles = (colors: AppColors) =>
     },
     title: {
       color: colors.white,
-      fontSize: scaleFont(22),
-      fontWeight: '800',
+      fontSize: isWeb ? 24 : scaleFont(22),
+      lineHeight: isWeb ? 30 : undefined,
+      fontWeight: isWeb ? '600' : '800',
+      letterSpacing: isWeb ? -0.6 : undefined,
       marginBottom: 3,
       marginLeft: 2,
     },
@@ -608,14 +610,16 @@ const makeStyles = (colors: AppColors) =>
       justifyContent: 'center',
       gap: 6,
       backgroundColor: colors.greenLight,
-      borderRadius: radius.round,
-      paddingVertical: 10,
+      borderRadius: isWeb ? 7 : radius.round,
+      paddingVertical: isWeb ? 0 : 10,
+      minHeight: isWeb ? 31 : undefined,
+      paddingHorizontal: isWeb ? 11 : undefined,
       marginBottom: spacing.md,
     },
     sendMessageButtonText: {
       color: colors.blackText,
-      fontSize: scaleFont(12.5),
-      fontWeight: '900',
+      fontSize: isWeb ? 13 : scaleFont(12.5),
+      fontWeight: isWeb ? '700' : '900',
     },
     composeHeader: {
       flexDirection: 'row',
@@ -624,10 +628,10 @@ const makeStyles = (colors: AppColors) =>
       marginBottom: spacing.md,
     },
     composeSubmitButton: {
-      minHeight: 42,
+      minHeight: isWeb ? 31 : 42,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 11,
+      borderRadius: isWeb ? 7 : 11,
       backgroundColor: colors.blue,
       marginTop: 10,
     },
@@ -636,8 +640,8 @@ const makeStyles = (colors: AppColors) =>
     },
     composeSubmitText: {
       color: colors.blackText,
-      fontSize: scaleFont(12),
-      fontWeight: '800',
+      fontSize: isWeb ? 13 : scaleFont(12),
+      fontWeight: isWeb ? '700' : '800',
     },
     composeSectionHeader: {
       flexDirection: 'row',
@@ -647,8 +651,8 @@ const makeStyles = (colors: AppColors) =>
     },
     composeSectionLabel: {
       color: colors.greenLight,
-      fontSize: scaleFont(11),
-      fontWeight: '900',
+      fontSize: isWeb ? 11 : scaleFont(11),
+      fontWeight: isWeb ? '700' : '900',
       textTransform: 'uppercase',
       letterSpacing: 0.4,
     },
@@ -656,17 +660,19 @@ const makeStyles = (colors: AppColors) =>
       marginTop: spacing.md,
     },
     allChip: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: radius.round,
+      paddingHorizontal: isWeb ? 11 : 10,
+      paddingVertical: isWeb ? 0 : 4,
+      minHeight: isWeb ? 31 : undefined,
+      justifyContent: 'center',
+      borderRadius: isWeb ? 7 : radius.round,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.cardSoft,
     },
     allChipText: {
       color: colors.grey,
-      fontSize: scaleFont(10.5),
-      fontWeight: '800',
+      fontSize: isWeb ? 11 : scaleFont(10.5),
+      fontWeight: isWeb ? '600' : '800',
     },
     pickRow: {
       flexDirection: 'row',
@@ -688,13 +694,13 @@ const makeStyles = (colors: AppColors) =>
       flex: 1,
       minWidth: 0,
       color: colors.white,
-      fontSize: scaleFont(12.5),
-      fontWeight: '700',
+      fontSize: isWeb ? 13 : scaleFont(12.5),
+      fontWeight: isWeb ? '600' : '700',
     },
     errorText: {
       color: colors.red,
-      fontSize: scaleFont(11.5),
-      fontWeight: '700',
+      fontSize: isWeb ? 13 : scaleFont(11.5),
+      fontWeight: '600',
       marginTop: spacing.sm,
     },
     tabRow: {
@@ -708,10 +714,10 @@ const makeStyles = (colors: AppColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6,
-      minHeight: 42,
-      paddingHorizontal: 7,
-      paddingVertical: 7,
-      borderRadius: 12,
+      minHeight: isWeb ? 31 : 42,
+      paddingHorizontal: isWeb ? 11 : 7,
+      paddingVertical: isWeb ? 0 : 7,
+      borderRadius: isWeb ? 7 : 12,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.card,
@@ -723,8 +729,8 @@ const makeStyles = (colors: AppColors) =>
     tabChipText: {
       color: colors.grey,
       flexShrink: 1,
-      fontSize: scaleFont(11.5),
-      fontWeight: '700',
+      fontSize: isWeb ? 13 : scaleFont(11.5),
+      fontWeight: '600',
     },
     tabChipTextActive: {
       color: colors.blueLight,
@@ -784,19 +790,19 @@ const makeStyles = (colors: AppColors) =>
     },
     rowTitle: {
       color: colors.white,
-      fontSize: scaleFont(12.5),
-      fontWeight: '700',
+      fontSize: isWeb ? 13 : scaleFont(12.5),
+      fontWeight: isWeb ? '600' : '700',
     },
     rowMeta: {
       color: colors.grey,
-      fontSize: scaleFont(11),
-      fontWeight: '500',
+      fontSize: isWeb ? 12 : scaleFont(11),
+      fontWeight: isWeb ? '400' : '500',
       marginTop: 2,
     },
     rowTime: {
       color: colors.grey,
-      fontSize: scaleFont(9.5),
-      fontWeight: '600',
+      fontSize: isWeb ? 11 : scaleFont(9.5),
+      fontWeight: isWeb ? '500' : '600',
       textAlign: 'right',
     },
     unreadDot: {
@@ -820,8 +826,8 @@ const makeStyles = (colors: AppColors) =>
     },
     emptyText: {
       color: colors.grey,
-      fontSize: scaleFont(12),
-      fontWeight: '600',
+      fontSize: isWeb ? 12 : scaleFont(12),
+      fontWeight: isWeb ? '400' : '600',
       textAlign: 'center',
     },
     searchRow: {
@@ -848,7 +854,7 @@ const makeStyles = (colors: AppColors) =>
       minWidth: 0,
       paddingVertical: 0,
       color: colors.white,
-      fontSize: scaleFont(11.5),
+      fontSize: isWeb ? 13 : scaleFont(11.5),
       outlineStyle: 'none',
     } as any,
     composeButton: {
@@ -914,8 +920,8 @@ const makeStyles = (colors: AppColors) =>
     },
     markAllReadText: {
       color: colors.blueLight,
-      fontSize: scaleFont(11),
-      fontWeight: '700',
+      fontSize: isWeb ? 13 : scaleFont(11),
+      fontWeight: isWeb ? '600' : '700',
     },
     noticeTrailing: {
       alignItems: 'flex-end',
