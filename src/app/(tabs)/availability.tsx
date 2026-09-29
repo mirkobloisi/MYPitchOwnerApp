@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AppHeader from '../../components/AppHeader';
@@ -17,7 +17,8 @@ import {
   updateAvailabilityRange,
 } from '../../lib/pitchData';
 import { parseTimeToMinutes } from '../../lib/slots';
-import { AppColors } from '../../theme/palettes';
+import { useBreakpoint, WIDE_CONTENT_MAX_WIDTH } from '../../theme/breakpoints';
+import { AppColors, weeklineColors } from '../../theme/palettes';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { radius, spacing } from '../../theme/layout';
 import { scaleFont } from '../../theme/typography';
@@ -104,11 +105,14 @@ function emptyDay(dayOfWeek: number): DayDraft {
 }
 
 export default function AvailabilityScreen() {
-  const { colors } = useAppTheme();
+  const { colors: appColors } = useAppTheme();
   const { activePitch } = useAuth();
+  const { isDesktop } = useBreakpoint();
   const { t, tList } = useTranslation();
+  const isDesktopWeb = Platform.OS === 'web' && isDesktop;
+  const colors = isDesktopWeb ? weeklineColors : appColors;
   const DAY_LABELS = tList('availability.days');
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const styles = useMemo(() => makeStyles(colors, isDesktopWeb), [colors, isDesktopWeb]);
 
   const [drafts, setDrafts] = useState<DayDraft[]>(() =>
     Array.from({ length: 7 }, (_, index) => emptyDay(index))
@@ -352,32 +356,42 @@ export default function AvailabilityScreen() {
 
   if (!activePitch) {
     return (
-      <Screen>
-        <AppHeader title={t('availability.title')} showBack={false} />
-        <Text style={styles.emptyText}>{t('availability.noPitchLinked')}</Text>
+      <Screen style={isDesktopWeb ? styles.desktopScreen : undefined} maxWidth={WIDE_CONTENT_MAX_WIDTH}>
+        {isDesktopWeb ? <Text style={styles.emptyText}>{t('availability.noPitchLinked')}</Text> : <>
+          <AppHeader title={t('availability.title')} showBack={false} />
+          <Text style={styles.emptyText}>{t('availability.noPitchLinked')}</Text>
+        </>}
       </Screen>
     );
   }
 
   return (
-    <Screen>
-      <AppHeader
-        title={t('availability.title')}
-        subtitle={t('availability.subtitle')}
-        showBack={false}
-      />
+    <Screen style={isDesktopWeb ? styles.desktopScreen : undefined} contentStyle={isDesktopWeb ? styles.desktopContent : undefined} maxWidth={WIDE_CONTENT_MAX_WIDTH}>
+      {isDesktopWeb ? (
+        <View style={styles.desktopHeading}>
+          <View>
+            <Text style={styles.desktopTitle}>{t('availability.title')}</Text>
+            <Text style={styles.desktopSubtitle}>{t('availability.subtitle')}</Text>
+          </View>
+          <View style={styles.desktopPitchBadge}>
+            <View style={styles.desktopPitchDot} />
+            <Text style={styles.desktopPitchText} numberOfLines={1}>{activePitch.name}</Text>
+          </View>
+        </View>
+      ) : <AppHeader title={t('availability.title')} subtitle={t('availability.subtitle')} showBack={false} />}
 
       {isLoading ? (
-        <ActivityIndicator color={colors.greenLight} style={styles.loading} />
+        <ActivityIndicator color={colors.blueLight} style={styles.loading} />
       ) : (
         <>
-          <SectionHeader title={t('availability.weeklyHours')} />
+          {isDesktopWeb ? <Text style={styles.desktopSectionHeading}>{t('availability.weeklyHours')}</Text> : <SectionHeader title={t('availability.weeklyHours')} />}
 
           {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
           {successMessage && !errorMessage ? (
             <Text style={styles.successText}>{successMessage}</Text>
           ) : null}
 
+          <View style={isDesktopWeb ? styles.desktopDayGrid : undefined}>
           {drafts.map((draft) => (
             <View key={draft.dayOfWeek} style={styles.dayCard}>
               <View style={styles.dayTopRow}>
@@ -387,8 +401,8 @@ export default function AvailabilityScreen() {
                   onValueChange={(value) =>
                     updateDay(draft.dayOfWeek, { isAvailable: value, error: undefined })
                   }
-                  trackColor={{ false: colors.cardDark, true: colors.greenSoft }}
-                  thumbColor={draft.isAvailable ? colors.greenLight : colors.greyDark}
+                  trackColor={{ false: colors.cardDark, true: colors.blueSoft }}
+                  thumbColor={draft.isAvailable ? colors.blueLight : colors.greyDark}
                 />
               </View>
 
@@ -451,7 +465,7 @@ export default function AvailabilityScreen() {
                     style={styles.addRangeButton}
                     onPress={() => addRange(draft.dayOfWeek)}
                   >
-                    <Ionicons name="add" size={15} color={colors.greenLight} />
+                    <Ionicons name="add" size={15} color={colors.blueLight} />
                     <Text style={styles.addRangeText}>{t('availability.addAnotherPeriod')}</Text>
                   </AnimatedPressable>
                 </>
@@ -462,6 +476,7 @@ export default function AvailabilityScreen() {
               {draft.error ? <Text style={styles.dayErrorText}>{draft.error}</Text> : null}
             </View>
           ))}
+          </View>
 
           <AnimatedPressable
             style={styles.saveAllButton}
@@ -471,7 +486,7 @@ export default function AvailabilityScreen() {
             {isSavingAll ? (
               <ActivityIndicator color={colors.background} size="small" />
             ) : (
-              <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} />
+              <Ionicons name="checkmark-circle-outline" size={18} color={colors.blackText} />
             )}
             <Text style={styles.saveAllButtonText}>
               {isSavingAll ? t('availability.savingAll') : t('availability.saveAll')}
@@ -483,7 +498,7 @@ export default function AvailabilityScreen() {
   );
 }
 
-const makeStyles = (colors: AppColors) =>
+const makeStyles = (colors: AppColors, desktop: boolean) =>
   StyleSheet.create({
     emptyText: {
       color: colors.grey,
@@ -494,6 +509,68 @@ const makeStyles = (colors: AppColors) =>
     },
     loading: {
       marginTop: spacing.xxl,
+    },
+    desktopScreen: {
+      backgroundColor: weeklineColors.background,
+    },
+    desktopContent: {
+      paddingTop: 18,
+      paddingBottom: 28,
+    },
+    desktopHeading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 20,
+      marginBottom: 22,
+    },
+    desktopTitle: {
+      color: colors.white,
+      fontSize: 28,
+      lineHeight: 34,
+      fontWeight: '800',
+    },
+    desktopSubtitle: {
+      color: colors.grey,
+      fontSize: 13,
+      marginTop: 3,
+    },
+    desktopPitchBadge: {
+      maxWidth: 250,
+      minHeight: 36,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    desktopPitchDot: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      backgroundColor: colors.blueLight,
+    },
+    desktopPitchText: {
+      flexShrink: 1,
+      color: colors.white,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    desktopSectionHeading: {
+      color: colors.grey,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      marginBottom: 11,
+    },
+    desktopDayGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
     },
     errorText: {
       color: colors.red,
@@ -508,12 +585,15 @@ const makeStyles = (colors: AppColors) =>
       marginBottom: spacing.md,
     },
     dayCard: {
-      borderRadius: radius.lg,
+      width: desktop ? '32%' : undefined,
+      minWidth: desktop ? 280 : undefined,
+      flexGrow: desktop ? 1 : undefined,
+      borderRadius: desktop ? 8 : radius.lg,
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
+      padding: desktop ? 13 : spacing.md,
+      marginBottom: desktop ? 0 : spacing.sm,
     },
     dayTopRow: {
       flexDirection: 'row',
@@ -522,12 +602,12 @@ const makeStyles = (colors: AppColors) =>
     },
     dayLabel: {
       color: colors.white,
-      fontSize: scaleFont(15),
-      fontWeight: '800',
+      fontSize: desktop ? 14 : scaleFont(15),
+      fontWeight: '700',
     },
     rangeBlock: {
-      marginTop: spacing.sm,
-      paddingTop: spacing.sm,
+      marginTop: desktop ? 8 : spacing.sm,
+      paddingTop: desktop ? 8 : spacing.sm,
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
@@ -538,7 +618,7 @@ const makeStyles = (colors: AppColors) =>
     },
     rangeLabel: {
       color: colors.grey,
-      fontSize: scaleFont(11),
+      fontSize: desktop ? 10 : scaleFont(11),
       fontWeight: '800',
       textTransform: 'uppercase',
       letterSpacing: 0.4,
@@ -561,7 +641,7 @@ const makeStyles = (colors: AppColors) =>
     },
     timeLabel: {
       color: colors.grey,
-      fontSize: scaleFont(11),
+      fontSize: desktop ? 10 : scaleFont(11),
       fontWeight: '800',
       marginBottom: 4,
     },
@@ -572,8 +652,8 @@ const makeStyles = (colors: AppColors) =>
       backgroundColor: colors.cardDark,
       color: colors.white,
       paddingHorizontal: spacing.sm,
-      paddingVertical: 9,
-      fontSize: scaleFont(13),
+      paddingVertical: desktop ? 7 : 9,
+      fontSize: desktop ? 12 : scaleFont(13),
       fontWeight: '700',
     },
     addRangeButton: {
@@ -586,12 +666,12 @@ const makeStyles = (colors: AppColors) =>
       paddingVertical: 7,
       borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: colors.borderGreen,
-      backgroundColor: colors.greenSoft,
+      borderColor: desktop ? colors.border : colors.borderGreen,
+      backgroundColor: desktop ? colors.cardSoft : colors.greenSoft,
     },
     addRangeText: {
-      color: colors.greenLight,
-      fontSize: scaleFont(12),
+      color: colors.blueLight,
+      fontSize: desktop ? 11 : scaleFont(12),
       fontWeight: '800',
     },
     closedText: {
@@ -615,7 +695,10 @@ const makeStyles = (colors: AppColors) =>
       marginBottom: spacing.xl,
       paddingVertical: 15,
       borderRadius: radius.lg,
-      backgroundColor: colors.greenLight,
+      backgroundColor: desktop ? colors.blueLight : colors.greenLight,
+      alignSelf: desktop ? 'flex-start' : undefined,
+      minWidth: desktop ? 165 : undefined,
+      paddingHorizontal: desktop ? 18 : undefined,
     },
     saveAllButtonText: {
       color: colors.background,
