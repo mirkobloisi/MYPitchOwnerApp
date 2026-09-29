@@ -46,6 +46,7 @@ const HOURS_END = 23;
 const HOURS = Array.from({ length: HOURS_END - HOURS_START }, (_, i) => HOURS_START + i);
 const HOUR_ROW_HEIGHT = 52;
 const WEEK_GRID_HEIGHT = HOURS.length * HOUR_ROW_HEIGHT;
+const PITCH_COLORS = ['#75C8EE', '#77D7BA', '#E9B46C', '#DDA0C8', '#B5A7EF', '#E59A86'];
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -149,6 +150,7 @@ export default function AgendaScreen() {
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   const colors = Platform.OS === 'web' && isDesktop ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -544,8 +546,38 @@ export default function AgendaScreen() {
       ) : null}
 
       <View style={[styles.toolbarRow, isDesktopWeek && styles.weeklineToolbar]}>
-        <View style={styles.pitchSelectorInline}>
-          {pitches.length > 1 ? (
+        <View style={[styles.pitchSelectorInline, isDesktopWeek && styles.weeklinePitchSelector]}>
+          {isDesktopWeek ? (
+            <View style={styles.pitchDropdown}>
+              <AnimatedPressable
+                style={styles.pitchDropdownTrigger}
+                onPress={() => setPitchMenuOpen((open) => !open)}
+                accessibilityRole="button"
+                accessibilityLabel={t('agenda.choosePitch')}
+                accessibilityState={{ expanded: pitchMenuOpen }}
+              >
+                <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
+                <Text style={styles.pitchDropdownText} numberOfLines={1}>{activePitch.name}</Text>
+                <Ionicons name={pitchMenuOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.grey} />
+              </AnimatedPressable>
+              {pitchMenuOpen && (
+                <View style={styles.pitchDropdownMenu}>
+                  {pitches.map((pitch, index) => (
+                    <AnimatedPressable
+                      key={pitch.id}
+                      style={[styles.pitchDropdownOption, pitch.id === activePitch.id && styles.pitchDropdownOptionActive]}
+                      onPress={() => { setActivePitchId(pitch.id); setPitchMenuOpen(false); }}
+                      accessibilityRole="menuitem"
+                    >
+                      <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[index % PITCH_COLORS.length] }]} />
+                      <Text style={styles.pitchDropdownText} numberOfLines={1}>{pitch.name}</Text>
+                      {pitch.id === activePitch.id && <Ionicons name="checkmark" size={15} color={colors.greenLight} />}
+                    </AnimatedPressable>
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : pitches.length > 1 ? (
             pitches.map((pitch) => {
               const isActive = pitch.id === activePitch?.id;
               return (
@@ -642,11 +674,11 @@ export default function AgendaScreen() {
             </View>
 
             <View style={styles.weeklineGrid}>
-              <View style={styles.weeklineTimeGutter}>
-                {HOURS.map((hour) => (
-                  <View key={hour} style={{ height: desktopHourHeight }}>
-                    <Text style={styles.weeklineHour}>{formatHourLabel(hour)}</Text>
-                  </View>
+              <View style={[styles.weeklineTimeGutter, { height: desktopGridHeight }]}>
+                {HOURS.map((hour, index) => (
+                  <Text key={hour} style={[styles.weeklineHour, { top: index * desktopHourHeight + 3 }]}>
+                    {formatHourLabel(hour)}
+                  </Text>
                 ))}
               </View>
               {weekDays.map((day) => (
@@ -1005,10 +1037,7 @@ const makeStyles = (colors: AppColors) =>
       backgroundColor: colors.background,
     },
     weeklineTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: 12,
+      gap: 10,
       marginBottom: 12,
     },
     weeklinePageTitle: {
@@ -1024,14 +1053,16 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineActions: {
       marginBottom: 0,
-      gap: 6,
-      flexShrink: 1,
-      justifyContent: 'flex-end',
+      gap: 8,
+      flexWrap: 'wrap',
+      justifyContent: 'flex-start',
     },
     weeklineActionButton: {
-      flex: 0,
-      paddingHorizontal: 10,
-      paddingVertical: 7,
+      flexGrow: 0,
+      flexShrink: 0,
+      minHeight: 34,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
       borderRadius: 7,
       gap: 5,
     },
@@ -1048,6 +1079,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineToolbar: {
       marginBottom: 12,
+      zIndex: 5,
     },
     weeklinePitchChip: {
       paddingHorizontal: 11,
@@ -1131,7 +1163,8 @@ const makeStyles = (colors: AppColors) =>
       borderColor: colors.border,
     },
     weeklineTimeGutter: {
-      width: 42,
+      width: 48,
+      position: 'relative',
     },
     weeklineDayHeading: {
       flex: 1,
@@ -1164,8 +1197,9 @@ const makeStyles = (colors: AppColors) =>
       color: colors.greyDark,
       fontSize: 9,
       textAlign: 'right',
-      paddingRight: 6,
-      marginTop: -5,
+      paddingRight: 8,
+      position: 'absolute',
+      right: 0,
     },
     weeklineDayColumn: {
       flex: 1,
@@ -1372,6 +1406,62 @@ const makeStyles = (colors: AppColors) =>
       flexWrap: 'wrap',
       gap: spacing.sm,
       flexShrink: 1,
+    },
+    weeklinePitchSelector: {
+      flexWrap: 'nowrap',
+      overflow: 'visible',
+    },
+    pitchDropdown: {
+      width: 216,
+      position: 'relative',
+      zIndex: 6,
+    },
+    pitchDropdownTrigger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      paddingHorizontal: 12,
+      minHeight: 34,
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 8,
+    },
+    pitchDropdownMenu: {
+      position: 'absolute',
+      top: 38,
+      left: 0,
+      right: 0,
+      padding: 4,
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 9,
+      zIndex: 10,
+      elevation: 10,
+    },
+    pitchDropdownOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      minHeight: 35,
+      paddingHorizontal: 8,
+      borderRadius: 6,
+    },
+    pitchDropdownOptionActive: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    pitchDropdownText: {
+      flex: 1,
+      minWidth: 0,
+      color: colors.white,
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    pitchColorDot: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
     },
     pitchChip: {
       flexDirection: 'row',
