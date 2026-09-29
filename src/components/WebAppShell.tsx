@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { usePathname, useRouter } from 'expo-router';
-import React, { ReactNode, useMemo } from 'react';
+import React, { ReactNode, useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import WebInboxPanel from './WebInboxPanel';
@@ -8,11 +8,10 @@ import { useTranslation } from '../i18n/LanguageContext';
 import { useAcademyRealtime } from '../lib/academyRealtime';
 import {
   BOTTOM_BAR_HEIGHT,
-  INBOX_WIDTH,
   SIDEBAR_WIDTH,
   useBreakpoint,
 } from '../theme/breakpoints';
-import { AppColors } from '../theme/palettes';
+import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius, spacing } from '../theme/layout';
 import { scaleFont } from '../theme/typography';
@@ -49,19 +48,20 @@ const ROUTE_TAB_OVERRIDE: Record<string, string> = {
  * never disappears — not for the seven tabs, and not for a detail screen
  * (an academy's own page, a booking) reached by drilling into one of them.
  *
- * On a wide enough monitor a second panel on the right surfaces messages and
- * notifications without leaving whatever screen is open. Native keeps the
- * platform tab bar and has no equivalent of either panel — see
+ * Native keeps the platform tab bar and has no equivalent of the sidebar — see
  * (tabs)/_layout.tsx.
  */
 export default function WebAppShell({ children }: { children: ReactNode }) {
-  const { isDesktop, hasInboxPanel } = useBreakpoint();
+  const { isDesktop } = useBreakpoint();
   const { t } = useTranslation();
   const pathname = usePathname();
+  const isWeeklineAgenda = isDesktop && pathname === '/agenda';
   const router = useRouter();
   const { unread } = useAcademyRealtime();
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
+  useEffect(() => setIsInboxOpen(false), [pathname]);
   const { colors } = useAppTheme();
-  const themed = useMemo(() => makeStyles(colors), [colors]);
+  const themed = useMemo(() => makeStyles(isWeeklineAgenda ? weeklineColors : colors), [colors, isWeeklineAgenda]);
 
   if (Platform.OS !== 'web') return <>{children}</>;
 
@@ -76,15 +76,15 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
       <View
         style={[
           styles.content,
+          isWeeklineAgenda && styles.weeklineContent,
           isDesktop ? { paddingLeft: SIDEBAR_WIDTH } : { paddingBottom: BOTTOM_BAR_HEIGHT },
-          hasInboxPanel ? { paddingRight: INBOX_WIDTH } : null,
         ]}
       >
         {children}
       </View>
 
       {isDesktop ? (
-        <View style={themed.sidebar}>
+        <View style={[themed.sidebar, isWeeklineAgenda && styles.weeklineSidebar]}>
           <View style={themed.brandRow}>
             <Image
               source={require('../../assets/images/mypitch-logo.png')}
@@ -104,10 +104,16 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
                 isDesktop
                 isFocused={effectivePath === item.href}
                 waiting={waiting[item.name] ?? 0}
+                colorsOverride={isWeeklineAgenda ? weeklineColors : undefined}
                 onPress={() => router.replace(item.href as any)}
               />
             ))}
           </View>
+          <Pressable style={themed.inboxOpenButton} onPress={() => setIsInboxOpen(true)}>
+            <Ionicons name="mail-outline" size={17} color={isWeeklineAgenda ? weeklineColors.greenLight : colors.greenLight} />
+            <Text style={themed.inboxOpenLabel}>{t('inbox.title')}</Text>
+            {unread.messages > 0 ? <Text style={themed.inboxOpenCount}>{unread.messages}</Text> : null}
+          </Pressable>
         </View>
       ) : (
         <View style={themed.bottomBar}>
@@ -125,7 +131,16 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
         </View>
       )}
 
-      {hasInboxPanel ? <WebInboxPanel /> : null}
+      {isInboxOpen ? (
+        <View style={styles.inboxOverlay}>
+          <Pressable style={styles.inboxBackdrop} onPress={() => setIsInboxOpen(false)} />
+          <WebInboxPanel />
+          <Pressable style={styles.closeInbox} onPress={() => setIsInboxOpen(false)} accessibilityLabel="Close inbox">
+            <Ionicons name="close" size={19} color={colors.grey} />
+          </Pressable>
+        </View>
+      ) : null}
+
     </View>
   );
 }
@@ -136,6 +151,7 @@ function NavItem({
   isDesktop,
   isFocused,
   waiting,
+  colorsOverride,
   onPress,
 }: {
   label: string;
@@ -143,9 +159,11 @@ function NavItem({
   isDesktop: boolean;
   isFocused: boolean;
   waiting: number;
+  colorsOverride?: AppColors;
   onPress: () => void;
 }) {
-  const { colors } = useAppTheme();
+  const { colors: appColors } = useAppTheme();
+  const colors = colorsOverride ?? appColors;
   const themed = useMemo(() => makeStyles(colors), [colors]);
   const tint = isFocused ? colors.greenLight : colors.greyDark;
 
@@ -190,6 +208,37 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  weeklineContent: {
+    backgroundColor: weeklineColors.background,
+  },
+  weeklineSidebar: {
+    backgroundColor: weeklineColors.backgroundSoft,
+  },
+  inboxOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 50,
+  },
+  inboxBackdrop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+  },
+  closeInbox: {
+    position: 'absolute',
+    right: 13,
+    top: 19,
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
@@ -238,6 +287,28 @@ const makeStyles = (colors: AppColors) =>
     },
     navGroup: {
       gap: 4,
+    },
+    inboxOpenButton: {
+      marginTop: 16,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    inboxOpenLabel: {
+      flex: 1,
+      color: colors.white,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    inboxOpenCount: {
+      color: colors.greenLight,
+      fontSize: 11,
+      fontWeight: '700',
     },
     sidebarItem: {
       flexDirection: 'row',
