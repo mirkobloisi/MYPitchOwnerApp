@@ -511,7 +511,7 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       marginTop: spacing.xxl,
     },
     desktopScreen: {
-      backgroundColor: weeklineColors.background,
+      backgroundColor: '#08111A',
     },
     desktopContent: {
       paddingTop: 18,
