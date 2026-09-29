@@ -732,7 +732,18 @@ export default function AgendaScreen() {
                 const isSelected = isSameDay(day, selectedDate);
                 const dayEvents = eventsByDay.get(day.toDateString()) ?? [];
                 return (
-                  <Pressable key={day.toISOString()} style={[styles.nativeDay, isSelected && styles.nativeDaySelected]} onPress={() => setSelectedDate(day)} accessibilityRole="button" accessibilityState={{ selected: isSelected }}>
+                  <Pressable
+                    key={day.toISOString()}
+                    style={[styles.nativeDay, isSelected && styles.nativeDaySelected]}
+                    onPress={() => {
+                      setSelectedDate(day);
+                      if (day.getMonth() !== visibleMonth.getMonth() || day.getFullYear() !== visibleMonth.getFullYear()) {
+                        setVisibleMonth(startOfMonth(day));
+                      }
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                  >
                     <Text style={[styles.nativeDayName, isSelected && styles.nativeDayTextSelected]}>{WEEKDAY_LABELS[(day.getDay() + 6) % 7]}</Text>
                     <Text style={[styles.nativeDayNumber, isSelected && styles.nativeDayTextSelected]}>{day.getDate()}</Text>
                     <View style={styles.nativeDayDots}>{dayEvents.slice(0, 3).map((event) => <View key={event.id} style={[styles.nativeDayDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />)}</View>
