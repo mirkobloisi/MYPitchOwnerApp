@@ -153,7 +153,9 @@ export default function AgendaScreen() {
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   const isDesktopMonth = Platform.OS === 'web' && isDesktop && viewMode === 'month';
   const isDesktopAgenda = isDesktopWeek || isDesktopMonth;
-  const colors = Platform.OS === 'web' && isDesktop ? weeklineColors : appColors;
+  const isNativeMobile = Platform.OS !== 'web';
+  const isWeeklineStyle = isDesktopAgenda || isNativeMobile;
+  const colors = isWeeklineStyle ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const desktopHourHeight = 56;
   const desktopGridHeight = HOURS.length * desktopHourHeight;
@@ -465,11 +467,11 @@ export default function AgendaScreen() {
     return (
       <AnimatedPressable
         key={event.id}
-        style={[styles.eventCard, { borderLeftColor: meta.color }]}
+        style={[styles.eventCard, isNativeMobile && styles.nativeWeeklineEventCard, { borderLeftColor: meta.color }]}
         onPress={() => openEventDetails(event)}
       >
         <View style={styles.eventTimeRow}>
-          <Text style={styles.eventTime}>
+          <Text style={[styles.eventTime, isNativeMobile && styles.nativeWeeklineEventTime]}>
             {formatTime(event.startsAt)} – {formatTime(event.endsAt)}
           </Text>
           <View style={styles.eventTrailing}>
@@ -483,7 +485,7 @@ export default function AgendaScreen() {
         </View>
 
         {showPlayers && event.kind === 'match' ? (
-          <Text style={styles.eventDetail}>
+          <Text style={[styles.eventDetail, isNativeMobile && styles.nativeWeeklineEventDetail]}>
             {t('agenda.playersLabel', {
               paid: event.match.players_paid_count,
               required: event.match.players_required,
@@ -561,7 +563,7 @@ export default function AgendaScreen() {
   if (!activePitch) {
     return (
       <Screen>
-        <AppHeader title={t('agenda.title')} showBack={false} />
+        <AppHeader title={t('agenda.title')} showBack={false} colorsOverride={isNativeMobile ? weeklineColors : undefined} refined={isNativeMobile} />
         <Text style={styles.emptyText}>{t('agenda.noPitchLinked')}</Text>
       </Screen>
     );
@@ -570,10 +572,10 @@ export default function AgendaScreen() {
   return (
     <Screen
       scroll={!isDesktopAgenda}
-      ambientGlows={!isDesktopAgenda}
-      background={isDesktopAgenda ? <Image source={require('../../../assets/images/weekline-soft-halo.png')} style={styles.weeklineBackground} resizeMode="stretch" /> : undefined}
-      style={isDesktopAgenda ? { backgroundColor: '#08111a' } : Platform.OS === 'web' && isDesktop ? { backgroundColor: colors.background } : undefined}
-      contentStyle={[styles.screenContent, isDesktopAgenda && styles.weeklineScreen]}
+      ambientGlows={!isDesktopAgenda && !isNativeMobile}
+      background={isDesktopAgenda || isNativeMobile ? <Image source={require('../../../assets/images/weekline-soft-halo.png')} style={styles.weeklineBackground} resizeMode="stretch" /> : undefined}
+      style={isDesktopAgenda || isNativeMobile ? { backgroundColor: weeklineColors.background } : undefined}
+      contentStyle={[styles.screenContent, isWeeklineStyle && styles.weeklineScreen, isNativeMobile && styles.nativeWeeklineScreen]}
       maxWidth={WIDE_CONTENT_MAX_WIDTH}
     >
       <View style={isDesktopAgenda ? styles.weeklineTop : undefined}>
@@ -583,42 +585,42 @@ export default function AgendaScreen() {
             <Text style={styles.weeklinePageSubtitle}>{t('agenda.subtitle')}</Text>
           </View>
         ) : (
-          <AppHeader title={t('agenda.title')} subtitle={t('agenda.subtitle')} showBack={false} />
+          <AppHeader title={t('agenda.title')} subtitle={t('agenda.subtitle')} showBack={false} colorsOverride={isNativeMobile ? weeklineColors : undefined} refined={isNativeMobile} />
         )}
 
-      <View style={[styles.actionsRow, isDesktopAgenda && styles.weeklineActions]}>
+      <View style={[styles.actionsRow, isDesktopAgenda && styles.weeklineActions, isNativeMobile && styles.nativeWeeklineActions]}>
         <Pressable
-          style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton, isNativeMobile && styles.nativeWeeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
           onPress={openBlockSlot}
           disabled={selectedDayIsPast}
         >
           {!isDesktopAgenda && <Ionicons name="lock-closed-outline" size={16} color={colors.white} />}
-          <Text style={[styles.actionButtonOutlineText, isDesktopAgenda && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.blockSlot')}</Text>
+          <Text style={[styles.actionButtonOutlineText, isWeeklineStyle && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.blockSlot')}</Text>
         </Pressable>
 
         {/* A party takes the pitch for an evening rather than a playing
             slot, so it gets its own button and its own time selection. */}
         <Pressable
-          style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton, isNativeMobile && styles.nativeWeeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
           onPress={openAddParty}
           disabled={selectedDayIsPast}
         >
           {!isDesktopAgenda && <Ionicons name="balloon-outline" size={16} color={colors.pink} />}
-          <Text style={[styles.actionButtonOutlineText, isDesktopAgenda && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.addParty')}</Text>
+          <Text style={[styles.actionButtonOutlineText, isWeeklineStyle && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.addParty')}</Text>
         </Pressable>
 
         <Pressable
-          style={[styles.actionButtonPrimary, isDesktopAgenda && styles.weeklineActionButton, isDesktopAgenda && styles.weeklinePrimaryButton, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonPrimary, isDesktopAgenda && styles.weeklineActionButton, isDesktopAgenda && styles.weeklinePrimaryButton, isNativeMobile && styles.nativeWeeklinePrimaryButton, selectedDayIsPast && styles.actionDisabled]}
           onPress={openAddExternalBooking}
           disabled={selectedDayIsPast}
         >
           <Ionicons name="add" size={isDesktopAgenda ? 15 : 18} color={colors.blackText} />
-          <Text style={[styles.actionButtonPrimaryText, isDesktopAgenda && styles.weeklinePrimaryText]} numberOfLines={1}>{t('agenda.addExternalBooking')}</Text>
+          <Text style={[styles.actionButtonPrimaryText, isWeeklineStyle && styles.weeklinePrimaryText]} numberOfLines={1}>{t('agenda.addExternalBooking')}</Text>
         </Pressable>
       </View>
       </View>
 
-      <View style={[styles.toolbarRow, isDesktopAgenda && styles.weeklineToolbar]}>
+      <View style={[styles.toolbarRow, isDesktopAgenda && styles.weeklineToolbar, isNativeMobile && styles.nativeWeeklineToolbar]}>
         <View style={[styles.pitchSelectorInline, isDesktopAgenda && styles.weeklinePitchSelector]}>
           {isDesktopAgenda ? (
             <View style={styles.pitchDropdown}>
@@ -656,25 +658,25 @@ export default function AgendaScreen() {
               return (
                 <AnimatedPressable
                   key={pitch.id}
-                  style={[styles.pitchChip, isDesktopAgenda && styles.weeklinePitchChip, isActive && styles.pitchChipActive, isDesktopAgenda && isActive && styles.weeklinePitchChipActive]}
+                  style={[styles.pitchChip, isWeeklineStyle && styles.weeklinePitchChip, isActive && styles.pitchChipActive, isWeeklineStyle && isActive && styles.weeklinePitchChipActive]}
                   onPress={() => setActivePitchId(pitch.id)}
                 >
                   <Ionicons name="location" size={12} color={isActive ? colors.white : colors.grey} />
-                  <Text style={[styles.pitchChipText, isDesktopAgenda && styles.weeklinePitchText, isActive && styles.pitchChipTextActive]}>
+                  <Text style={[styles.pitchChipText, isWeeklineStyle && styles.weeklinePitchText, isActive && styles.pitchChipTextActive]}>
                     {pitch.name}
                   </Text>
                 </AnimatedPressable>
               );
             })
           ) : (
-            <View style={[styles.pitchChip, isDesktopAgenda && styles.weeklinePitchChip, styles.pitchChipActive, isDesktopAgenda && styles.weeklinePitchChipActive]}>
+            <View style={[styles.pitchChip, isWeeklineStyle && styles.weeklinePitchChip, styles.pitchChipActive, isWeeklineStyle && styles.weeklinePitchChipActive]}>
               <Ionicons name="location" size={12} color={colors.white} />
-              <Text style={[styles.pitchChipText, isDesktopAgenda && styles.weeklinePitchText, styles.pitchChipTextActive]}>{activePitch.name}</Text>
+              <Text style={[styles.pitchChipText, isWeeklineStyle && styles.weeklinePitchText, styles.pitchChipTextActive]}>{activePitch.name}</Text>
             </View>
           )}
         </View>
 
-        <View style={[styles.viewToggleRow, isDesktopAgenda && styles.weeklineToggleRow]}>
+        <View style={[styles.viewToggleRow, isWeeklineStyle && styles.weeklineToggleRow]}>
           {(['week', 'month'] as ViewMode[]).map((mode) => {
             const isActive = viewMode === mode;
             const label =
@@ -683,19 +685,19 @@ export default function AgendaScreen() {
               <AnimatedSelectable
                 key={mode}
                 active={isActive}
-                style={[styles.viewToggleButton, isDesktopAgenda && styles.weeklineToggleButton]}
-                background={['transparent', isDesktopAgenda ? colors.greenSoft : colors.blue]}
+                style={[styles.viewToggleButton, isWeeklineStyle && styles.weeklineToggleButton]}
+                background={['transparent', isWeeklineStyle ? colors.greenSoft : colors.blue]}
                 onPress={() => selectViewMode(mode)}
               >
                 {(progress) => (
                   <Animated.Text
                     style={[
                       styles.viewToggleText,
-                      isDesktopAgenda && styles.weeklineToggleText,
+                      isWeeklineStyle && styles.weeklineToggleText,
                       {
                         color: progress.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [colors.grey, isDesktopAgenda ? colors.greenLight : colors.white],
+                          outputRange: [colors.grey, isWeeklineStyle ? colors.greenLight : colors.white],
                         }),
                       },
                     ]}
@@ -864,13 +866,13 @@ export default function AgendaScreen() {
       {viewMode === 'month' ? (
         <View style={styles.mobileMonthPickerWrap}>
           <Pressable
-            style={styles.mobileMonthPickerTrigger}
+            style={[styles.mobileMonthPickerTrigger, isNativeMobile && styles.nativeWeeklineControl]}
             onPress={() => setMonthMenuOpen((open) => !open)}
             accessibilityRole="button"
             accessibilityLabel={`${MONTH_LABELS[visibleMonth.getMonth()]} ${visibleMonth.getFullYear()}`}
             accessibilityState={{ expanded: monthMenuOpen }}
           >
-            <Text style={styles.mobileMonthPickerText}>{MONTH_LABELS[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</Text>
+            <Text style={[styles.mobileMonthPickerText, isNativeMobile && styles.nativeWeeklineControlText]}>{MONTH_LABELS[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</Text>
             <Ionicons name={monthMenuOpen ? 'chevron-up' : 'chevron-down'} size={17} color={colors.greenLight} />
           </Pressable>
           {monthMenuOpen ? (
@@ -922,7 +924,7 @@ export default function AgendaScreen() {
           horizontal
           nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
-          style={styles.mobileMonthStrip}
+          style={[styles.mobileMonthStrip, isNativeMobile && styles.nativeWeeklineMonthStrip]}
           contentContainerStyle={styles.mobileMonthStripContent}
           onLayout={(event) => setMonthStripWidth(event.nativeEvent.layout.width)}
         >
@@ -932,7 +934,7 @@ export default function AgendaScreen() {
             return (
               <Pressable
                 key={day.toISOString()}
-                style={[styles.mobileMonthDay, isSelected && styles.mobileMonthDaySelected]}
+                style={[styles.mobileMonthDay, isSelected && styles.mobileMonthDaySelected, isNativeMobile && isSelected && styles.nativeWeeklineMonthDaySelected]}
                 onPress={() => setSelectedDate(day)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
@@ -952,7 +954,7 @@ export default function AgendaScreen() {
           })}
         </ScrollView>
       ) : viewMode === 'week' ? (
-        <View style={styles.weekWrap}>
+        <View style={[styles.weekWrap, isNativeMobile && styles.nativeWeeklineWeekWrap]}>
           <View style={styles.weekHeaderRow}>
             <View style={styles.weekGutterHeader} />
             {weekDays.map((day) => {
@@ -961,7 +963,7 @@ export default function AgendaScreen() {
               return (
                 <AnimatedPressable
                   key={day.toISOString()}
-                  style={styles.weekHeaderCell}
+                  style={[styles.weekHeaderCell, isNativeMobile && styles.nativeWeeklineWeekHeaderCell, isNativeMobile && isSelected && styles.nativeWeeklineWeekHeaderCellSelected]}
                   onPress={() => setSelectedDate(day)}
                 >
                   <Text style={styles.weekHeaderDayLabel}>{WEEKDAY_LABELS[(day.getDay() + 6) % 7]}</Text>
@@ -979,7 +981,7 @@ export default function AgendaScreen() {
             })}
           </View>
 
-          <ScrollView style={styles.weekScroll} nestedScrollEnabled>
+          <ScrollView style={[styles.weekScroll, isNativeMobile && styles.nativeWeeklineWeekScroll]} nestedScrollEnabled>
             <View style={styles.weekBodyRow}>
               <View style={styles.weekGutter}>
                 {HOURS.map((hour) => (
@@ -1028,10 +1030,10 @@ export default function AgendaScreen() {
                           ]}
                           onPress={() => openEventDetails(event)}
                         >
-                          <Text style={[styles.weekEventTime, { color: meta.color }]} numberOfLines={1}>
+                          <Text style={[styles.weekEventTime, isNativeMobile && styles.nativeWeeklineWeekEventTime, { color: meta.color }]} numberOfLines={1}>
                             {formatTime(event.startsAt)}
                           </Text>
-                          <Text style={styles.weekEventLabel} numberOfLines={1}>
+                          <Text style={[styles.weekEventLabel, isNativeMobile && styles.nativeWeeklineWeekEventLabel]} numberOfLines={1}>
                             {meta.label}
                           </Text>
                         </AnimatedPressable>
@@ -1050,8 +1052,8 @@ export default function AgendaScreen() {
         </View>
 
         <View style={isDesktop ? styles.panelColumn : undefined}>
-      <View style={styles.statsCard}>
-        <Text style={styles.statsTitle}>{t('agenda.statsThisMonth')}</Text>
+      <View style={[styles.statsCard, isNativeMobile && styles.nativeWeeklineCard]}>
+        <Text style={[styles.statsTitle, isNativeMobile && styles.nativeWeeklineSectionTitle]}>{t('agenda.statsThisMonth')}</Text>
 
         <View style={styles.statsRow}>
           <View style={[styles.statsDot, { backgroundColor: colors.greenLight }]} />
@@ -1081,16 +1083,16 @@ export default function AgendaScreen() {
 
       <AnimatedSwap
         swapKey={selectedDate.toDateString()}
-        style={[styles.dayPanel, isDesktop && styles.dayPanelDesktop]}
+        style={[styles.dayPanel, isDesktop && styles.dayPanelDesktop, isNativeMobile && styles.nativeWeeklineDayPanel]}
       >
-        <Text style={styles.dayPanelTitle}>
+        <Text style={[styles.dayPanelTitle, isNativeMobile && styles.nativeWeeklineDayTitle]}>
           {selectedDate.toLocaleDateString(undefined, {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
           })}
         </Text>
-        <Text style={styles.dayPanelSubtitle}>
+        <Text style={[styles.dayPanelSubtitle, isNativeMobile && styles.nativeWeeklineDaySubtitle]}>
           {selectedDayEvents.length === 1
             ? t('agenda.bookingsCountOne', { count: selectedDayEvents.length })
             : t('agenda.bookingsCountOther', { count: selectedDayEvents.length })}
@@ -1133,6 +1135,120 @@ const makeStyles = (colors: AppColors) =>
       paddingTop: 18,
       paddingBottom: 14,
       backgroundColor: 'transparent',
+    },
+    nativeWeeklineScreen: {
+      paddingTop: 10,
+      paddingBottom: 28,
+    },
+    nativeWeeklineActions: {
+      gap: 7,
+      marginBottom: 12,
+      flexWrap: 'wrap',
+    },
+    nativeWeeklineActionButton: {
+      minHeight: 38,
+      paddingHorizontal: 9,
+      paddingVertical: 8,
+      borderRadius: 8,
+      flexGrow: 1,
+      flexShrink: 1,
+    },
+    nativeWeeklinePrimaryButton: {
+      minWidth: 136,
+      backgroundColor: colors.greenLight,
+    },
+    nativeWeeklineToolbar: {
+      marginBottom: 12,
+      gap: 8,
+    },
+    nativeWeeklineControl: {
+      minHeight: 40,
+      borderRadius: 8,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    nativeWeeklineControlText: {
+      fontSize: scaleFont(14),
+      fontWeight: '600',
+    },
+    nativeWeeklineMonthStrip: {
+      height: 70,
+      marginBottom: 12,
+    },
+    nativeWeeklineMonthDaySelected: {
+      backgroundColor: colors.greenSoft,
+      borderColor: colors.greenLight,
+    },
+    nativeWeeklineWeekWrap: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 9,
+      backgroundColor: colors.card,
+      padding: 7,
+      overflow: 'hidden',
+    },
+    nativeWeeklineWeekHeaderCell: {
+      borderRadius: 7,
+    },
+    nativeWeeklineWeekHeaderCellSelected: {
+      backgroundColor: colors.greenSoft,
+    },
+    nativeWeeklineWeekScroll: {
+      maxHeight: 430,
+    },
+    nativeWeeklineWeekEvent: {
+      borderRadius: 5,
+      paddingHorizontal: 4,
+      borderLeftWidth: 2,
+    },
+    nativeWeeklineWeekEventTime: {
+      fontWeight: '700',
+    },
+    nativeWeeklineWeekEventLabel: {
+      fontWeight: '500',
+    },
+    nativeWeeklineCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 9,
+      padding: 14,
+    },
+    nativeWeeklineSectionTitle: {
+      fontSize: scaleFont(14),
+      fontWeight: '600',
+    },
+    nativeWeeklineDayPanel: {
+      marginTop: 12,
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 9,
+      padding: 14,
+    },
+    nativeWeeklineDayTitle: {
+      fontSize: scaleFont(16),
+      fontWeight: '600',
+    },
+    nativeWeeklineDaySubtitle: {
+      fontSize: scaleFont(12),
+      fontWeight: '500',
+      marginBottom: 10,
+    },
+    nativeWeeklineEventCard: {
+      borderRadius: 7,
+      backgroundColor: colors.cardDark,
+      borderColor: colors.borderSoft,
+      padding: 11,
+    },
+    nativeWeeklineEventTime: {
+      fontSize: scaleFont(13),
+      fontWeight: '600',
+    },
+    nativeWeeklineEventBadgeText: {
+      fontWeight: '700',
+    },
+    nativeWeeklineEventDetail: {
+      fontSize: scaleFont(12),
+      fontWeight: '500',
     },
     weeklineBackground: {
       position: 'absolute',
