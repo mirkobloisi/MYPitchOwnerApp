@@ -6,18 +6,19 @@ import { useAppTheme } from '../theme/ThemeContext';
 type AppBackgroundProps = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  ambientGlows?: boolean;
 };
 
 // Web-only: a pair of large, slowly-drifting glow blobs behind the screen's
 // content, matching the ambient background on the MYPitch marketing site.
 // Native keeps the plain solid background from AnimatedBackground.tsx —
 // Metro picks this file automatically on web via the .web.tsx extension.
-export default function AppBackground({ children, style }: AppBackgroundProps) {
+export default function AppBackground({ children, style, ambientGlows = true }: AppBackgroundProps) {
   const { colors, isDark } = useAppTheme();
 
   return (
     <View style={[{ flex: 1, backgroundColor: colors.background }, style]}>
-      {isDark ? (
+      {isDark && ambientGlows ? (
         <>
           <GlowBlob color={colors.blueGlow} size={560} top={-160} left={-140} duration={23000} />
           <GlowBlob color={colors.greenGlow} size={620} top={-60} left={undefined} right={-160} duration={27000} />
@@ -80,7 +81,7 @@ function GlowBlob({ color, size, top, left, right, duration }: GlowBlobProps) {
           backgroundColor: color,
           transform: [{ translateX }, { translateY }, { scale }],
           filter: 'blur(70px)',
-        } as ViewStyle,
+        } as unknown as ViewStyle,
       ]}
     />
   );
