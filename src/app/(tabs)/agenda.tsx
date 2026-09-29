@@ -478,6 +478,14 @@ export default function AgendaScreen() {
     }
   }
 
+  function goToToday() {
+    const today = new Date();
+    setSelectedDate(today);
+    setVisibleMonth(startOfMonth(today));
+    setWeekStart(startOfWeek(today));
+    setPitchMenuOpen(false);
+  }
+
   function goToPrevious() {
     if (viewMode === 'week') goToPreviousWeek();
     else goToPreviousMonth();
@@ -992,6 +1000,16 @@ export default function AgendaScreen() {
               <Ionicons name="location" size={12} color={colors.white} />
               <Text style={[styles.pitchChipText, isDesktopAgenda && styles.weeklinePitchText, styles.pitchChipTextActive]}>{activePitch.name}</Text>
             </View>
+          )}
+          {isDesktopAgenda && (
+            <Pressable
+              style={styles.weeklineTodayButton}
+              onPress={goToToday}
+              accessibilityRole="button"
+              accessibilityLabel={t('agenda.today')}
+            >
+              <Text style={styles.weeklineTodayText}>{t('agenda.today')}</Text>
+            </Pressable>
           )}
         </View>
 
@@ -2381,6 +2399,20 @@ const makeStyles = (colors: AppColors) =>
     weeklinePitchSelector: {
       flexWrap: 'nowrap',
       overflow: 'visible',
+    },
+    weeklineTodayButton: {
+      minHeight: 34,
+      paddingHorizontal: 14,
+      justifyContent: 'center',
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 8,
+    },
+    weeklineTodayText: {
+      color: colors.blueLight,
+      fontSize: 13,
+      fontWeight: '600',
     },
     pitchDropdown: {
       width: 216,
