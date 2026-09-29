@@ -512,7 +512,7 @@ export default function AgendaScreen() {
           onPress={openBlockSlot}
           disabled={selectedDayIsPast}
         >
-          <Ionicons name="lock-closed-outline" size={16} color={colors.white} />
+          {!isDesktopWeek && <Ionicons name="lock-closed-outline" size={16} color={colors.white} />}
           <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.blockSlot')}</Text>
         </Pressable>
 
@@ -523,7 +523,7 @@ export default function AgendaScreen() {
           onPress={openAddParty}
           disabled={selectedDayIsPast}
         >
-          <Ionicons name="balloon-outline" size={16} color={colors.pink} />
+          {!isDesktopWeek && <Ionicons name="balloon-outline" size={16} color={colors.pink} />}
           <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.addParty')}</Text>
         </Pressable>
 
@@ -532,7 +532,7 @@ export default function AgendaScreen() {
           onPress={openAddExternalBooking}
           disabled={selectedDayIsPast}
         >
-          <Ionicons name="add" size={18} color={colors.blackText} />
+          <Ionicons name="add" size={isDesktopWeek ? 15 : 18} color={colors.blackText} />
           <Text style={[styles.actionButtonPrimaryText, isDesktopWeek && styles.weeklinePrimaryText]} numberOfLines={1}>{t('agenda.addExternalBooking')}</Text>
         </Pressable>
       </View>
@@ -1061,9 +1061,10 @@ const makeStyles = (colors: AppColors) =>
     weeklineActionButton: {
       flexGrow: 0,
       flexShrink: 0,
-      minHeight: 34,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
+      flexBasis: 'auto',
+      height: 31,
+      paddingHorizontal: 11,
+      paddingVertical: 0,
       borderRadius: 7,
       gap: 5,
     },
@@ -1073,6 +1074,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklinePrimaryButton: {
       backgroundColor: colors.greenLight,
+      minWidth: 146,
     },
     weeklinePrimaryText: {
       fontSize: 11,
