@@ -6,6 +6,7 @@ import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import WebInboxPanel from './WebInboxPanel';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAcademyRealtime } from '../lib/academyRealtime';
+import { useAuth } from '../lib/auth';
 import {
   BOTTOM_BAR_HEIGHT,
   SIDEBAR_WIDTH,
@@ -58,6 +59,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
   const isWeeklineAgenda = isDesktop && pathname === '/agenda';
   const router = useRouter();
   const { unread } = useAcademyRealtime();
+  const { pitchOwner } = useAuth();
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   useEffect(() => setIsInboxOpen(false), [pathname]);
   const { colors } = useAppTheme();
@@ -85,16 +87,17 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
 
       {isDesktop ? (
         <View style={[themed.sidebar, isWeeklineAgenda && styles.weeklineSidebar]}>
-          <View style={themed.brandRow}>
+          <View style={[themed.brandRow, isWeeklineAgenda && styles.weeklineBrandRow]}>
             <Image
               source={require('../../assets/images/mypitch-logo.png')}
               style={themed.brandLogo}
               resizeMode="contain"
               accessibilityLabel="MYPitch"
             />
-            <Text style={themed.brandRole}>{t('login.subtitle')}</Text>
+            {!isWeeklineAgenda && <Text style={themed.brandRole}>{t('login.subtitle')}</Text>}
           </View>
 
+          {isWeeklineAgenda && <Text style={styles.weeklineNavHeading}>{t('nav.workspace')}</Text>}
           <View style={themed.navGroup}>
             {NAV_ITEMS.map((item) => (
               <NavItem
@@ -105,15 +108,22 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
                 isFocused={effectivePath === item.href}
                 waiting={waiting[item.name] ?? 0}
                 colorsOverride={isWeeklineAgenda ? weeklineColors : undefined}
+                weekline={isWeeklineAgenda}
                 onPress={() => router.replace(item.href as any)}
               />
             ))}
           </View>
-          <Pressable style={themed.inboxOpenButton} onPress={() => setIsInboxOpen(true)}>
-            <Ionicons name="mail-outline" size={17} color={isWeeklineAgenda ? weeklineColors.greenLight : colors.greenLight} />
-            <Text style={themed.inboxOpenLabel}>{t('inbox.title')}</Text>
+          <Pressable style={[themed.inboxOpenButton, isWeeklineAgenda && styles.weeklineInboxButton]} onPress={() => setIsInboxOpen(true)}>
+            <Ionicons name="mail-outline" size={isWeeklineAgenda ? 15 : 17} color={isWeeklineAgenda ? weeklineColors.greenLight : colors.greenLight} />
+            <Text style={[themed.inboxOpenLabel, isWeeklineAgenda && styles.weeklineInboxLabel]}>{t('inbox.title')}</Text>
             {unread.messages > 0 ? <Text style={themed.inboxOpenCount}>{unread.messages}</Text> : null}
           </Pressable>
+          {isWeeklineAgenda && (
+            <View style={styles.weeklineOwnerFooter}>
+              <Text style={styles.weeklineOwnerName} numberOfLines={1}>{pitchOwner?.business_name || 'MYPitch'}</Text>
+              <Text style={styles.weeklineOwnerCaption}>{t('nav.ownerWorkspace')}</Text>
+            </View>
+          )}
         </View>
       ) : (
         <View style={themed.bottomBar}>
@@ -152,6 +162,7 @@ function NavItem({
   isFocused,
   waiting,
   colorsOverride,
+  weekline = false,
   onPress,
 }: {
   label: string;
@@ -160,6 +171,7 @@ function NavItem({
   isFocused: boolean;
   waiting: number;
   colorsOverride?: AppColors;
+  weekline?: boolean;
   onPress: () => void;
 }) {
   const { colors: appColors } = useAppTheme();
@@ -172,7 +184,9 @@ function NavItem({
       onPress={onPress}
       style={(state) => [
         isDesktop ? themed.sidebarItem : themed.bottomItem,
+        isDesktop && weekline && styles.weeklineNavItem,
         isDesktop && isFocused && themed.sidebarItemActive,
+        isDesktop && weekline && isFocused && styles.weeklineNavItemActive,
         isDesktop &&
           !isFocused &&
           (state as { hovered?: boolean }).hovered &&
@@ -181,7 +195,7 @@ function NavItem({
       ]}
     >
       <View>
-        <Ionicons name={icon} size={isDesktop ? 18 : 20} color={tint} />
+        <Ionicons name={icon} size={isDesktop ? (weekline ? 15 : 18) : 20} color={tint} />
 
         {waiting > 0 ? (
           <View style={themed.bell}>
@@ -192,8 +206,10 @@ function NavItem({
       <Text
         style={[
           isDesktop ? themed.sidebarLabel : themed.bottomLabel,
+          isDesktop && weekline && styles.weeklineNavText,
           { color: tint },
           isFocused && themed.labelActive,
+          isDesktop && weekline && isFocused && styles.weeklineNavTextActive,
         ]}
       >
         {label}
@@ -214,6 +230,68 @@ const styles = StyleSheet.create({
   },
   weeklineSidebar: {
     backgroundColor: weeklineColors.backgroundSoft,
+    paddingHorizontal: 11,
+    paddingTop: 20,
+  },
+  weeklineBrandRow: {
+    minHeight: 72,
+    justifyContent: 'center',
+    marginBottom: 17,
+  },
+  weeklineNavHeading: {
+    color: weeklineColors.greyDark,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    paddingHorizontal: 10,
+    paddingBottom: 9,
+  },
+  weeklineNavItem: {
+    borderWidth: 0,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  weeklineNavItemActive: {
+    backgroundColor: weeklineColors.greenSoft,
+    borderWidth: 0,
+  },
+  weeklineNavText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
+  weeklineNavTextActive: {
+    fontWeight: '700',
+    color: weeklineColors.white,
+  },
+  weeklineInboxButton: {
+    marginTop: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  weeklineInboxLabel: {
+    fontSize: 11.5,
+  },
+  weeklineOwnerFooter: {
+    marginTop: 'auto',
+    borderTopWidth: 1,
+    borderTopColor: weeklineColors.border,
+    paddingTop: 13,
+    paddingHorizontal: 8,
+    paddingBottom: 14,
+  },
+  weeklineOwnerName: {
+    color: weeklineColors.white,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  weeklineOwnerCaption: {
+    color: weeklineColors.greyDark,
+    fontSize: 10,
+    marginTop: 3,
   },
   inboxOverlay: {
     position: 'absolute',
