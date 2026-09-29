@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -147,6 +147,9 @@ export default function AgendaScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
+  const [monthMenuOpen, setMonthMenuOpen] = useState(false);
+  const [monthStripWidth, setMonthStripWidth] = useState(0);
+  const monthStripRef = useRef<ScrollView>(null);
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   const isDesktopMonth = Platform.OS === 'web' && isDesktop && viewMode === 'month';
   const isDesktopAgenda = isDesktopWeek || isDesktopMonth;
@@ -154,6 +157,21 @@ export default function AgendaScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const desktopHourHeight = 56;
   const desktopGridHeight = HOURS.length * desktopHourHeight;
+  const monthDayCount = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
+  const mobileMonthDays = useMemo(
+    () => Array.from({ length: monthDayCount }, (_, index) => new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), index + 1)),
+    [monthDayCount, visibleMonth]
+  );
+
+  useEffect(() => {
+    if (!monthStripWidth) return;
+    const selectedIndex = selectedDate.getDate() - 1;
+    const itemWidth = 48;
+    monthStripRef.current?.scrollTo({
+      x: Math.max(0, selectedIndex * itemWidth - (monthStripWidth - itemWidth) / 2),
+      animated: false,
+    });
+  }, [monthStripWidth, selectedDate, visibleMonth]);
 
   const loadMonth = useCallback(async () => {
     if (!activePitch) {
@@ -332,6 +350,20 @@ export default function AgendaScreen() {
     const next = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
     setVisibleMonth(next);
     setSelectedDate(next);
+  }
+
+  function selectMobileMonth(monthIndex: number, year = visibleMonth.getFullYear()) {
+    const day = Math.min(selectedDate.getDate(), new Date(year, monthIndex + 1, 0).getDate());
+    const next = new Date(year, monthIndex, day);
+    setVisibleMonth(startOfMonth(next));
+    setSelectedDate(next);
+    setMonthMenuOpen(false);
+  }
+
+  function changeMonthMenuYear(amount: number) {
+    const nextYear = visibleMonth.getFullYear() + amount;
+    selectMobileMonth(visibleMonth.getMonth(), nextYear);
+    setMonthMenuOpen(true);
   }
 
   function goToPreviousWeek() {
@@ -829,17 +861,55 @@ export default function AgendaScreen() {
       ) : (
       <View style={isDesktop ? styles.desktopColumns : undefined}>
         <View style={isDesktop ? styles.calendarColumn : undefined}>
-      <View style={styles.monthNav}>
-        <AnimatedPressable style={styles.monthNavButton} onPress={goToPrevious}>
-          <Ionicons name="chevron-back" size={18} color={colors.white} />
-        </AnimatedPressable>
-
-        <Text style={styles.monthLabel}>{currentRangeLabel()}</Text>
-
-        <AnimatedPressable style={styles.monthNavButton} onPress={goToNext}>
-          <Ionicons name="chevron-forward" size={18} color={colors.white} />
-        </AnimatedPressable>
-      </View>
+      {viewMode === 'month' ? (
+        <View style={styles.mobileMonthPickerWrap}>
+          <Pressable
+            style={styles.mobileMonthPickerTrigger}
+            onPress={() => setMonthMenuOpen((open) => !open)}
+            accessibilityRole="button"
+            accessibilityLabel={`${MONTH_LABELS[visibleMonth.getMonth()]} ${visibleMonth.getFullYear()}`}
+            accessibilityState={{ expanded: monthMenuOpen }}
+          >
+            <Text style={styles.mobileMonthPickerText}>{MONTH_LABELS[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}</Text>
+            <Ionicons name={monthMenuOpen ? 'chevron-up' : 'chevron-down'} size={17} color={colors.greenLight} />
+          </Pressable>
+          {monthMenuOpen ? (
+            <View style={styles.mobileMonthMenu}>
+              <View style={styles.mobileMonthMenuYearRow}>
+                <Pressable style={styles.mobileMonthYearButton} onPress={() => changeMonthMenuYear(-1)} accessibilityLabel={String(visibleMonth.getFullYear() - 1)}>
+                  <Ionicons name="chevron-back" size={16} color={colors.grey} />
+                </Pressable>
+                <Text style={styles.mobileMonthMenuYear}>{visibleMonth.getFullYear()}</Text>
+                <Pressable style={styles.mobileMonthYearButton} onPress={() => changeMonthMenuYear(1)} accessibilityLabel={String(visibleMonth.getFullYear() + 1)}>
+                  <Ionicons name="chevron-forward" size={16} color={colors.grey} />
+                </Pressable>
+              </View>
+              <ScrollView style={styles.mobileMonthMenuList} nestedScrollEnabled showsVerticalScrollIndicator>
+                {MONTH_LABELS.map((month, index) => (
+                  <Pressable
+                    key={`${visibleMonth.getFullYear()}-${index}`}
+                    style={[styles.mobileMonthOption, index === visibleMonth.getMonth() && styles.mobileMonthOptionSelected]}
+                    onPress={() => selectMobileMonth(index)}
+                  >
+                    <Text style={[styles.mobileMonthOptionText, index === visibleMonth.getMonth() && styles.mobileMonthOptionTextSelected]}>{month}</Text>
+                    {index === visibleMonth.getMonth() ? <Ionicons name="checkmark" size={16} color={colors.greenLight} /> : null}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.monthNav}>
+          <AnimatedPressable style={styles.monthNavButton} onPress={goToPrevious}>
+            <Ionicons name="chevron-back" size={18} color={colors.white} />
+          </AnimatedPressable>
+          <Text style={styles.monthLabel}>{currentRangeLabel()}</Text>
+          <AnimatedPressable style={styles.monthNavButton} onPress={goToNext}>
+            <Ionicons name="chevron-forward" size={18} color={colors.white} />
+          </AnimatedPressable>
+        </View>
+      )}
 
       <AnimatedSwap swapKey={isLoading ? 'loading' : viewMode}>
       {isLoading ? (
@@ -847,56 +917,40 @@ export default function AgendaScreen() {
           <ActivityIndicator color={colors.greenLight} />
         </View>
       ) : viewMode === 'month' ? (
-        <>
-          <View style={styles.weekdayRow}>
-            {WEEKDAY_LABELS.map((label) => (
-              <Text key={label} style={styles.weekdayLabel}>
-                {label}
-              </Text>
-            ))}
-          </View>
-
-          <View style={styles.grid}>
-            {gridDays.map((day) => {
-              const dayEvents = eventsByDay.get(day.toDateString()) ?? [];
-              const inMonth = day.getMonth() === visibleMonth.getMonth();
-              const isSelected = isSameDay(day, selectedDate);
-
-              return (
-                <AnimatedSelectable
-                  key={day.toISOString()}
-                  active={isSelected}
-                  style={[styles.dayCell, !inMonth && styles.dayCellOutside]}
-                  background={['transparent', colors.greenSoft]}
-                  borderColor={['transparent', colors.borderGreen]}
-                  onPress={() => setSelectedDate(day)}
-                >
-                  <Text
-                    style={[
-                      styles.dayNumber,
-                      !inMonth && styles.dayNumberOutside,
-                      isSelected && styles.dayNumberSelected,
-                    ]}
-                  >
-                    {day.getDate()}
-                  </Text>
-
-                  <View style={styles.dayDots}>
-                    {dayEvents.slice(0, 3).map((event) => {
-                      const meta = eventStatusMeta(event, colors, t);
-                      return (
-                        <View
-                          key={event.id}
-                          style={[styles.dayDot, { backgroundColor: meta.color }]}
-                        />
-                      );
-                    })}
-                  </View>
-                </AnimatedSelectable>
-              );
-            })}
-          </View>
-        </>
+        <ScrollView
+          ref={monthStripRef}
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.mobileMonthStrip}
+          contentContainerStyle={styles.mobileMonthStripContent}
+          onLayout={(event) => setMonthStripWidth(event.nativeEvent.layout.width)}
+        >
+          {mobileMonthDays.map((day) => {
+            const dayEvents = eventsByDay.get(day.toDateString()) ?? [];
+            const isSelected = isSameDay(day, selectedDate);
+            return (
+              <Pressable
+                key={day.toISOString()}
+                style={[styles.mobileMonthDay, isSelected && styles.mobileMonthDaySelected]}
+                onPress={() => setSelectedDate(day)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              >
+                <Text style={[styles.mobileMonthWeekday, isSelected && styles.mobileMonthDayTextSelected]}>
+                  {WEEKDAY_LABELS[(day.getDay() + 6) % 7]}
+                </Text>
+                <Text style={[styles.mobileMonthDayNumber, isSelected && styles.mobileMonthDayTextSelected]}>{day.getDate()}</Text>
+                <View style={styles.mobileMonthDayDots}>
+                  {dayEvents.slice(0, 3).map((event) => (
+                    <View key={event.id} style={[styles.mobileMonthDayDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />
+                  ))}
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       ) : viewMode === 'week' ? (
         <View style={styles.weekWrap}>
           <View style={styles.weekHeaderRow}>
@@ -1635,6 +1689,132 @@ const makeStyles = (colors: AppColors) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: spacing.md,
+    },
+    mobileMonthPickerWrap: {
+      position: 'relative',
+      zIndex: 20,
+      marginBottom: spacing.sm,
+    },
+    mobileMonthPickerTrigger: {
+      minHeight: 42,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.md,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    mobileMonthPickerText: {
+      color: colors.white,
+      fontSize: scaleFont(15),
+      fontWeight: '700',
+    },
+    mobileMonthMenu: {
+      position: 'absolute',
+      top: 46,
+      left: 0,
+      right: 0,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      padding: 6,
+      zIndex: 30,
+      elevation: 12,
+    },
+    mobileMonthMenuYearRow: {
+      height: 38,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSoft,
+      marginBottom: 4,
+    },
+    mobileMonthYearButton: {
+      width: 36,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    mobileMonthMenuYear: {
+      color: colors.white,
+      fontSize: scaleFont(13),
+      fontWeight: '700',
+    },
+    mobileMonthMenuList: {
+      maxHeight: 240,
+    },
+    mobileMonthOption: {
+      minHeight: 38,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 10,
+      borderRadius: 7,
+    },
+    mobileMonthOptionSelected: {
+      backgroundColor: colors.greenSoft,
+    },
+    mobileMonthOptionText: {
+      color: colors.grey,
+      fontSize: scaleFont(13),
+      fontWeight: '500',
+    },
+    mobileMonthOptionTextSelected: {
+      color: colors.greenLight,
+      fontWeight: '700',
+    },
+    mobileMonthStrip: {
+      flexGrow: 0,
+      height: 74,
+      marginBottom: spacing.md,
+    },
+    mobileMonthStripContent: {
+      alignItems: 'center',
+      paddingHorizontal: 2,
+      gap: 4,
+    },
+    mobileMonthDay: {
+      width: 44,
+      height: 68,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      gap: 2,
+    },
+    mobileMonthDaySelected: {
+      backgroundColor: colors.greenSoft,
+      borderWidth: 1,
+      borderColor: colors.greenLight,
+    },
+    mobileMonthWeekday: {
+      color: colors.greyDark,
+      fontSize: scaleFont(9),
+      fontWeight: '600',
+      textTransform: 'uppercase',
+    },
+    mobileMonthDayNumber: {
+      color: colors.white,
+      fontSize: scaleFont(15),
+      fontWeight: '600',
+    },
+    mobileMonthDayTextSelected: {
+      color: colors.greenLight,
+    },
+    mobileMonthDayDots: {
+      height: 5,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+    },
+    mobileMonthDayDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 2,
     },
     monthNavButton: {
       width: 36,
