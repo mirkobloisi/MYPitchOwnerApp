@@ -116,11 +116,9 @@ function PitchStatus({ status }: { status: PitchRecord['status'] }) {
 function PitchDetails({ pitch, desktop }: { pitch: PitchRecord; desktop: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const { activePitch, setActivePitchId } = useAuth();
   const [photoIndex, setPhotoIndex] = useState(0);
   const photos = (pitch.image_urls ?? []).filter(Boolean);
   const photo = photos[Math.min(photoIndex, Math.max(photos.length - 1, 0))];
-  const selectedInAgenda = activePitch?.id === pitch.id;
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
 
   return (
@@ -133,9 +131,6 @@ function PitchDetails({ pitch, desktop }: { pitch: PitchRecord; desktop: boolean
             <View style={styles.location}><Ionicons name="location-outline" size={15} color={colors.grey} /><Text style={styles.locationText}>{[pitch.city, pitch.area].filter(Boolean).join(' · ')}</Text></View>
             {pitch.address ? <Text style={styles.address}>{pitch.address}</Text> : null}
           </View>
-          {selectedInAgenda ? <View style={styles.selectedBadge}><Ionicons name="checkmark-circle-outline" size={15} color={colors.blueLight} /><Text style={styles.selectedText}>{t('pitches.showingInAgenda')}</Text></View> : (
-            <Pressable style={styles.outlineButton} onPress={() => setActivePitchId(pitch.id)} accessibilityRole="button"><Ionicons name="calendar-outline" size={15} color={colors.blueLight} /><Text style={styles.actionText}>{t('pitches.manageInAgenda')}</Text></Pressable>
-          )}
         </View>
       </View>
       {photos.length > 1 ? (
@@ -184,13 +179,13 @@ const styles = StyleSheet.create({
   desktopWorkspace: { flex: 1, minHeight: 0 },
   desktopNavigator: { width: 280, minHeight: 0 },
   // The list scrolls independently; it cannot push the detail panel off screen.
-  desktopDetail: { padding: 16, minHeight: 0, overflowY: 'auto' } as any,
-  desktopIdentityRow: { flexDirection: 'row', alignItems: 'stretch', gap: 20, flexShrink: 0 },
-  // Keep the pitch image square and let the identity information use the space beside it.
-  desktopHero: { width: 190, height: 190, aspectRatio: 1, flexGrow: 0, flexShrink: 0, minHeight: 0, maxHeight: 190 },
+  desktopDetail: { padding: 16, minHeight: 0, overflow: 'hidden' },
+  desktopIdentityRow: { flexDirection: 'row', alignItems: 'stretch', gap: 28, flexShrink: 0 },
+  // Keep the pitch image square and size the identity column to the same visual scale.
+  desktopHero: { width: 250, height: 250, aspectRatio: 1, flexGrow: 0, flexShrink: 0, minHeight: 0, maxHeight: 250 },
   desktopGallery: { marginTop: 6, flexShrink: 0, height: 46 },
   desktopThumbnail: { width: 68, height: 40 },
-  desktopDetailHeading: { flex: 1, flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', marginVertical: 0, gap: 18, flexShrink: 1 },
+  desktopDetailHeading: { flex: 1, flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', marginVertical: 0, gap: 18, flexShrink: 1, minWidth: 0, maxWidth: 360 },
   desktopSpecs: { paddingVertical: 14, gap: 14, flexShrink: 0 },
   desktopSections: { flexDirection: 'row', gap: 28, flexShrink: 0 },
   desktopSection: { flex: 1, minWidth: 0, marginTop: 16, gap: 8 },
