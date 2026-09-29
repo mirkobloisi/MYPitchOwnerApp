@@ -61,6 +61,8 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const isWeeklineDesktop = isDesktop;
+  const isWeeklineWeb = Platform.OS === 'web';
+  const isCompactAgenda = !isDesktop && pathname === '/agenda';
   const router = useRouter();
   const { unread } = useAcademyRealtime();
   const { pitchOwner } = useAuth();
@@ -70,7 +72,8 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
     setIsMoreOpen(false);
   }, [pathname]);
   const { colors } = useAppTheme();
-  const themed = useMemo(() => makeStyles(isWeeklineDesktop ? weeklineColors : colors), [colors, isWeeklineDesktop]);
+  const shellColors = isWeeklineWeb ? weeklineColors : colors;
+  const themed = useMemo(() => makeStyles(shellColors), [shellColors]);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   if (Platform.OS !== 'web') return <>{children}</>;
@@ -123,7 +126,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
                 isDesktop
                 isFocused={effectivePath === item.href}
                 waiting={waiting[item.name] ?? 0}
-                colorsOverride={isWeeklineDesktop ? weeklineColors : undefined}
+                colorsOverride={isWeeklineWeb ? weeklineColors : undefined}
                 weekline={isWeeklineDesktop}
                 onPress={() => router.replace(item.href as any)}
               />
@@ -166,6 +169,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
               isDesktop={false}
               isFocused={effectivePath === item.href}
               waiting={waiting[item.name] ?? 0}
+              colorsOverride={isWeeklineWeb ? weeklineColors : undefined}
               onPress={() => router.replace(item.href as any)}
             />
           ))}
@@ -176,23 +180,23 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
             accessibilityState={{ expanded: isMoreOpen }}
           >
             <View style={styles.moreIconWrap}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={MORE_NAV_ITEMS.some((item) => item.href === effectivePath) ? colors.greenLight : colors.greyDark} />
+              <Ionicons name="ellipsis-horizontal" size={20} color={MORE_NAV_ITEMS.some((item) => item.href === effectivePath) ? shellColors.greenLight : shellColors.greyDark} />
             </View>
-            <Text style={[themed.bottomLabel, { color: MORE_NAV_ITEMS.some((item) => item.href === effectivePath) ? colors.greenLight : colors.greyDark }]}>{t('nav.more')}</Text>
+            <Text style={[themed.bottomLabel, { color: MORE_NAV_ITEMS.some((item) => item.href === effectivePath) ? shellColors.greenLight : shellColors.greyDark }]}>{t('nav.more')}</Text>
           </Pressable>
         </View>
       )}
 
       {!isDesktop && isMoreOpen ? <MoreMenu items={MORE_NAV_ITEMS} label={t} activePath={effectivePath} onNavigate={(href) => { setIsMoreOpen(false); router.replace(href as any); }} /> : null}
 
-      {!isDesktop ? (
+      {!isDesktop && !isCompactAgenda ? (
         <Pressable
           style={styles.notificationButton}
           onPress={() => setIsInboxOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={t('inbox.notifications')}
         >
-          <Ionicons name="notifications-outline" size={20} color={colors.white} />
+          <Ionicons name="notifications-outline" size={20} color={shellColors.white} />
           {unread.players + unread.parents + unread.messages > 0 ? (
             <View style={styles.notificationBadge}>
               <Text style={styles.notificationBadgeText}>{unread.players + unread.parents + unread.messages}</Text>
