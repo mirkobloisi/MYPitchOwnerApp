@@ -11,6 +11,8 @@ import {
 type AnimatedPressableProps = PressableProps & {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** Layout of the animated children, separate from the outer hit area. */
+  contentStyle?: StyleProp<ViewStyle>;
   pressedScale?: number;
   /** Web-only lift on mouse-over. Larger for standalone buttons than cards. */
   hoverScale?: number;
@@ -19,6 +21,7 @@ type AnimatedPressableProps = PressableProps & {
 export default function AnimatedPressable({
   children,
   style,
+  contentStyle,
   pressedScale = 0.94,
   hoverScale = 1.015,
   disabled,
@@ -89,10 +92,10 @@ export default function AnimatedPressable({
       {...props}
     >
       <Animated.View
-        style={{
+        style={[contentStyle, {
           transform: [{ scale }],
           opacity,
-        }}
+        }]}
       >
         {children}
       </Animated.View>

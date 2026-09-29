@@ -289,6 +289,8 @@ export const translations = {
     },
     availability: {
       title: 'Availability',
+      sportsCenter: 'Sports center',
+      removePeriod: 'Remove period {index}',
       subtitle: 'Set your normal weekly opening hours.',
       noPitchLinked: 'No pitch is linked to your account yet. Contact MYPitch support to get set up.',
       weeklyHours: 'Weekly hours',
@@ -921,6 +923,8 @@ export const translations = {
     },
     availability: {
       title: 'Διαθεσιμότητα',
+      sportsCenter: 'Αθλητικό κέντρο',
+      removePeriod: 'Αφαίρεση περιόδου {index}',
       subtitle: 'Ορίστε το κανονικό εβδομαδιαίο ωράριο λειτουργίας σας.',
       noPitchLinked:
         'Δεν υπάρχει ακόμη γήπεδο συνδεδεμένο με τον λογαριασμό σας. Επικοινωνήστε με την υποστήριξη της MYPitch για να ρυθμιστεί.',
@@ -1555,6 +1559,8 @@ export const translations = {
     },
     availability: {
       title: 'Доступность',
+      sportsCenter: 'Спортивный центр',
+      removePeriod: 'Удалить период {index}',
       subtitle: 'Установите обычные часы работы по дням недели.',
       noPitchLinked:
         'К вашей учётной записи ещё не привязано поле. Обратитесь в службу поддержки MYPitch для настройки.',
