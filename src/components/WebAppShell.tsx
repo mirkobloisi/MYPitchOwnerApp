@@ -210,7 +210,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
           <Pressable style={styles.inboxBackdrop} onPress={() => setIsInboxOpen(false)} />
           <WebInboxPanel initialTab="notifications" />
           <Pressable style={styles.closeInbox} onPress={() => setIsInboxOpen(false)} accessibilityLabel="Close inbox">
-            <Ionicons name="close" size={19} color="#496476" />
+            <Ionicons name="close" size={19} color="#A5B8C4" />
           </Pressable>
         </View>
       ) : null}
