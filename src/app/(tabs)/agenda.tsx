@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Animated, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AnimatedSelectable from '../../components/AnimatedSelectable';
@@ -137,18 +137,23 @@ export default function AgendaScreen() {
   const { activePitch, pitches, setActivePitchId, pitchOwner } = useAuth();
   const router = useRouter();
   const { isDesktop } = useBreakpoint();
+  const { height: windowHeight } = useWindowDimensions();
   const { t, tList } = useTranslation();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const WEEKDAY_LABELS = tList('agenda.weekdays');
   const MONTH_LABELS = tList('agenda.months');
 
-  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => isDesktop ? 'week' : 'month');
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
+  // Fifteen hours remain visible at once, even on a short laptop screen.
+  const desktopHourHeight = Math.max(24, Math.min(36, Math.floor((windowHeight - 230) / HOURS.length)));
+  const desktopGridHeight = HOURS.length * desktopHourHeight;
 
   const loadMonth = useCallback(async () => {
     if (!activePitch) {
@@ -482,52 +487,61 @@ export default function AgendaScreen() {
   }
 
   return (
-    <Screen contentStyle={styles.screenContent} maxWidth={WIDE_CONTENT_MAX_WIDTH}>
-      <AppHeader
-        title={t('agenda.title')}
-        subtitle={t('agenda.subtitle')}
-        showBack={false}
-      />
+    <Screen
+      scroll={!isDesktopWeek}
+      contentStyle={[styles.screenContent, isDesktopWeek && styles.weeklineScreen]}
+      maxWidth={WIDE_CONTENT_MAX_WIDTH}
+    >
+      <View style={isDesktopWeek ? styles.weeklineTop : undefined}>
+        {isDesktopWeek ? (
+          <View>
+            <Text style={styles.weeklinePageTitle}>{t('agenda.title')}</Text>
+            <Text style={styles.weeklinePageSubtitle}>{t('agenda.subtitle')}</Text>
+          </View>
+        ) : (
+          <AppHeader title={t('agenda.title')} subtitle={t('agenda.subtitle')} showBack={false} />
+        )}
 
-      <View style={styles.actionsRow}>
+      <View style={[styles.actionsRow, isDesktopWeek && styles.weeklineActions]}>
         <AnimatedPressable
-          style={[styles.actionButtonOutline, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonOutline, isDesktopWeek && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
           hoverScale={1.03}
           onPress={openBlockSlot}
           disabled={selectedDayIsPast}
         >
           <Ionicons name="lock-closed-outline" size={16} color={colors.white} />
-          <Text style={styles.actionButtonOutlineText}>{t('agenda.blockSlot')}</Text>
+          <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]}>{t('agenda.blockSlot')}</Text>
         </AnimatedPressable>
 
         {/* A party takes the pitch for an evening rather than a playing
             slot, so it gets its own button and its own time selection. */}
         <AnimatedPressable
-          style={[styles.actionButtonOutline, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonOutline, isDesktopWeek && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
           hoverScale={1.03}
           onPress={openAddParty}
           disabled={selectedDayIsPast}
         >
           <Ionicons name="balloon-outline" size={16} color={colors.pink} />
-          <Text style={styles.actionButtonOutlineText}>{t('agenda.addParty')}</Text>
+          <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]}>{t('agenda.addParty')}</Text>
         </AnimatedPressable>
 
         <AnimatedPressable
-          style={[styles.actionButtonPrimary, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonPrimary, isDesktopWeek && styles.weeklineActionButton, isDesktopWeek && styles.weeklinePrimaryButton, selectedDayIsPast && styles.actionDisabled]}
           hoverScale={1.02}
           onPress={openAddExternalBooking}
           disabled={selectedDayIsPast}
         >
           <Ionicons name="add" size={18} color={colors.blackText} />
-          <Text style={styles.actionButtonPrimaryText}>{t('agenda.addExternalBooking')}</Text>
+          <Text style={[styles.actionButtonPrimaryText, isDesktopWeek && styles.weeklinePrimaryText]}>{t('agenda.addExternalBooking')}</Text>
         </AnimatedPressable>
+      </View>
       </View>
 
       {selectedDayIsPast ? (
         <Text style={styles.pastHint}>{t('agenda.pastHint')}</Text>
       ) : null}
 
-      <View style={styles.toolbarRow}>
+      <View style={[styles.toolbarRow, isDesktopWeek && styles.weeklineToolbar]}>
         <View style={styles.pitchSelectorInline}>
           {pitches.length > 1 ? (
             pitches.map((pitch) => {
@@ -535,20 +549,20 @@ export default function AgendaScreen() {
               return (
                 <AnimatedPressable
                   key={pitch.id}
-                  style={[styles.pitchChip, isActive && styles.pitchChipActive]}
+                  style={[styles.pitchChip, isDesktopWeek && styles.weeklinePitchChip, isActive && styles.pitchChipActive]}
                   onPress={() => setActivePitchId(pitch.id)}
                 >
                   <Ionicons name="location" size={12} color={isActive ? colors.white : colors.grey} />
-                  <Text style={[styles.pitchChipText, isActive && styles.pitchChipTextActive]}>
+                  <Text style={[styles.pitchChipText, isDesktopWeek && styles.weeklinePitchText, isActive && styles.pitchChipTextActive]}>
                     {pitch.name}
                   </Text>
                 </AnimatedPressable>
               );
             })
           ) : (
-            <View style={[styles.pitchChip, styles.pitchChipActive]}>
+            <View style={[styles.pitchChip, isDesktopWeek && styles.weeklinePitchChip, styles.pitchChipActive]}>
               <Ionicons name="location" size={12} color={colors.white} />
-              <Text style={[styles.pitchChipText, styles.pitchChipTextActive]}>{activePitch.name}</Text>
+              <Text style={[styles.pitchChipText, isDesktopWeek && styles.weeklinePitchText, styles.pitchChipTextActive]}>{activePitch.name}</Text>
             </View>
           )}
         </View>
@@ -562,7 +576,7 @@ export default function AgendaScreen() {
               <AnimatedSelectable
                 key={mode}
                 active={isActive}
-                style={styles.viewToggleButton}
+                style={[styles.viewToggleButton, isDesktopWeek && styles.weeklineToggleButton]}
                 background={['transparent', colors.blue]}
                 onPress={() => selectViewMode(mode)}
               >
@@ -570,6 +584,7 @@ export default function AgendaScreen() {
                   <Animated.Text
                     style={[
                       styles.viewToggleText,
+                      isDesktopWeek && styles.weeklineToggleText,
                       {
                         color: progress.interpolate({
                           inputRange: [0, 1],
@@ -587,8 +602,138 @@ export default function AgendaScreen() {
         </View>
       </View>
 
-      {/* On a monitor the calendar and the day's bookings sit side by side;
-          on a phone they stay stacked exactly as before. */}
+      {isDesktopWeek ? (
+        <View style={styles.weeklineLayout}>
+          <View style={styles.weeklineBoard}>
+            <View style={styles.weeklineBoardTitle}>
+              <View>
+                <Text style={styles.weeklineEyebrow}>{t('agenda.viewWeek')}</Text>
+                <Text style={styles.weeklineRange}>{currentRangeLabel()}</Text>
+              </View>
+              <View style={styles.weeklineNav}>
+                <AnimatedPressable style={styles.weeklineNavButton} onPress={goToPrevious}>
+                  <Ionicons name="chevron-back" size={16} color={colors.grey} />
+                </AnimatedPressable>
+                <AnimatedPressable style={styles.weeklineNavButton} onPress={goToNext}>
+                  <Ionicons name="chevron-forward" size={16} color={colors.grey} />
+                </AnimatedPressable>
+              </View>
+            </View>
+
+            <View style={styles.weeklineDayHead}>
+              <View style={styles.weeklineTimeGutter} />
+              {weekDays.map((day) => {
+                const isSelected = isSameDay(day, selectedDate);
+                return (
+                  <AnimatedPressable
+                    key={day.toISOString()}
+                    style={[styles.weeklineDayHeading, isSelected && styles.weeklineDayHeadingSelected]}
+                    onPress={() => setSelectedDate(day)}
+                  >
+                    <Text style={styles.weeklineDayName}>{WEEKDAY_LABELS[(day.getDay() + 6) % 7]}</Text>
+                    <Text style={[styles.weeklineDayDate, isSelected && styles.weeklineDayDateSelected]}>
+                      {day.getDate()}
+                    </Text>
+                  </AnimatedPressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.weeklineGrid}>
+              <View style={styles.weeklineTimeGutter}>
+                {HOURS.map((hour) => (
+                  <View key={hour} style={{ height: desktopHourHeight }}>
+                    <Text style={styles.weeklineHour}>{formatHourLabel(hour)}</Text>
+                  </View>
+                ))}
+              </View>
+              {weekDays.map((day) => (
+                <View
+                  key={day.toISOString()}
+                  style={[
+                    styles.weeklineDayColumn,
+                    isSameDay(day, selectedDate) && styles.weeklineDayColumnSelected,
+                    { height: desktopGridHeight },
+                  ]}
+                >
+                  {HOURS.map((hour, index) => (
+                    <View key={hour} style={[styles.weeklineHourRule, { top: index * desktopHourHeight }]} />
+                  ))}
+                  {(eventsByDay.get(day.toDateString()) ?? []).map((event) => {
+                    const meta = eventStatusMeta(event, colors, t);
+                    const top = clamp((hourFraction(event.startsAt) - HOURS_START) * desktopHourHeight, 0, desktopGridHeight);
+                    const bottom = clamp((hourFraction(event.endsAt) - HOURS_START) * desktopHourHeight, 0, desktopGridHeight);
+                    if (bottom <= top) return null;
+                    return (
+                      <AnimatedPressable
+                        key={event.id}
+                        style={[
+                          styles.weeklineEvent,
+                          { top, height: Math.max(bottom - top, 20), backgroundColor: meta.background, borderLeftColor: meta.color },
+                        ]}
+                        onPress={() => openEventDetails(event)}
+                      >
+                        <Text style={[styles.weeklineEventTime, { color: meta.color }]} numberOfLines={1}>
+                          {formatTime(event.startsAt)}
+                        </Text>
+                        <Text style={styles.weeklineEventLabel} numberOfLines={1}>{meta.label}</Text>
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+            {isLoading ? <ActivityIndicator style={styles.weeklineLoading} color={colors.greenLight} /> : null}
+            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+          </View>
+
+          <View style={styles.weeklineSide}>
+            <View style={styles.weeklineDayCard}>
+              <Text style={styles.weeklineEyebrow}>{t('agenda.selectedDay')}</Text>
+              <Text style={styles.weeklineSelectedNumber}>{selectedDate.getDate()}</Text>
+              <Text style={styles.weeklineSelectedLabel}>
+                {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long' })}
+              </Text>
+              <ScrollView style={styles.weeklineEvents} showsVerticalScrollIndicator={false}>
+                {selectedDayEvents.length === 0 ? (
+                  <Text style={styles.emptyDayText}>{t('agenda.nothingScheduled')}</Text>
+                ) : selectedDayEvents.map((event) => {
+                  const meta = eventStatusMeta(event, colors, t);
+                  return (
+                    <AnimatedPressable
+                      key={event.id}
+                      style={styles.weeklineEventRow}
+                      onPress={() => openEventDetails(event)}
+                    >
+                      <View style={[styles.weeklineEventMark, { backgroundColor: meta.color }]} />
+                      <View style={styles.weeklineEventRowText}>
+                        <Text style={styles.weeklineRowTime}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
+                        <Text style={styles.weeklineRowLabel} numberOfLines={1}>{meta.label}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={13} color={colors.greyDark} />
+                    </AnimatedPressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+            <View style={styles.weeklineStatsCard}>
+              <Text style={styles.weeklineEyebrow}>{t('agenda.statsThisMonth')}</Text>
+              <View style={styles.weeklineStatsRow}>
+                {[
+                  { count: monthStats.confirmedMatches, label: t('agenda.statsConfirmedMatches') },
+                  { count: monthStats.externalBookings, label: t('agenda.statsExternalBookings') },
+                  { count: monthStats.unavailable, label: t('agenda.statsUnavailable') },
+                ].map((stat) => (
+                  <View key={stat.label} style={styles.weeklineStat}>
+                    <Text style={styles.weeklineStatCount}>{stat.count}</Text>
+                    <Text style={styles.weeklineStatLabel} numberOfLines={2}>{stat.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        </View>
+      ) : (
       <View style={isDesktop ? styles.desktopColumns : undefined}>
         <View style={isDesktop ? styles.calendarColumn : undefined}>
       <View style={styles.monthNav}>
@@ -842,6 +987,7 @@ export default function AgendaScreen() {
       </View>
         </View>
       </View>
+      )}
     </Screen>
   );
 }
@@ -850,6 +996,290 @@ const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
     screenContent: {
       paddingTop: 4,
+    },
+    weeklineScreen: {
+      paddingTop: 18,
+      paddingBottom: 14,
+    },
+    weeklineTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 12,
+    },
+    weeklinePageTitle: {
+      color: colors.white,
+      fontSize: 22,
+      fontWeight: '600',
+      letterSpacing: -0.6,
+    },
+    weeklinePageSubtitle: {
+      color: colors.grey,
+      fontSize: 11,
+      marginTop: 3,
+    },
+    weeklineActions: {
+      marginBottom: 0,
+      gap: 6,
+      flexShrink: 1,
+      justifyContent: 'flex-end',
+    },
+    weeklineActionButton: {
+      flex: 0,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      borderRadius: 7,
+      gap: 5,
+    },
+    weeklineActionText: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    weeklinePrimaryButton: {
+      backgroundColor: colors.greenLight,
+    },
+    weeklinePrimaryText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    weeklineToolbar: {
+      marginBottom: 12,
+    },
+    weeklinePitchChip: {
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      borderRadius: 7,
+    },
+    weeklinePitchText: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    weeklineToggleButton: {
+      paddingHorizontal: 11,
+      paddingVertical: 6,
+      borderRadius: 5,
+    },
+    weeklineToggleText: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    weeklineLayout: {
+      flex: 1,
+      minHeight: 0,
+      flexDirection: 'row',
+      gap: 12,
+    },
+    weeklineBoard: {
+      flex: 1.85,
+      minWidth: 0,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: colors.card,
+      overflow: 'hidden',
+    },
+    weeklineBoardTitle: {
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      minHeight: 55,
+    },
+    weeklineEyebrow: {
+      color: colors.greyDark,
+      fontSize: 10,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    weeklineRange: {
+      color: colors.white,
+      fontSize: 13,
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    weeklineNav: {
+      flexDirection: 'row',
+      gap: 5,
+    },
+    weeklineNavButton: {
+      width: 27,
+      height: 27,
+      borderRadius: 5,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    weeklineDayHead: {
+      flexDirection: 'row',
+      height: 45,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    weeklineTimeGutter: {
+      width: 42,
+    },
+    weeklineDayHeading: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderLeftWidth: 1,
+      borderLeftColor: colors.borderSoft,
+    },
+    weeklineDayHeadingSelected: {
+      backgroundColor: colors.greenSoft,
+    },
+    weeklineDayName: {
+      color: colors.greyDark,
+      fontSize: 9,
+      fontWeight: '600',
+    },
+    weeklineDayDate: {
+      color: colors.white,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    weeklineDayDateSelected: {
+      color: colors.greenLight,
+    },
+    weeklineGrid: {
+      flexDirection: 'row',
+    },
+    weeklineHour: {
+      color: colors.greyDark,
+      fontSize: 9,
+      textAlign: 'right',
+      paddingRight: 6,
+      marginTop: -5,
+    },
+    weeklineDayColumn: {
+      flex: 1,
+      minWidth: 0,
+      position: 'relative',
+      borderLeftWidth: 1,
+      borderLeftColor: colors.borderSoft,
+    },
+    weeklineDayColumnSelected: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    weeklineHourRule: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: colors.borderSoft,
+    },
+    weeklineEvent: {
+      position: 'absolute',
+      left: 2,
+      right: 2,
+      paddingHorizontal: 4,
+      paddingVertical: 2,
+      borderLeftWidth: 2,
+      borderRadius: 3,
+      overflow: 'hidden',
+    },
+    weeklineEventTime: {
+      fontSize: 9,
+      fontWeight: '700',
+    },
+    weeklineEventLabel: {
+      color: colors.white,
+      fontSize: 9,
+      fontWeight: '500',
+    },
+    weeklineLoading: {
+      position: 'absolute',
+      top: 12,
+      right: 85,
+    },
+    weeklineSide: {
+      flex: 1,
+      minWidth: 235,
+      gap: 12,
+    },
+    weeklineDayCard: {
+      flex: 1,
+      minHeight: 0,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: colors.card,
+    },
+    weeklineSelectedNumber: {
+      color: colors.white,
+      fontSize: 31,
+      fontWeight: '500',
+      letterSpacing: -1,
+      marginTop: 10,
+    },
+    weeklineSelectedLabel: {
+      color: colors.grey,
+      fontSize: 12,
+      marginBottom: 14,
+    },
+    weeklineEvents: {
+      flex: 1,
+    },
+    weeklineEventRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSoft,
+    },
+    weeklineEventMark: {
+      width: 3,
+      height: 26,
+      borderRadius: 2,
+    },
+    weeklineEventRowText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    weeklineRowTime: {
+      color: colors.white,
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    weeklineRowLabel: {
+      color: colors.grey,
+      fontSize: 10,
+      marginTop: 3,
+    },
+    weeklineStatsCard: {
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: colors.card,
+    },
+    weeklineStatsRow: {
+      flexDirection: 'row',
+      marginTop: 12,
+    },
+    weeklineStat: {
+      flex: 1,
+      borderRightWidth: 1,
+      borderRightColor: colors.border,
+      paddingHorizontal: 7,
+    },
+    weeklineStatCount: {
+      color: colors.white,
+      fontSize: 17,
+      fontWeight: '600',
+    },
+    weeklineStatLabel: {
+      color: colors.grey,
+      fontSize: 9,
+      marginTop: 3,
     },
     desktopColumns: {
       flexDirection: 'row',
