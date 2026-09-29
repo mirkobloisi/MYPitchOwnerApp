@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, Tabs } from 'expo-router';
 import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
-import React, { useState } from 'react';
+import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTranslation } from '../../i18n/LanguageContext';
@@ -19,39 +19,23 @@ const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   transactions: 'card-outline',
   profile: 'person-circle-outline',
 };
-const PRIMARY_TABS = ['agenda', 'availability', 'academy'];
+const PRIMARY_TABS = ['agenda', 'availability', 'academy', 'profile'];
 
 function OwnerMobileTabBar({ state, navigation, insets }: BottomTabBarProps) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const { unread } = useAcademyRealtime();
-  const [moreOpen, setMoreOpen] = useState(false);
   const activeRoute = state.routes[state.index]?.name ?? 'agenda';
-  const moreRoutes = state.routes.filter((route) => route.name !== 'inbox' && !PRIMARY_TABS.includes(route.name));
 
   function selectRoute(route: (typeof state.routes)[number]) {
     const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
     if (!event.defaultPrevented && route.name !== activeRoute) {
       navigation.navigate(route.name);
     }
-    setMoreOpen(false);
   }
 
   return (
     <View style={[nativeStyles.barRoot, { height: BOTTOM_BAR_HEIGHT + insets.bottom }]}>
-      {moreOpen ? (
-        <View style={[nativeStyles.moreMenu, { bottom: BOTTOM_BAR_HEIGHT + insets.bottom + 7, backgroundColor: colors.card, borderColor: colors.border }]}>
-          {moreRoutes.map((route) => {
-            const focused = activeRoute === route.name;
-            return (
-              <Pressable key={route.key} style={[nativeStyles.moreItem, focused && { backgroundColor: colors.greenSoft }]} onPress={() => selectRoute(route)}>
-                <Ionicons name={TAB_ICONS[route.name] ?? 'ellipse-outline'} size={18} color={focused ? colors.greenLight : colors.greyDark} />
-                <Text style={[nativeStyles.moreLabel, { color: focused ? colors.white : colors.grey }]}>{t(`nav.${route.name}`)}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
       <View style={[nativeStyles.bar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom }]}>
         {PRIMARY_TABS.map((name) => {
           const route = state.routes.find((item) => item.name === name);
@@ -68,10 +52,6 @@ function OwnerMobileTabBar({ state, navigation, insets }: BottomTabBarProps) {
             </Pressable>
           );
         })}
-        <Pressable style={nativeStyles.tabItem} onPress={() => setMoreOpen((open) => !open)} accessibilityRole="button" accessibilityState={{ expanded: moreOpen, selected: moreRoutes.some((route) => route.name === activeRoute) }}>
-          <Ionicons name="ellipsis-horizontal" size={21} color={moreRoutes.some((route) => route.name === activeRoute) ? colors.greenLight : colors.greyDark} />
-          <Text style={[nativeStyles.tabLabel, { color: moreRoutes.some((route) => route.name === activeRoute) ? colors.greenLight : colors.greyDark }]}>{t('nav.more')}</Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -216,27 +196,5 @@ const nativeStyles = StyleSheet.create({
   tabBadgeText: {
     fontSize: 8,
     fontWeight: '800',
-  },
-  moreMenu: {
-    position: 'absolute',
-    zIndex: 50,
-    elevation: 16,
-    right: 10,
-    width: 220,
-    borderWidth: 1,
-    borderRadius: 11,
-    padding: 5,
-  },
-  moreItem: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-    paddingHorizontal: 11,
-    borderRadius: 7,
-  },
-  moreLabel: {
-    fontSize: 13,
-    fontWeight: '600',
   },
 });
