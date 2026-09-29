@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import NativeAgendaBookingForm from '../components/NativeAgendaBookingForm';
 
 import AnimatedPressable from '../components/AnimatedPressable';
 import AppButton from '../components/AppButton';
@@ -49,7 +50,7 @@ function formatRange(range: BusyRange) {
   )}`;
 }
 
-export default function AddExternalBookingScreen() {
+function LegacyAddExternalBookingScreen() {
   const { colors } = useAppTheme();
   const { session } = useAuth();
   const router = useRouter();
@@ -613,3 +614,8 @@ const makeStyles = (colors: AppColors) =>
       flex: 1,
     },
   });
+
+export default function AddExternalBookingScreen() {
+  const params = useLocalSearchParams<{ pitchId: string; date: string; kind?: string }>();
+  return Platform.OS === 'web' ? <LegacyAddExternalBookingScreen /> : <NativeAgendaBookingForm kind={params.kind === 'party' ? 'party' : 'external_booking'} initialPitchId={params.pitchId} initialDate={params.date} />;
+}
