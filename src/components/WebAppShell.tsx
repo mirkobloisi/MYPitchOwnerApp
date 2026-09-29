@@ -273,7 +273,7 @@ const makeStyles = (colors: AppColors) =>
     },
     brandLogo: {
       width: '100%',
-      maxWidth: 182,
+      maxWidth: 138,
       aspectRatio: 600 / 177,
     },
     brandRole: {
