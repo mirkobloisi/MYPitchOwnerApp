@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
 import React, { ReactNode, useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -87,10 +88,18 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
 
       {isDesktop ? (
         <View style={[themed.sidebar, isWeeklineAgenda && styles.weeklineSidebar]}>
+          {isWeeklineAgenda && (
+            <LinearGradient
+              colors={['#0B1722', '#0D1B26', '#0A151E']}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           <View style={[themed.brandRow, isWeeklineAgenda && styles.weeklineBrandRow]}>
             <Image
-              source={require('../../assets/images/mypitch-logo.png')}
-              style={themed.brandLogo}
+              source={isWeeklineAgenda
+                ? require('../../assets/images/mypitch-weekline-logo.png')
+                : require('../../assets/images/mypitch-logo.png')}
+              style={[themed.brandLogo, isWeeklineAgenda && styles.weeklineBrandLogo]}
               resizeMode="contain"
               accessibilityLabel="MYPitch"
             />
@@ -234,13 +243,21 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   weeklineBrandRow: {
-    minHeight: 72,
+    height: 65,
     justifyContent: 'center',
-    marginBottom: 17,
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: '#30495B',
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
+  weeklineBrandLogo: {
+    width: 168,
+    aspectRatio: 2048 / 688,
   },
   weeklineNavHeading: {
-    color: weeklineColors.greyDark,
-    fontSize: 9,
+    color: '#84A5BC',
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -255,11 +272,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   weeklineNavItemActive: {
-    backgroundColor: weeklineColors.greenSoft,
+    backgroundColor: '#1C4563',
     borderWidth: 0,
   },
   weeklineNavText: {
-    fontSize: 11.5,
+    fontSize: 12.5,
     fontWeight: '500',
   },
   weeklineNavTextActive: {
@@ -273,7 +290,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   weeklineInboxLabel: {
-    fontSize: 11.5,
+    fontSize: 12.5,
   },
   weeklineOwnerFooter: {
     marginTop: 'auto',
