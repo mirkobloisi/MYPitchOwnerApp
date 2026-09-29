@@ -700,7 +700,7 @@ const makeStyles = (colors: AppColors, isWeb: boolean) =>
     errorText: {
       color: colors.red,
       fontSize: isWeb ? 13 : scaleFont(11.5),
-      fontWeight: '600',
+      fontWeight: isWeb ? '600' : '700',
       marginTop: spacing.sm,
     },
     tabRow: {
