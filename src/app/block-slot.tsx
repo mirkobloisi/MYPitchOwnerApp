@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import NativeAgendaBookingForm from '../components/NativeAgendaBookingForm';
 
 import AppButton from '../components/AppButton';
 import AppHeader from '../components/AppHeader';
@@ -48,7 +49,7 @@ function formatRange(range: BusyRange) {
   )}`;
 }
 
-export default function BlockSlotScreen() {
+function LegacyBlockSlotScreen() {
   const { colors } = useAppTheme();
   const { session } = useAuth();
   const router = useRouter();
@@ -474,3 +475,8 @@ const makeStyles = (colors: AppColors) =>
       flex: 1,
     },
   });
+
+export default function BlockSlotScreen() {
+  const params = useLocalSearchParams<{ pitchId: string; date: string }>();
+  return Platform.OS === 'web' ? <LegacyBlockSlotScreen /> : <NativeAgendaBookingForm kind="blocked" initialPitchId={params.pitchId} initialDate={params.date} />;
+}
