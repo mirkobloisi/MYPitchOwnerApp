@@ -106,7 +106,7 @@ function emptyDay(dayOfWeek: number): DayDraft {
 
 export default function AvailabilityScreen() {
   const { colors: appColors } = useAppTheme();
-  const { activePitch } = useAuth();
+  const { activePitch, pitchOwner } = useAuth();
   const { isDesktop } = useBreakpoint();
   const { t, tList } = useTranslation();
   const isDesktopWeb = Platform.OS === 'web' && isDesktop;
@@ -375,7 +375,7 @@ export default function AvailabilityScreen() {
           </View>
           <View style={styles.desktopPitchBadge}>
             <View style={styles.desktopPitchDot} />
-            <Text style={styles.desktopPitchText} numberOfLines={1}>{activePitch.name}</Text>
+            <Text style={styles.desktopPitchText} numberOfLines={1}>{pitchOwner?.business_name || activePitch.name}</Text>
           </View>
         </View>
       ) : <AppHeader title={t('availability.title')} subtitle={t('availability.subtitle')} showBack={false} />}
@@ -662,11 +662,14 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       alignItems: 'center',
       gap: 4,
       alignSelf: 'flex-start',
+      flexGrow: desktop ? 0 : undefined,
+      flexShrink: desktop ? 0 : undefined,
+      flexBasis: desktop ? 'auto' : undefined,
       marginTop: spacing.sm,
       paddingHorizontal: desktop ? 11 : spacing.sm,
       paddingVertical: desktop ? 0 : 7,
       height: desktop ? 31 : undefined,
-      borderRadius: radius.md,
+      borderRadius: desktop ? 7 : radius.md,
       borderWidth: 1,
       borderColor: desktop ? colors.border : colors.borderGreen,
       backgroundColor: desktop ? colors.cardSoft : colors.greenSoft,
@@ -693,6 +696,9 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.sm,
+      flexGrow: desktop ? 0 : undefined,
+      flexShrink: desktop ? 0 : undefined,
+      flexBasis: desktop ? 'auto' : undefined,
       marginTop: spacing.sm,
       marginBottom: spacing.xl,
       paddingVertical: desktop ? 0 : 15,
