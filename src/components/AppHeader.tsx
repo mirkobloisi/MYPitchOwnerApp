@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import React, { ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAcademyRealtime } from '../lib/academyRealtime';
@@ -19,6 +19,9 @@ type AppHeaderProps = {
   onBackPress?: () => void;
   colorsOverride?: AppColors;
   refined?: boolean;
+  brandLogo?: boolean;
+  showMenu?: boolean;
+  onMenuPress?: () => void;
 };
 
 export default function AppHeader({
@@ -29,6 +32,9 @@ export default function AppHeader({
   onBackPress,
   colorsOverride,
   refined = false,
+  brandLogo = false,
+  showMenu = false,
+  onMenuPress,
 }: AppHeaderProps) {
   const router = useRouter();
   const { colors: appColors } = useAppTheme();
@@ -61,13 +67,31 @@ export default function AppHeader({
               <Ionicons name="chevron-back" size={22} color={colors.white} />
             </View>
           </AnimatedPressable>
+        ) : showMenu ? (
+          <Pressable
+            style={styles.headerSide}
+            onPress={onMenuPress}
+            accessibilityRole="button"
+            accessibilityLabel={t('nav.more')}
+          >
+            <Ionicons name="menu-outline" size={26} color={colors.white} />
+          </Pressable>
         ) : (
           <View style={styles.headerSide} />
         )}
 
-        <Text numberOfLines={1} style={[styles.headerTitle, refined && styles.refinedHeaderTitle]}>
-          {title}
-        </Text>
+        {brandLogo ? (
+          <Image
+            source={require('../../assets/images/mypitch-weekline-logo.png')}
+            style={styles.headerBrandLogo}
+            resizeMode="contain"
+            accessibilityLabel="MYPitch"
+          />
+        ) : (
+          <Text numberOfLines={1} style={[styles.headerTitle, refined && styles.refinedHeaderTitle]}>
+            {title}
+          </Text>
+        )}
 
         <View style={styles.headerSide}>
           {showNotificationBell ? (
@@ -140,6 +164,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: scaleFont(20),
     fontWeight: '900',
     textAlign: 'center',
+  },
+  headerBrandLogo: {
+    width: 142,
+    height: 44,
   },
   refinedHeaderTitle: {
     fontSize: scaleFont(19),
