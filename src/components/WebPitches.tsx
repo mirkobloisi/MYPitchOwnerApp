@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   desktopSearchInput: { flex: 1, color: colors.white, fontSize: 13, paddingVertical: 6 },
   desktopFilter: { height: 32, minWidth: 58, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 11, borderWidth: 1, borderColor: colors.border, borderRadius: 7, backgroundColor: colors.card },
   desktopFilterSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
-  desktopFilterText: { color: colors.greyLight, fontSize: 12, fontWeight: '500' },
+  desktopFilterText: { color: colors.greySoft, fontSize: 13, fontWeight: '600' },
   desktopFilterTextSelected: { color: colors.blueLight, fontWeight: '600' },
   desktopTableHeader: { flexDirection: 'row', alignItems: 'center', minHeight: 32, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.backgroundSoft },
   desktopPitchRows: { flex: 1, minHeight: 0 },
