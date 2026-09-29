@@ -134,14 +134,18 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
             onPress={() => setIsInboxOpen(true)}
           >
             <Ionicons
-              name="mail-outline"
+              name={isDesktop ? 'notifications-outline' : 'mail-outline'}
               size={isWeeklineDesktop ? 15 : 17}
               color={isWeeklineDesktop ? weeklineColors.greenLight : colors.greenLight}
             />
             <Text style={[themed.inboxOpenLabel, isWeeklineDesktop && styles.weeklineInboxLabel]}>
               {t('inbox.title')}
             </Text>
-            {unread.messages > 0 ? <Text style={themed.inboxOpenCount}>{unread.messages}</Text> : null}
+            {unread.players + unread.parents + unread.messages > 0 ? (
+              <Text style={themed.inboxOpenCount}>
+                {unread.players + unread.parents + unread.messages}
+              </Text>
+            ) : null}
           </Pressable>
           {isWeeklineDesktop && (
             <View style={styles.weeklineOwnerFooter}>
@@ -181,19 +185,21 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
 
       {!isDesktop && isMoreOpen ? <MoreMenu items={MORE_NAV_ITEMS} label={t} activePath={effectivePath} onNavigate={(href) => { setIsMoreOpen(false); router.replace(href as any); }} /> : null}
 
-      <Pressable
-        style={[styles.notificationButton, isWeeklineDesktop && styles.weeklineNotificationButton]}
-        onPress={() => setIsInboxOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={t('inbox.notifications')}
-      >
-        <Ionicons name="notifications-outline" size={20} color={isWeeklineDesktop ? weeklineColors.white : colors.white} />
-        {unread.players + unread.parents + unread.messages > 0 ? (
-          <View style={styles.notificationBadge}>
-            <Text style={styles.notificationBadgeText}>{unread.players + unread.parents + unread.messages}</Text>
-          </View>
-        ) : null}
-      </Pressable>
+      {!isDesktop ? (
+        <Pressable
+          style={styles.notificationButton}
+          onPress={() => setIsInboxOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t('inbox.notifications')}
+        >
+          <Ionicons name="notifications-outline" size={20} color={colors.white} />
+          {unread.players + unread.parents + unread.messages > 0 ? (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>{unread.players + unread.parents + unread.messages}</Text>
+            </View>
+          ) : null}
+        </Pressable>
+      ) : null}
 
       {isInboxOpen ? (
         <View style={styles.inboxOverlay}>
