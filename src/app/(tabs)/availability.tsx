@@ -486,7 +486,7 @@ export default function AvailabilityScreen() {
             {isSavingAll ? (
               <ActivityIndicator color={colors.background} size="small" />
             ) : (
-              <Ionicons name="checkmark-circle-outline" size={18} color={colors.blackText} />
+              <Ionicons name="checkmark-circle-outline" size={isDesktopWeb ? 15 : 18} color={colors.blackText} />
             )}
             <Text style={styles.saveAllButtonText}>
               {isSavingAll ? t('availability.savingAll') : t('availability.saveAll')}
@@ -526,13 +526,14 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     },
     desktopTitle: {
       color: colors.white,
-      fontSize: 28,
-      lineHeight: 34,
-      fontWeight: '800',
+      fontSize: 24,
+      lineHeight: 30,
+      fontWeight: '600',
+      letterSpacing: -0.6,
     },
     desktopSubtitle: {
       color: colors.grey,
-      fontSize: 13,
+      fontSize: 12,
       marginTop: 3,
     },
     desktopPitchBadge: {
@@ -562,8 +563,8 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     desktopSectionHeading: {
       color: colors.grey,
       fontSize: 11,
-      fontWeight: '800',
-      letterSpacing: 1,
+      fontWeight: '700',
+      letterSpacing: 0.8,
       textTransform: 'uppercase',
       marginBottom: 11,
     },
@@ -602,8 +603,8 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     },
     dayLabel: {
       color: colors.white,
-      fontSize: desktop ? 14 : scaleFont(15),
-      fontWeight: '700',
+      fontSize: desktop ? 13 : scaleFont(15),
+      fontWeight: '600',
     },
     rangeBlock: {
       marginTop: desktop ? 8 : spacing.sm,
@@ -618,10 +619,10 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     },
     rangeLabel: {
       color: colors.grey,
-      fontSize: desktop ? 10 : scaleFont(11),
-      fontWeight: '800',
+      fontSize: desktop ? 11 : scaleFont(11),
+      fontWeight: '700',
       textTransform: 'uppercase',
-      letterSpacing: 0.4,
+      letterSpacing: desktop ? 0.8 : 0.4,
     },
     removeButton: {
       width: 24,
@@ -641,8 +642,8 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     },
     timeLabel: {
       color: colors.grey,
-      fontSize: desktop ? 10 : scaleFont(11),
-      fontWeight: '800',
+      fontSize: desktop ? 11 : scaleFont(11),
+      fontWeight: '700',
       marginBottom: 4,
     },
     timeInput: {
@@ -654,7 +655,7 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       paddingHorizontal: spacing.sm,
       paddingVertical: desktop ? 7 : 9,
       fontSize: desktop ? 12 : scaleFont(13),
-      fontWeight: '700',
+      fontWeight: '600',
     },
     addRangeButton: {
       flexDirection: 'row',
@@ -662,8 +663,9 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       gap: 4,
       alignSelf: 'flex-start',
       marginTop: spacing.sm,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 7,
+      paddingHorizontal: desktop ? 11 : spacing.sm,
+      paddingVertical: desktop ? 0 : 7,
+      height: desktop ? 31 : undefined,
       borderRadius: radius.md,
       borderWidth: 1,
       borderColor: desktop ? colors.border : colors.borderGreen,
@@ -671,8 +673,8 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     },
     addRangeText: {
       color: colors.blueLight,
-      fontSize: desktop ? 11 : scaleFont(12),
-      fontWeight: '800',
+      fontSize: desktop ? 13 : scaleFont(12),
+      fontWeight: desktop ? '600' : '800',
     },
     closedText: {
       color: colors.greyDark,
@@ -693,16 +695,17 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       gap: spacing.sm,
       marginTop: spacing.sm,
       marginBottom: spacing.xl,
-      paddingVertical: 15,
-      borderRadius: radius.lg,
+      paddingVertical: desktop ? 0 : 15,
+      height: desktop ? 31 : undefined,
+      borderRadius: desktop ? 7 : radius.lg,
       backgroundColor: desktop ? colors.blueLight : colors.greenLight,
       alignSelf: desktop ? 'flex-start' : undefined,
-      minWidth: desktop ? 165 : undefined,
-      paddingHorizontal: desktop ? 18 : undefined,
+      minWidth: desktop ? 146 : undefined,
+      paddingHorizontal: desktop ? 11 : undefined,
     },
     saveAllButtonText: {
       color: colors.background,
-      fontSize: scaleFont(15),
-      fontWeight: '900',
+      fontSize: desktop ? 13 : scaleFont(15),
+      fontWeight: desktop ? '700' : '900',
     },
   });
