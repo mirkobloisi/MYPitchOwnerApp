@@ -35,7 +35,7 @@ type AgendaEvent =
       session: AcademySessionOccurrence;
     };
 
-type ViewMode = 'week' | 'month' | 'list';
+type ViewMode = 'week' | 'month';
 
 // Include early and late bookings; the desktop grid scrolls within its panel.
 const HOURS_START = 6;
@@ -148,6 +148,8 @@ export default function AgendaScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
+  const isDesktopMonth = Platform.OS === 'web' && isDesktop && viewMode === 'month';
+  const isDesktopAgenda = isDesktopWeek || isDesktopMonth;
   const colors = Platform.OS === 'web' && isDesktop ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const desktopHourHeight = 56;
@@ -321,11 +323,15 @@ export default function AgendaScreen() {
   }
 
   function goToPreviousMonth() {
-    setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1));
+    const next = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
+    setVisibleMonth(next);
+    setSelectedDate(next);
   }
 
   function goToNextMonth() {
-    setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1));
+    const next = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
+    setVisibleMonth(next);
+    setSelectedDate(next);
   }
 
   function goToPreviousWeek() {
@@ -357,6 +363,8 @@ export default function AgendaScreen() {
       const newWeekStart = startOfWeek(selectedDate);
       ensureMonthLoadedFor(newWeekStart);
       setWeekStart(newWeekStart);
+    } else {
+      setVisibleMonth(startOfMonth(selectedDate));
     }
     setViewMode(mode);
   }
@@ -468,12 +476,55 @@ export default function AgendaScreen() {
     );
   }
 
-  const listGroups = useMemo(() => {
-    return gridDays
-      .filter((day) => day.getMonth() === visibleMonth.getMonth())
-      .map((day) => ({ day, dayEvents: eventsByDay.get(day.toDateString()) ?? [] }))
-      .filter((entry) => entry.dayEvents.length > 0);
-  }, [gridDays, eventsByDay, visibleMonth]);
+  function renderWeeklineSide() {
+    return (
+          <View style={styles.weeklineSide}>
+            <View style={styles.weeklineDayCard}>
+              <Text style={styles.weeklineEyebrow}>{t('agenda.selectedDay')}</Text>
+              <Text style={styles.weeklineSelectedNumber}>{selectedDate.getDate()}</Text>
+              <Text style={styles.weeklineSelectedLabel}>
+                {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long' })}
+              </Text>
+              <ScrollView style={styles.weeklineEvents} showsVerticalScrollIndicator={false}>
+                {selectedDayEvents.length === 0 ? (
+                  <Text style={styles.emptyDayText}>{t('agenda.nothingScheduled')}</Text>
+                ) : selectedDayEvents.map((event) => {
+                  const meta = eventStatusMeta(event, colors, t);
+                  return (
+                    <AnimatedPressable
+                      key={event.id}
+                      style={styles.weeklineEventRow}
+                      onPress={() => openEventDetails(event)}
+                    >
+                      <View style={[styles.weeklineEventMark, { backgroundColor: meta.color }]} />
+                      <View style={styles.weeklineEventRowText}>
+                        <Text style={styles.weeklineRowTime}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
+                        <Text style={styles.weeklineRowLabel} numberOfLines={1}>{meta.label}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={13} color={colors.greyDark} />
+                    </AnimatedPressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+            <View style={styles.weeklineStatsCard}>
+              <Text style={styles.weeklineEyebrow}>{t('agenda.statsThisMonth')}</Text>
+              <View style={styles.weeklineStatsRow}>
+                {[
+                  { count: monthStats.confirmedMatches, label: t('agenda.statsConfirmedMatches') },
+                  { count: monthStats.externalBookings, label: t('agenda.statsExternalBookings') },
+                  { count: monthStats.unavailable, label: t('agenda.statsUnavailable') },
+                ].map((stat) => (
+                  <View key={stat.label} style={styles.weeklineStat}>
+                    <Text style={styles.weeklineStatCount}>{stat.count}</Text>
+                    <Text style={styles.weeklineStatLabel} numberOfLines={2}>{stat.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+    );
+  }
 
   if (!activePitch) {
     return (
@@ -486,14 +537,15 @@ export default function AgendaScreen() {
 
   return (
     <Screen
-      scroll={!isDesktopWeek}
-      ambientGlows={!isDesktopWeek}
-      style={isDesktopWeek ? { backgroundColor: 'transparent' } : Platform.OS === 'web' && isDesktop ? { backgroundColor: colors.background } : undefined}
-      contentStyle={[styles.screenContent, isDesktopWeek && styles.weeklineScreen]}
+      scroll={!isDesktopAgenda}
+      ambientGlows={!isDesktopAgenda}
+      background={isDesktopAgenda ? <Image source={require('../../../assets/images/weekline-soft-halo.png')} style={StyleSheet.absoluteFill} resizeMode="stretch" /> : undefined}
+      style={isDesktopAgenda ? { backgroundColor: '#08111a' } : Platform.OS === 'web' && isDesktop ? { backgroundColor: colors.background } : undefined}
+      contentStyle={[styles.screenContent, isDesktopAgenda && styles.weeklineScreen]}
       maxWidth={WIDE_CONTENT_MAX_WIDTH}
     >
-      <View style={isDesktopWeek ? styles.weeklineTop : undefined}>
-        {isDesktopWeek ? (
+      <View style={isDesktopAgenda ? styles.weeklineTop : undefined}>
+        {isDesktopAgenda ? (
           <View>
             <Text style={styles.weeklinePageTitle}>{t('agenda.title')}</Text>
             <Text style={styles.weeklinePageSubtitle}>{t('agenda.subtitle')}</Text>
@@ -502,34 +554,34 @@ export default function AgendaScreen() {
           <AppHeader title={t('agenda.title')} subtitle={t('agenda.subtitle')} showBack={false} />
         )}
 
-      <View style={[styles.actionsRow, isDesktopWeek && styles.weeklineActions]}>
+      <View style={[styles.actionsRow, isDesktopAgenda && styles.weeklineActions]}>
         <Pressable
-          style={[styles.actionButtonOutline, isDesktopWeek && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
           onPress={openBlockSlot}
           disabled={selectedDayIsPast}
         >
-          {!isDesktopWeek && <Ionicons name="lock-closed-outline" size={16} color={colors.white} />}
-          <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.blockSlot')}</Text>
+          {!isDesktopAgenda && <Ionicons name="lock-closed-outline" size={16} color={colors.white} />}
+          <Text style={[styles.actionButtonOutlineText, isDesktopAgenda && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.blockSlot')}</Text>
         </Pressable>
 
         {/* A party takes the pitch for an evening rather than a playing
             slot, so it gets its own button and its own time selection. */}
         <Pressable
-          style={[styles.actionButtonOutline, isDesktopWeek && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
           onPress={openAddParty}
           disabled={selectedDayIsPast}
         >
-          {!isDesktopWeek && <Ionicons name="balloon-outline" size={16} color={colors.pink} />}
-          <Text style={[styles.actionButtonOutlineText, isDesktopWeek && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.addParty')}</Text>
+          {!isDesktopAgenda && <Ionicons name="balloon-outline" size={16} color={colors.pink} />}
+          <Text style={[styles.actionButtonOutlineText, isDesktopAgenda && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.addParty')}</Text>
         </Pressable>
 
         <Pressable
-          style={[styles.actionButtonPrimary, isDesktopWeek && styles.weeklineActionButton, isDesktopWeek && styles.weeklinePrimaryButton, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonPrimary, isDesktopAgenda && styles.weeklineActionButton, isDesktopAgenda && styles.weeklinePrimaryButton, selectedDayIsPast && styles.actionDisabled]}
           onPress={openAddExternalBooking}
           disabled={selectedDayIsPast}
         >
-          <Ionicons name="add" size={isDesktopWeek ? 15 : 18} color={colors.blackText} />
-          <Text style={[styles.actionButtonPrimaryText, isDesktopWeek && styles.weeklinePrimaryText]} numberOfLines={1}>{t('agenda.addExternalBooking')}</Text>
+          <Ionicons name="add" size={isDesktopAgenda ? 15 : 18} color={colors.blackText} />
+          <Text style={[styles.actionButtonPrimaryText, isDesktopAgenda && styles.weeklinePrimaryText]} numberOfLines={1}>{t('agenda.addExternalBooking')}</Text>
         </Pressable>
       </View>
       </View>
@@ -538,9 +590,9 @@ export default function AgendaScreen() {
         <Text style={styles.pastHint}>{t('agenda.pastHint')}</Text>
       ) : null}
 
-      <View style={[styles.toolbarRow, isDesktopWeek && styles.weeklineToolbar]}>
-        <View style={[styles.pitchSelectorInline, isDesktopWeek && styles.weeklinePitchSelector]}>
-          {isDesktopWeek ? (
+      <View style={[styles.toolbarRow, isDesktopAgenda && styles.weeklineToolbar]}>
+        <View style={[styles.pitchSelectorInline, isDesktopAgenda && styles.weeklinePitchSelector]}>
+          {isDesktopAgenda ? (
             <View style={styles.pitchDropdown}>
               <Pressable
                 style={styles.pitchDropdownTrigger}
@@ -576,46 +628,46 @@ export default function AgendaScreen() {
               return (
                 <AnimatedPressable
                   key={pitch.id}
-                  style={[styles.pitchChip, isDesktopWeek && styles.weeklinePitchChip, isActive && styles.pitchChipActive, isDesktopWeek && isActive && styles.weeklinePitchChipActive]}
+                  style={[styles.pitchChip, isDesktopAgenda && styles.weeklinePitchChip, isActive && styles.pitchChipActive, isDesktopAgenda && isActive && styles.weeklinePitchChipActive]}
                   onPress={() => setActivePitchId(pitch.id)}
                 >
                   <Ionicons name="location" size={12} color={isActive ? colors.white : colors.grey} />
-                  <Text style={[styles.pitchChipText, isDesktopWeek && styles.weeklinePitchText, isActive && styles.pitchChipTextActive]}>
+                  <Text style={[styles.pitchChipText, isDesktopAgenda && styles.weeklinePitchText, isActive && styles.pitchChipTextActive]}>
                     {pitch.name}
                   </Text>
                 </AnimatedPressable>
               );
             })
           ) : (
-            <View style={[styles.pitchChip, isDesktopWeek && styles.weeklinePitchChip, styles.pitchChipActive, isDesktopWeek && styles.weeklinePitchChipActive]}>
+            <View style={[styles.pitchChip, isDesktopAgenda && styles.weeklinePitchChip, styles.pitchChipActive, isDesktopAgenda && styles.weeklinePitchChipActive]}>
               <Ionicons name="location" size={12} color={colors.white} />
-              <Text style={[styles.pitchChipText, isDesktopWeek && styles.weeklinePitchText, styles.pitchChipTextActive]}>{activePitch.name}</Text>
+              <Text style={[styles.pitchChipText, isDesktopAgenda && styles.weeklinePitchText, styles.pitchChipTextActive]}>{activePitch.name}</Text>
             </View>
           )}
         </View>
 
-        <View style={[styles.viewToggleRow, isDesktopWeek && styles.weeklineToggleRow]}>
-          {(['week', 'month', 'list'] as ViewMode[]).map((mode) => {
+        <View style={[styles.viewToggleRow, isDesktopAgenda && styles.weeklineToggleRow]}>
+          {(['week', 'month'] as ViewMode[]).map((mode) => {
             const isActive = viewMode === mode;
             const label =
-              mode === 'week' ? t('agenda.viewWeek') : mode === 'month' ? t('agenda.viewMonth') : t('agenda.viewList');
+              mode === 'week' ? t('agenda.viewWeek') : t('agenda.viewMonth');
             return (
               <AnimatedSelectable
                 key={mode}
                 active={isActive}
-                style={[styles.viewToggleButton, isDesktopWeek && styles.weeklineToggleButton]}
-                background={['transparent', isDesktopWeek ? colors.greenSoft : colors.blue]}
+                style={[styles.viewToggleButton, isDesktopAgenda && styles.weeklineToggleButton]}
+                background={['transparent', isDesktopAgenda ? colors.greenSoft : colors.blue]}
                 onPress={() => selectViewMode(mode)}
               >
                 {(progress) => (
                   <Animated.Text
                     style={[
                       styles.viewToggleText,
-                      isDesktopWeek && styles.weeklineToggleText,
+                      isDesktopAgenda && styles.weeklineToggleText,
                       {
                         color: progress.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [colors.grey, isDesktopWeek ? colors.greenLight : colors.white],
+                          outputRange: [colors.grey, isDesktopAgenda ? colors.greenLight : colors.white],
                         }),
                       },
                     ]}
@@ -716,51 +768,67 @@ export default function AgendaScreen() {
             {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
           </View>
 
-          <View style={styles.weeklineSide}>
-            <View style={styles.weeklineDayCard}>
-              <Text style={styles.weeklineEyebrow}>{t('agenda.selectedDay')}</Text>
-              <Text style={styles.weeklineSelectedNumber}>{selectedDate.getDate()}</Text>
-              <Text style={styles.weeklineSelectedLabel}>
-                {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long' })}
-              </Text>
-              <ScrollView style={styles.weeklineEvents} showsVerticalScrollIndicator={false}>
-                {selectedDayEvents.length === 0 ? (
-                  <Text style={styles.emptyDayText}>{t('agenda.nothingScheduled')}</Text>
-                ) : selectedDayEvents.map((event) => {
-                  const meta = eventStatusMeta(event, colors, t);
-                  return (
-                    <AnimatedPressable
-                      key={event.id}
-                      style={styles.weeklineEventRow}
-                      onPress={() => openEventDetails(event)}
-                    >
-                      <View style={[styles.weeklineEventMark, { backgroundColor: meta.color }]} />
-                      <View style={styles.weeklineEventRowText}>
-                        <Text style={styles.weeklineRowTime}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
-                        <Text style={styles.weeklineRowLabel} numberOfLines={1}>{meta.label}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={13} color={colors.greyDark} />
-                    </AnimatedPressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-            <View style={styles.weeklineStatsCard}>
-              <Text style={styles.weeklineEyebrow}>{t('agenda.statsThisMonth')}</Text>
-              <View style={styles.weeklineStatsRow}>
-                {[
-                  { count: monthStats.confirmedMatches, label: t('agenda.statsConfirmedMatches') },
-                  { count: monthStats.externalBookings, label: t('agenda.statsExternalBookings') },
-                  { count: monthStats.unavailable, label: t('agenda.statsUnavailable') },
-                ].map((stat) => (
-                  <View key={stat.label} style={styles.weeklineStat}>
-                    <Text style={styles.weeklineStatCount}>{stat.count}</Text>
-                    <Text style={styles.weeklineStatLabel} numberOfLines={2}>{stat.label}</Text>
-                  </View>
-                ))}
+          {renderWeeklineSide()}
+        </View>
+      ) : isDesktopMonth ? (
+        <View style={styles.weeklineLayout}>
+          <View style={styles.weeklineBoard}>
+            <View style={styles.weeklineBoardTitle}>
+              <View>
+                <Text style={styles.weeklineEyebrow}>{t('agenda.viewMonth')}</Text>
+                <Text style={styles.weeklineRange}>{currentRangeLabel()}</Text>
+              </View>
+              <View style={styles.weeklineNav}>
+                <Pressable style={styles.weeklineNavButton} onPress={goToPrevious} accessibilityLabel="Previous month">
+                  <Ionicons name="chevron-back" size={16} color={colors.grey} />
+                </Pressable>
+                <Pressable style={styles.weeklineNavButton} onPress={goToNext} accessibilityLabel="Next month">
+                  <Ionicons name="chevron-forward" size={16} color={colors.grey} />
+                </Pressable>
               </View>
             </View>
+            <View style={styles.weeklineMonthWeekdays}>
+              {WEEKDAY_LABELS.map((label, index) => (
+                <Text key={index} style={styles.weeklineMonthWeekday}>{label}</Text>
+              ))}
+            </View>
+            <View style={styles.weeklineMonthGrid}>
+              {gridDays.map((day) => {
+                const dayEvents = eventsByDay.get(day.toDateString()) ?? [];
+                const inMonth = day.getMonth() === visibleMonth.getMonth();
+                const isSelected = isSameDay(day, selectedDate);
+                const firstEvent = dayEvents[0];
+                const meta = firstEvent ? eventStatusMeta(firstEvent, colors, t) : null;
+                return (
+                  <Pressable
+                    key={day.toISOString()}
+                    style={[styles.weeklineMonthCell, isSelected && styles.weeklineMonthCellSelected]}
+                    onPress={() => setSelectedDate(day)}
+                  >
+                    <Text style={[styles.weeklineMonthDate, !inMonth && styles.weeklineMonthOutside, isSelected && styles.weeklineMonthDateSelected]}>
+                      {day.getDate()}
+                    </Text>
+                    {firstEvent && meta ? (
+                      <View style={[styles.weeklineMonthPreview, { backgroundColor: meta.background, borderLeftColor: meta.color }]}>
+                        <Text style={[styles.weeklineMonthPreviewTime, { color: meta.color }]} numberOfLines={1}>{formatTime(firstEvent.startsAt)}</Text>
+                        <Text style={styles.weeklineMonthPreviewLabel} numberOfLines={1}>{meta.label}</Text>
+                      </View>
+                    ) : null}
+                    {dayEvents.length > 1 && (
+                      <View style={styles.weeklineMonthDots}>
+                        {dayEvents.slice(1, 4).map((event) => (
+                          <View key={event.id} style={[styles.weeklineMonthDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />
+                        ))}
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+            {isLoading ? <ActivityIndicator style={styles.weeklineLoading} color={colors.greenLight} /> : null}
+            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
           </View>
+          {renderWeeklineSide()}
         </View>
       ) : (
       <View style={isDesktop ? styles.desktopColumns : undefined}>
@@ -925,22 +993,7 @@ export default function AgendaScreen() {
             </View>
           </ScrollView>
         </View>
-      ) : (
-        <View style={styles.listWrap}>
-          {listGroups.length === 0 ? (
-            <Text style={styles.emptyDayText}>{t('agenda.noEventsThisMonth')}</Text>
-          ) : (
-            listGroups.map(({ day, dayEvents }) => (
-              <View key={day.toISOString()}>
-                <Text style={styles.listDayHeader}>
-                  {day.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
-                </Text>
-                {dayEvents.map((event) => renderEventCard(event))}
-              </View>
-            ))
-          )}
-        </View>
-      )}
+      ) : null}
       </AnimatedSwap>
 
       {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -1190,6 +1243,78 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineDayDateSelected: {
       color: colors.greenLight,
+    },
+    weeklineMonthWeekdays: {
+      flexDirection: 'row',
+      height: 42,
+      alignItems: 'center',
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: colors.border,
+    },
+    weeklineMonthWeekday: {
+      width: '14.2857%',
+      textAlign: 'center',
+      color: colors.greyDark,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    weeklineMonthGrid: {
+      flex: 1,
+      minHeight: 0,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    weeklineMonthCell: {
+      width: '14.2857%',
+      height: '16.6667%',
+      borderRightWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: colors.borderSoft,
+      paddingHorizontal: 7,
+      paddingTop: 6,
+      overflow: 'hidden',
+    },
+    weeklineMonthCellSelected: {
+      backgroundColor: colors.greenSoft,
+    },
+    weeklineMonthDate: {
+      color: colors.white,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    weeklineMonthOutside: {
+      color: colors.greyDark,
+      opacity: 0.55,
+    },
+    weeklineMonthDateSelected: {
+      color: colors.greenLight,
+    },
+    weeklineMonthPreview: {
+      borderLeftWidth: 2,
+      borderRadius: 3,
+      paddingHorizontal: 5,
+      paddingVertical: 3,
+      marginTop: 4,
+    },
+    weeklineMonthPreviewTime: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    weeklineMonthPreviewLabel: {
+      color: colors.white,
+      fontSize: 11,
+      fontWeight: '500',
+    },
+    weeklineMonthDots: {
+      flexDirection: 'row',
+      gap: 4,
+      marginTop: 4,
+    },
+    weeklineMonthDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 3,
     },
     weeklineGridScroll: {
       flex: 1,
