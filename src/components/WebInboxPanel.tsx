@@ -15,10 +15,10 @@ import {
   startDirectChat,
 } from '../lib/academyChat';
 import { AcademyRow, fetchEnrolments, fetchMyAcademies } from '../lib/academyData';
-import { AcademyNotice, fetchNotices, markNoticeRead } from '../lib/academyNotices';
+import { AcademyNotice, fetchNotices, markNoticeRead, markSessionNoticesRead } from '../lib/academyNotices';
 import { useAcademyRealtime } from '../lib/academyRealtime';
 import { INBOX_WIDTH } from '../theme/breakpoints';
-import { AppColors, lightColors } from '../theme/palettes';
+import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius, spacing } from '../theme/layout';
 import { scaleFont } from '../theme/typography';
@@ -26,39 +26,6 @@ import { scaleFont } from '../theme/typography';
 type InboxTab = 'messages' | 'notifications';
 
 type RecipientPerson = { id: string; full_name: string };
-
-const ownerInboxColors: AppColors = {
-  ...lightColors,
-  background: '#EEF7FC',
-  backgroundSoft: '#FAFDFF',
-  backgroundBlue: '#EAF5FC',
-  card: '#FFFFFF',
-  cardSoft: '#F5FAFE',
-  cardDark: '#E8F3FA',
-  blue: '#398FBE',
-  blueLight: '#237EAF',
-  blueDeep: '#17638D',
-  blueSoft: '#E5F3FB',
-  blueGlow: '#D4EBF8',
-  green: '#398FBE',
-  greenLight: '#237EAF',
-  greenDeep: '#17638D',
-  greenSoft: '#E5F3FB',
-  greenGlow: '#D4EBF8',
-  white: '#142C3D',
-  offWhite: '#142C3D',
-  grey: '#5D7485',
-  greySoft: '#496476',
-  greyDark: '#8298A7',
-  border: '#D8E8F2',
-  borderSoft: '#E8F1F7',
-  borderGreen: '#B9DDEF',
-  borderBlue: '#B9DDEF',
-  blackText: '#142C3D',
-  surfaceMuted: 'rgba(35,126,175,0.04)',
-  neutralSoft: 'rgba(35,126,175,0.06)',
-  backgroundGradient: ['#EEF7FC', '#F7FBFE', '#FFFFFF'],
-};
 
 /** Relative time, short enough for a narrow list row. */
 function timeAgo(iso: string, t: (key: string) => string) {
@@ -90,7 +57,7 @@ function noticeIcon(type: string): keyof typeof Ionicons.glyphMap {
 export default function WebInboxPanel({ initialTab = 'messages', fullScreen = false }: { initialTab?: InboxTab; fullScreen?: boolean }) {
   const { colors: themeColors } = useAppTheme();
   const isWeb = Platform.OS === 'web';
-  const colors = isWeb ? ownerInboxColors : themeColors;
+  const colors = isWeb ? weeklineColors : themeColors;
   const { t } = useTranslation();
   const router = useRouter();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -109,6 +76,7 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
   const [academyPeople, setAcademyPeople] = useState<Record<string, RecipientPerson[]>>({});
   const [selectedPeople, setSelectedPeople] = useState<Set<string>>(new Set());
   const [isSending, setIsSending] = useState(false);
+  const [isMarkingNoticesRead, setIsMarkingNoticesRead] = useState(false);
   const [composeError, setComposeError] = useState('');
 
   const loadConversations = useCallback(async () => {
@@ -278,6 +246,20 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
     }
   }
 
+  async function markAllNoticesRead() {
+    const unreadIds = notices.filter((notice) => !notice.read_at).map((notice) => notice.id);
+    if (unreadIds.length === 0 || isMarkingNoticesRead) return;
+
+    setIsMarkingNoticesRead(true);
+    const readAt = new Date().toISOString();
+    setNotices((current) => current.map((notice) => ({ ...notice, read_at: notice.read_at ?? readAt })));
+    const { error } = await markSessionNoticesRead();
+    setIsMarkingNoticesRead(false);
+    if (error) {
+      setNotices((current) => current.map((notice) => unreadIds.includes(notice.id) ? { ...notice, read_at: null } : notice));
+    }
+  }
+
   const messagesUnread = conversations.reduce((sum, row) => sum + row.unread_count, 0);
   const notificationsUnread = notices.filter((notice) => !notice.read_at).length;
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
@@ -299,7 +281,7 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
     return (
       <View style={[styles.panel, fullScreen && styles.fullScreenPanel]}>
         <LinearGradient
-          colors={isWeb ? ['#EAF5FC', '#F6FAFE', '#FFFFFF'] : colors.backgroundGradient}
+          colors={colors.backgroundGradient}
           style={styles.panelGradient}
           pointerEvents="none"
         />
@@ -389,13 +371,11 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
   return (
     <View style={[styles.panel, fullScreen && styles.fullScreenPanel]}>
       <LinearGradient
-        colors={isWeb ? ['#EAF5FC', '#F6FAFE', '#FFFFFF'] : colors.backgroundGradient}
+        colors={colors.backgroundGradient}
         style={styles.panelGradient}
         pointerEvents="none"
       />
       <Text style={styles.title}>{t('inbox.title')}</Text>
-      <Text style={styles.subtitle}>{t('inbox.subtitle')}</Text>
-
       <View style={styles.tabRow}>
         <TabChip
           styles={styles}
@@ -414,6 +394,19 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
           onPress={() => setTab('notifications')}
         />
       </View>
+
+      {tab === 'notifications' && notificationsUnread > 0 ? (
+        <AnimatedPressable
+          style={styles.markAllRead}
+          onPress={markAllNoticesRead}
+          disabled={isMarkingNoticesRead}
+          accessibilityRole="button"
+          accessibilityLabel={t('inbox.markAllRead')}
+        >
+          <Ionicons name="checkmark-done-outline" size={15} color={colors.blueLight} />
+          <Text style={styles.markAllReadText}>{t('inbox.markAllRead')}</Text>
+        </AnimatedPressable>
+      ) : null}
 
       {tab === 'messages' ? (
         <View style={styles.searchRow}>
@@ -435,7 +428,7 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
             accessibilityRole="button"
             accessibilityLabel={t('inbox.sendMessage')}
           >
-            <Ionicons name="create-outline" size={17} color={colors.blueDeep} />
+            <Ionicons name="create-outline" size={17} color={colors.blueLight} />
           </AnimatedPressable>
         </View>
       ) : null}
@@ -510,7 +503,10 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
                   ) : null}
                 </View>
 
-                <Text style={styles.rowTime}>{timeAgo(notice.created_at, t)}</Text>
+                <View style={styles.noticeTrailing}>
+                  {!notice.read_at ? <View style={styles.noticeUnreadDot} /> : null}
+                  <Text style={styles.rowTime}>{timeAgo(notice.created_at, t)}</Text>
+                </View>
               </View>
             </AnimatedPressable>
           ))
@@ -580,8 +576,8 @@ const makeStyles = (colors: AppColors) =>
       paddingTop: 20,
       paddingHorizontal: 14,
       overflow: 'hidden',
-      shadowColor: '#6A93AC',
-      shadowOpacity: 0.12,
+      shadowColor: '#000000',
+      shadowOpacity: 0.24,
       shadowRadius: 18,
       shadowOffset: { width: -5, height: 0 },
     },
@@ -605,13 +601,6 @@ const makeStyles = (colors: AppColors) =>
       fontWeight: '800',
       marginBottom: 3,
       marginLeft: 2,
-    },
-    subtitle: {
-      color: colors.grey,
-      fontSize: scaleFont(12),
-      fontWeight: '500',
-      marginLeft: 2,
-      marginBottom: 15,
     },
     sendMessageButton: {
       flexDirection: 'row',
@@ -646,7 +635,7 @@ const makeStyles = (colors: AppColors) =>
       opacity: 0.45,
     },
     composeSubmitText: {
-      color: '#FFFFFF',
+      color: colors.blackText,
       fontSize: scaleFont(12),
       fontWeight: '800',
     },
@@ -711,7 +700,7 @@ const makeStyles = (colors: AppColors) =>
     tabRow: {
       flexDirection: 'row',
       gap: 8,
-      marginBottom: 12,
+      marginBottom: 9,
     },
     tabChip: {
       flex: 1,
@@ -725,7 +714,7 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: 'rgba(255,255,255,0.84)',
+      backgroundColor: colors.card,
     },
     tabChipActive: {
       borderColor: colors.borderBlue,
@@ -738,7 +727,7 @@ const makeStyles = (colors: AppColors) =>
       fontWeight: '700',
     },
     tabChipTextActive: {
-      color: colors.blueDeep,
+      color: colors.blueLight,
     },
     tabChipBell: {
       minWidth: 16,
@@ -750,7 +739,7 @@ const makeStyles = (colors: AppColors) =>
       backgroundColor: colors.blue,
     },
     tabChipBellText: {
-      color: '#FFFFFF',
+      color: colors.blackText,
       fontSize: 9,
       fontWeight: '900',
     },
@@ -820,7 +809,7 @@ const makeStyles = (colors: AppColors) =>
       backgroundColor: colors.blue,
     },
     unreadText: {
-      color: '#FFFFFF',
+      color: colors.blackText,
       fontSize: 10,
       fontWeight: '900',
     },
@@ -852,7 +841,7 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 11,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: 'rgba(255,255,255,0.88)',
+      backgroundColor: colors.card,
     },
     searchInput: {
       flex: 1,
@@ -881,15 +870,15 @@ const makeStyles = (colors: AppColors) =>
       borderWidth: 1,
       borderColor: colors.borderSoft,
       borderRadius: 13,
-      backgroundColor: 'rgba(255,255,255,0.92)',
-      shadowColor: '#7C9EB2',
-      shadowOpacity: 0.07,
+      backgroundColor: colors.card,
+      shadowColor: '#000000',
+      shadowOpacity: 0.12,
       shadowRadius: 7,
       shadowOffset: { width: 0, height: 2 },
     },
     messageRowUnread: {
       borderColor: colors.borderBlue,
-      backgroundColor: '#EFF8FE',
+      backgroundColor: colors.blueSoft,
     },
     avatar: {
       width: 38,
@@ -905,7 +894,7 @@ const makeStyles = (colors: AppColors) =>
       height: '100%',
     },
     avatarInitials: {
-      color: colors.blueDeep,
+      color: colors.blueLight,
       fontSize: scaleFont(11),
       fontWeight: '800',
     },
@@ -913,5 +902,29 @@ const makeStyles = (colors: AppColors) =>
       minWidth: 34,
       alignItems: 'flex-end',
       gap: 6,
+    },
+    markAllRead: {
+      alignSelf: 'flex-end',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 5,
+      paddingHorizontal: 2,
+      marginBottom: 5,
+    },
+    markAllReadText: {
+      color: colors.blueLight,
+      fontSize: scaleFont(11),
+      fontWeight: '700',
+    },
+    noticeTrailing: {
+      alignItems: 'flex-end',
+      gap: 7,
+    },
+    noticeUnreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.blueLight,
     },
   });
