@@ -1269,6 +1269,9 @@ const makeStyles = (colors: AppColors) =>
     weeklineDayHead: {
       flexDirection: 'row',
       height: 48,
+      // The grid's vertical scrollbar narrows its viewport. Match that
+      // reserved gutter so weekday headers line up with the time columns.
+      paddingRight: 14,
       borderTopWidth: 1,
       borderBottomWidth: 1,
       borderColor: colors.border,
