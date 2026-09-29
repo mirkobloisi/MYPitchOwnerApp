@@ -9,6 +9,7 @@ import AnimatedSwap from '../../components/AnimatedSwap';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
 import { useTranslation } from '../../i18n/LanguageContext';
+import { useAcademyRealtime } from '../../lib/academyRealtime';
 import { useAuth } from '../../lib/auth';
 import {
   AcademySessionOccurrence,
@@ -133,6 +134,7 @@ function formatTime(date: Date) {
 export default function AgendaScreen() {
   const { colors: appColors } = useAppTheme();
   const { activePitch, pitches, setActivePitchId, pitchOwner } = useAuth();
+  const { unread } = useAcademyRealtime();
   const router = useRouter();
   const { isDesktop } = useBreakpoint();
   const { t, tList } = useTranslation();
@@ -293,6 +295,7 @@ export default function AgendaScreen() {
   // Nothing can be booked or blocked in the past, so the actions are disabled
   // rather than letting the owner fill in a form that would be refused.
   const selectedDayIsPast = isPastDay(selectedDate);
+  const totalUnread = unread.players + unread.parents + unread.messages;
 
   // A quick at-a-glance summary of the visible month, built entirely from the
   // events already loaded for the calendar grid — no extra query needed.
@@ -617,6 +620,7 @@ export default function AgendaScreen() {
           <Image source={require('../../../assets/images/mypitch-weekline-logo.png')} style={styles.nativeLogo} resizeMode="contain" />
           <Pressable style={styles.nativeHeaderButton} onPress={() => router.push('/(tabs)/inbox' as any)} accessibilityRole="button" accessibilityLabel={t('inbox.notifications')}>
             <Ionicons name="notifications-outline" size={21} color={colors.white} />
+            {totalUnread > 0 ? <View style={styles.nativeNotificationDot} /> : null}
           </Pressable>
           {mobileMenuOpen ? (
             <View style={styles.nativeQuickMenu}>
@@ -1353,6 +1357,17 @@ const makeStyles = (colors: AppColors) =>
       height: 42,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    nativeNotificationDot: {
+      position: 'absolute',
+      width: 8,
+      height: 8,
+      right: 8,
+      top: 8,
+      borderRadius: 4,
+      backgroundColor: colors.blueLight,
+      borderWidth: 1,
+      borderColor: colors.background,
     },
     nativeLogo: {
       width: 170,
