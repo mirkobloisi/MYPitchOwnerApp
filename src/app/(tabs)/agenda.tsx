@@ -482,8 +482,11 @@ export default function AgendaScreen() {
     const today = new Date();
     setSelectedDate(today);
     setVisibleMonth(startOfMonth(today));
-    setWeekStart(startOfWeek(today));
+    setWeekStart(isNativeMobile
+      ? new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      : startOfWeek(today));
     setPitchMenuOpen(false);
+    setMonthMenuOpen(false);
   }
 
   function goToPrevious() {
@@ -768,22 +771,27 @@ export default function AgendaScreen() {
         </View>
 
         <View style={styles.nativePitchWrap}>
-          <Pressable style={styles.nativePitchTrigger} onPress={() => { setPitchMenuOpen((open) => !open); setMonthMenuOpen(false); }} accessibilityRole="button" accessibilityState={{ expanded: pitchMenuOpen }}>
-            <View style={[styles.nativePitchDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
-            <Text style={styles.nativePitchName} numberOfLines={1}>{activePitch.name}</Text>
-            <Ionicons name={pitchMenuOpen ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
+          <View style={styles.nativePitchPicker}>
+            <Pressable style={styles.nativePitchTrigger} onPress={() => { setPitchMenuOpen((open) => !open); setMonthMenuOpen(false); }} accessibilityRole="button" accessibilityState={{ expanded: pitchMenuOpen }}>
+              <View style={[styles.nativePitchDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
+              <Text style={styles.nativePitchName} numberOfLines={1}>{activePitch.name}</Text>
+              <Ionicons name={pitchMenuOpen ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
+            </Pressable>
+            {pitchMenuOpen ? (
+              <View style={styles.nativePitchMenu}>
+                {pitches.map((pitch, index) => (
+                  <Pressable key={pitch.id} style={styles.nativePitchOption} onPress={() => { setActivePitchId(pitch.id); setPitchMenuOpen(false); }}>
+                    <View style={[styles.nativePitchDot, { backgroundColor: PITCH_COLORS[index % PITCH_COLORS.length] }]} />
+                    <Text style={styles.nativePitchName} numberOfLines={1}>{pitch.name}</Text>
+                    {pitch.id === activePitch.id ? <Ionicons name="checkmark" size={17} color={colors.blueLight} /> : null}
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+          <Pressable style={styles.nativeTodayButton} onPress={goToToday} accessibilityRole="button" accessibilityLabel={t('agenda.today')}>
+            <Text style={styles.nativeTodayText}>{t('agenda.today')}</Text>
           </Pressable>
-          {pitchMenuOpen ? (
-            <View style={styles.nativePitchMenu}>
-              {pitches.map((pitch, index) => (
-                <Pressable key={pitch.id} style={styles.nativePitchOption} onPress={() => { setActivePitchId(pitch.id); setPitchMenuOpen(false); }}>
-                  <View style={[styles.nativePitchDot, { backgroundColor: PITCH_COLORS[index % PITCH_COLORS.length] }]} />
-                  <Text style={styles.nativePitchName} numberOfLines={1}>{pitch.name}</Text>
-                  {pitch.id === activePitch.id ? <Ionicons name="checkmark" size={17} color={colors.blueLight} /> : null}
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
         </View>
 
         <View style={styles.nativeViewAndDays}>
@@ -1655,6 +1663,27 @@ const makeStyles = (colors: AppColors) =>
       position: 'relative',
       zIndex: 15,
       marginBottom: 8,
+      flexDirection: 'row',
+      gap: 8,
+    },
+    nativePitchPicker: {
+      flex: 1,
+      minWidth: 0,
+      position: 'relative',
+    },
+    nativeTodayButton: {
+      minHeight: 48,
+      paddingHorizontal: 14,
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      backgroundColor: 'rgba(16,28,39,0.78)',
+    },
+    nativeTodayText: {
+      color: colors.blueLight,
+      fontSize: 14,
+      fontWeight: '700',
     },
     nativePitchTrigger: {
       minHeight: 48,
