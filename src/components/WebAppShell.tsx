@@ -50,7 +50,7 @@ const ROUTE_TAB_OVERRIDE: Record<string, string> = {
 
 /**
  * Browser navigation for the Pitch Owner app, kept mounted at the root so it
- * never disappears — not for the seven tabs, and not for a detail screen
+ * never disappears — not for the seven desktop tabs, and not for a detail screen
  * (an academy's own page, a booking) reached by drilling into one of them.
  *
  * Native keeps the platform tab bar and has no equivalent of the sidebar — see
@@ -70,7 +70,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
     setIsMoreOpen(false);
   }, [pathname]);
   const { colors } = useAppTheme();
-  const themed = useMemo(() => makeStyles(isDesktop ? weeklineColors : colors), [colors, isDesktop]);
+  const themed = useMemo(() => makeStyles(isWeeklineAgenda ? weeklineColors : colors), [colors, isWeeklineAgenda]);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   if (Platform.OS !== 'web') return <>{children}</>;
@@ -101,18 +101,21 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
               style={StyleSheet.absoluteFill}
             />
           )}
-          <View style={[themed.brandRow, styles.weeklineBrandRow]}>
+          <View style={[themed.brandRow, isWeeklineAgenda && styles.weeklineBrandRow]}>
             <Image
-              source={require('../../assets/images/mypitch-weekline-logo.png')}
-              style={[themed.brandLogo, styles.weeklineBrandLogo]}
+              source={isWeeklineAgenda
+                ? require('../../assets/images/mypitch-weekline-logo.png')
+                : require('../../assets/images/mypitch-logo.png')}
+              style={[themed.brandLogo, isWeeklineAgenda && styles.weeklineBrandLogo]}
               resizeMode="contain"
               accessibilityLabel="MYPitch"
             />
+            {!isWeeklineAgenda && <Text style={themed.brandRole}>{t('login.subtitle')}</Text>}
           </View>
 
-          <Text style={styles.weeklineNavHeading}>{t('nav.workspace')}</Text>
+          {isWeeklineAgenda && <Text style={styles.weeklineNavHeading}>{t('nav.workspace')}</Text>}
           <View style={themed.navGroup}>
-            {PRIMARY_NAV_ITEMS.map((item) => (
+            {NAV_ITEMS.map((item) => (
               <NavItem
                 key={item.name}
                 label={t(item.labelKey)}
@@ -120,29 +123,34 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
                 isDesktop
                 isFocused={effectivePath === item.href}
                 waiting={waiting[item.name] ?? 0}
-                colorsOverride={weeklineColors}
-                weekline
+                colorsOverride={isWeeklineAgenda ? weeklineColors : undefined}
+                weekline={isWeeklineAgenda}
                 onPress={() => router.replace(item.href as any)}
               />
             ))}
-            <View style={styles.moreAnchor}>
-              <Pressable
-                style={({ pressed }) => [themed.sidebarItem, styles.weeklineNavItem, (isMoreOpen || MORE_NAV_ITEMS.some((item) => item.href === effectivePath)) && styles.weeklineNavItemActive, pressed && themed.itemPressed]}
-                onPress={() => setIsMoreOpen((open) => !open)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: isMoreOpen }}
-              >
-                <Ionicons name="ellipsis-horizontal" size={17} color={weeklineColors.greyDark} />
-                <Text style={[styles.weeklineNavText, { color: weeklineColors.greyDark }]}>{t('nav.more')}</Text>
-                <Ionicons name={isMoreOpen ? 'chevron-up' : 'chevron-down'} size={13} color={weeklineColors.greyDark} />
-              </Pressable>
-              {isMoreOpen ? <MoreMenu items={MORE_NAV_ITEMS} label={t} activePath={effectivePath} onNavigate={(href) => { setIsMoreOpen(false); router.replace(href as any); }} desktop /> : null}
+          </View>
+          <Pressable
+            style={[themed.inboxOpenButton, isWeeklineAgenda && styles.weeklineInboxButton]}
+            onPress={() => setIsInboxOpen(true)}
+          >
+            <Ionicons
+              name="mail-outline"
+              size={isWeeklineAgenda ? 15 : 17}
+              color={isWeeklineAgenda ? weeklineColors.greenLight : colors.greenLight}
+            />
+            <Text style={[themed.inboxOpenLabel, isWeeklineAgenda && styles.weeklineInboxLabel]}>
+              {t('inbox.title')}
+            </Text>
+            {unread.messages > 0 ? <Text style={themed.inboxOpenCount}>{unread.messages}</Text> : null}
+          </Pressable>
+          {isWeeklineAgenda && (
+            <View style={styles.weeklineOwnerFooter}>
+              <Text style={styles.weeklineOwnerName} numberOfLines={1}>
+                {pitchOwner?.business_name || 'MYPitch'}
+              </Text>
+              <Text style={styles.weeklineOwnerCaption}>{t('nav.ownerWorkspace')}</Text>
             </View>
-          </View>
-          <View style={styles.weeklineOwnerFooter}>
-            <Text style={styles.weeklineOwnerName} numberOfLines={1}>{pitchOwner?.business_name || 'MYPitch'}</Text>
-            <Text style={styles.weeklineOwnerCaption}>{t('nav.ownerWorkspace')}</Text>
-          </View>
+          )}
         </View>
       ) : (
         <View style={themed.bottomBar}>
