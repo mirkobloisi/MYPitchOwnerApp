@@ -487,6 +487,7 @@ export default function AgendaScreen() {
   return (
     <Screen
       scroll={!isDesktopWeek}
+      ambientGlows={!isDesktopWeek}
       style={isDesktopWeek ? { backgroundColor: 'transparent' } : Platform.OS === 'web' && isDesktop ? { backgroundColor: colors.background } : undefined}
       contentStyle={[styles.screenContent, isDesktopWeek && styles.weeklineScreen]}
       maxWidth={WIDE_CONTENT_MAX_WIDTH}

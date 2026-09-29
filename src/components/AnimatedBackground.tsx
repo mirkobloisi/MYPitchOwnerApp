@@ -7,6 +7,7 @@ import { useAppTheme } from '../theme/ThemeContext';
 type AppBackgroundProps = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  ambientGlows?: boolean;
 };
 
 /**

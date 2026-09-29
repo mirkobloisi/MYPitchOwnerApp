@@ -29,6 +29,7 @@ type ScreenProps = {
    * good use of the space, such as the Agenda.
    */
   maxWidth?: number;
+  ambientGlows?: boolean;
 };
 
 export default function Screen({
@@ -37,6 +38,7 @@ export default function Screen({
   style,
   contentStyle,
   maxWidth = CONTENT_MAX_WIDTH,
+  ambientGlows = true,
 }: ScreenProps) {
   const { colors } = useAppTheme();
   const { isWide } = useBreakpoint();
@@ -49,7 +51,7 @@ export default function Screen({
     : {};
 
   return (
-    <AnimatedBackground style={[styles.root, style]}>
+    <AnimatedBackground style={[styles.root, style]} ambientGlows={ambientGlows}>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           style={styles.container}
