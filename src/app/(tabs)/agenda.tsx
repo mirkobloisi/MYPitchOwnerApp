@@ -382,7 +382,7 @@ export default function AgendaScreen() {
   }
 
   function openAddParty() {
-    if (!activePitch) return;
+    if (!activePitch || selectedDayIsPast) return;
     router.push({
       pathname: '/add-external-booking',
       params: {
@@ -394,7 +394,7 @@ export default function AgendaScreen() {
   }
 
   function openAddExternalBooking() {
-    if (!activePitch) return;
+    if (!activePitch || selectedDayIsPast) return;
     router.push({
       pathname: '/add-external-booking',
       params: { pitchId: activePitch.id, date: selectedDate.toISOString() },
@@ -402,7 +402,7 @@ export default function AgendaScreen() {
   }
 
   function openBlockSlot() {
-    if (!activePitch) return;
+    if (!activePitch || selectedDayIsPast) return;
     router.push({
       pathname: '/block-slot',
       params: { pitchId: activePitch.id, date: selectedDate.toISOString() },
@@ -539,7 +539,7 @@ export default function AgendaScreen() {
     <Screen
       scroll={!isDesktopAgenda}
       ambientGlows={!isDesktopAgenda}
-      background={isDesktopAgenda ? <Image source={require('../../../assets/images/weekline-soft-halo.png')} style={StyleSheet.absoluteFill} resizeMode="stretch" /> : undefined}
+      background={isDesktopAgenda ? <Image source={require('../../../assets/images/weekline-soft-halo.png')} style={styles.weeklineBackground} resizeMode="stretch" /> : undefined}
       style={isDesktopAgenda ? { backgroundColor: '#08111a' } : Platform.OS === 'web' && isDesktop ? { backgroundColor: colors.background } : undefined}
       contentStyle={[styles.screenContent, isDesktopAgenda && styles.weeklineScreen]}
       maxWidth={WIDE_CONTENT_MAX_WIDTH}
@@ -585,10 +585,6 @@ export default function AgendaScreen() {
         </Pressable>
       </View>
       </View>
-
-      {selectedDayIsPast ? (
-        <Text style={styles.pastHint}>{t('agenda.pastHint')}</Text>
-      ) : null}
 
       <View style={[styles.toolbarRow, isDesktopAgenda && styles.weeklineToolbar]}>
         <View style={[styles.pitchSelectorInline, isDesktopAgenda && styles.weeklinePitchSelector]}>
@@ -1084,6 +1080,13 @@ const makeStyles = (colors: AppColors) =>
       paddingBottom: 14,
       backgroundColor: 'transparent',
     },
+    weeklineBackground: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+    },
     weeklineTop: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -1515,13 +1518,6 @@ const makeStyles = (colors: AppColors) =>
     },
     actionDisabled: {
       opacity: 0.4,
-    },
-    pastHint: {
-      color: colors.orange,
-      fontSize: scaleFont(12),
-      fontWeight: '700',
-      marginTop: -spacing.sm,
-      marginBottom: spacing.md,
     },
     toolbarRow: {
       flexDirection: 'row',
