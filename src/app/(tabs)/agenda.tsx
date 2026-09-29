@@ -19,7 +19,7 @@ import {
 } from '../../lib/pitchData';
 import { isPastDay } from '../../lib/slots';
 import { useBreakpoint, WIDE_CONTENT_MAX_WIDTH } from '../../theme/breakpoints';
-import { AppColors } from '../../theme/palettes';
+import { AppColors, weeklineColors } from '../../theme/palettes';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { radius, spacing } from '../../theme/layout';
 import { scaleFont } from '../../theme/typography';
@@ -133,13 +133,12 @@ function formatTime(date: Date) {
 }
 
 export default function AgendaScreen() {
-  const { colors } = useAppTheme();
+  const { colors: appColors } = useAppTheme();
   const { activePitch, pitches, setActivePitchId, pitchOwner } = useAuth();
   const router = useRouter();
   const { isDesktop } = useBreakpoint();
   const { height: windowHeight } = useWindowDimensions();
   const { t, tList } = useTranslation();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
   const WEEKDAY_LABELS = tList('agenda.weekdays');
   const MONTH_LABELS = tList('agenda.months');
 
@@ -151,6 +150,8 @@ export default function AgendaScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
+  const colors = Platform.OS === 'web' && isDesktop ? weeklineColors : appColors;
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   // Fifteen hours remain visible at once, even on a short laptop screen.
   const desktopHourHeight = Math.max(24, Math.min(36, Math.floor((windowHeight - 270) / HOURS.length)));
   const desktopGridHeight = HOURS.length * desktopHourHeight;
@@ -489,6 +490,7 @@ export default function AgendaScreen() {
   return (
     <Screen
       scroll={!isDesktopWeek}
+      style={Platform.OS === 'web' && isDesktop ? { backgroundColor: colors.background } : undefined}
       contentStyle={[styles.screenContent, isDesktopWeek && styles.weeklineScreen]}
       maxWidth={WIDE_CONTENT_MAX_WIDTH}
     >
@@ -549,7 +551,7 @@ export default function AgendaScreen() {
               return (
                 <AnimatedPressable
                   key={pitch.id}
-                  style={[styles.pitchChip, isDesktopWeek && styles.weeklinePitchChip, isActive && styles.pitchChipActive]}
+                  style={[styles.pitchChip, isDesktopWeek && styles.weeklinePitchChip, isActive && styles.pitchChipActive, isDesktopWeek && isActive && styles.weeklinePitchChipActive]}
                   onPress={() => setActivePitchId(pitch.id)}
                 >
                   <Ionicons name="location" size={12} color={isActive ? colors.white : colors.grey} />
@@ -560,14 +562,14 @@ export default function AgendaScreen() {
               );
             })
           ) : (
-            <View style={[styles.pitchChip, isDesktopWeek && styles.weeklinePitchChip, styles.pitchChipActive]}>
+            <View style={[styles.pitchChip, isDesktopWeek && styles.weeklinePitchChip, styles.pitchChipActive, isDesktopWeek && styles.weeklinePitchChipActive]}>
               <Ionicons name="location" size={12} color={colors.white} />
               <Text style={[styles.pitchChipText, isDesktopWeek && styles.weeklinePitchText, styles.pitchChipTextActive]}>{activePitch.name}</Text>
             </View>
           )}
         </View>
 
-        <View style={styles.viewToggleRow}>
+        <View style={[styles.viewToggleRow, isDesktopWeek && styles.weeklineToggleRow]}>
           {(['week', 'month', 'list'] as ViewMode[]).map((mode) => {
             const isActive = viewMode === mode;
             const label =
@@ -577,7 +579,7 @@ export default function AgendaScreen() {
                 key={mode}
                 active={isActive}
                 style={[styles.viewToggleButton, isDesktopWeek && styles.weeklineToggleButton]}
-                background={['transparent', colors.blue]}
+                background={['transparent', isDesktopWeek ? colors.greenSoft : colors.blue]}
                 onPress={() => selectViewMode(mode)}
               >
                 {(progress) => (
@@ -588,7 +590,7 @@ export default function AgendaScreen() {
                       {
                         color: progress.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [colors.grey, colors.white],
+                          outputRange: [colors.grey, isDesktopWeek ? colors.greenLight : colors.white],
                         }),
                       },
                     ]}
@@ -1000,6 +1002,7 @@ const makeStyles = (colors: AppColors) =>
     weeklineScreen: {
       paddingTop: 18,
       paddingBottom: 14,
+      backgroundColor: colors.background,
     },
     weeklineTop: {
       flexDirection: 'row',
@@ -1051,6 +1054,10 @@ const makeStyles = (colors: AppColors) =>
       paddingVertical: 7,
       borderRadius: 7,
     },
+    weeklinePitchChipActive: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+    },
     weeklinePitchText: {
       fontSize: 11,
       fontWeight: '600',
@@ -1059,6 +1066,9 @@ const makeStyles = (colors: AppColors) =>
       paddingHorizontal: 11,
       paddingVertical: 6,
       borderRadius: 5,
+    },
+    weeklineToggleRow: {
+      borderRadius: 7,
     },
     weeklineToggleText: {
       fontSize: 11,
