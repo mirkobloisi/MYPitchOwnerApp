@@ -12,7 +12,7 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useLanguage } from '../i18n/LanguageContext';
 import { CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
-import { AppColors } from '../theme/palettes';
+import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
 import { spacing } from '../theme/layout';
 import AnimatedBackground from './AnimatedBackground';
@@ -44,9 +44,10 @@ export default function Screen({
   ambientGlows = true,
   safeAreaEdges,
 }: ScreenProps) {
-  const { colors } = useAppTheme();
-  const { isWide } = useBreakpoint();
+  const { colors: appColors } = useAppTheme();
+  const { isWide, isDesktop } = useBreakpoint();
   const { language } = useLanguage();
+  const colors = Platform.OS === 'web' && isDesktop ? weeklineColors : appColors;
   const styles = makeStyles(colors);
 
   // Only constrain on a roomy screen; a phone keeps using its full width.
@@ -55,7 +56,10 @@ export default function Screen({
     : {};
 
   return (
-    <AnimatedBackground style={[styles.root, style]} ambientGlows={ambientGlows}>
+    <AnimatedBackground
+      style={[styles.root, Platform.OS === 'web' && isDesktop && styles.desktopWebCanvas, style]}
+      ambientGlows={ambientGlows}
+    >
       {background}
       <SafeAreaView style={styles.safeArea} edges={safeAreaEdges}>
         <KeyboardAvoidingView
@@ -91,6 +95,9 @@ const makeStyles = (colors: AppColors) =>
     root: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    desktopWebCanvas: {
+      backgroundColor: '#08111A',
     },
     safeArea: {
       flex: 1,
