@@ -152,7 +152,7 @@ export default function AgendaScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   // Fifteen hours remain visible at once, even on a short laptop screen.
-  const desktopHourHeight = Math.max(24, Math.min(36, Math.floor((windowHeight - 230) / HOURS.length)));
+  const desktopHourHeight = Math.max(24, Math.min(36, Math.floor((windowHeight - 270) / HOURS.length)));
   const desktopGridHeight = HOURS.length * desktopHourHeight;
 
   const loadMonth = useCallback(async () => {
