@@ -1,10 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import AnimatedPressable from './AnimatedPressable';
-import AppButton from './AppButton';
 import { useTranslation } from '../i18n/LanguageContext';
 import {
   Conversation,
@@ -18,7 +18,7 @@ import { AcademyRow, fetchEnrolments, fetchMyAcademies } from '../lib/academyDat
 import { AcademyNotice, fetchNotices, markNoticeRead } from '../lib/academyNotices';
 import { useAcademyRealtime } from '../lib/academyRealtime';
 import { INBOX_WIDTH } from '../theme/breakpoints';
-import { AppColors } from '../theme/palettes';
+import { AppColors, lightColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius, spacing } from '../theme/layout';
 import { scaleFont } from '../theme/typography';
@@ -26,6 +26,39 @@ import { scaleFont } from '../theme/typography';
 type InboxTab = 'messages' | 'notifications';
 
 type RecipientPerson = { id: string; full_name: string };
+
+const ownerInboxColors: AppColors = {
+  ...lightColors,
+  background: '#EEF7FC',
+  backgroundSoft: '#FAFDFF',
+  backgroundBlue: '#EAF5FC',
+  card: '#FFFFFF',
+  cardSoft: '#F5FAFE',
+  cardDark: '#E8F3FA',
+  blue: '#398FBE',
+  blueLight: '#237EAF',
+  blueDeep: '#17638D',
+  blueSoft: '#E5F3FB',
+  blueGlow: '#D4EBF8',
+  green: '#398FBE',
+  greenLight: '#237EAF',
+  greenDeep: '#17638D',
+  greenSoft: '#E5F3FB',
+  greenGlow: '#D4EBF8',
+  white: '#142C3D',
+  offWhite: '#142C3D',
+  grey: '#5D7485',
+  greySoft: '#496476',
+  greyDark: '#8298A7',
+  border: '#D8E8F2',
+  borderSoft: '#E8F1F7',
+  borderGreen: '#B9DDEF',
+  borderBlue: '#B9DDEF',
+  blackText: '#142C3D',
+  surfaceMuted: 'rgba(35,126,175,0.04)',
+  neutralSoft: 'rgba(35,126,175,0.06)',
+  backgroundGradient: ['#EEF7FC', '#F7FBFE', '#FFFFFF'],
+};
 
 /** Relative time, short enough for a narrow list row. */
 function timeAgo(iso: string, t: (key: string) => string) {
@@ -55,13 +88,16 @@ function noticeIcon(type: string): keyof typeof Ionicons.glyphMap {
  * Website only — see WebAppShell.
  */
 export default function WebInboxPanel({ initialTab = 'messages', fullScreen = false }: { initialTab?: InboxTab; fullScreen?: boolean }) {
-  const { colors } = useAppTheme();
+  const { colors: themeColors } = useAppTheme();
+  const isWeb = Platform.OS === 'web';
+  const colors = isWeb ? ownerInboxColors : themeColors;
   const { t } = useTranslation();
   const router = useRouter();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { unread, messagesVersion } = useAcademyRealtime();
 
   const [tab, setTab] = useState<InboxTab>(initialTab);
+  const [searchQuery, setSearchQuery] = useState('');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [notices, setNotices] = useState<AcademyNotice[]>([]);
 
@@ -244,10 +280,29 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
 
   const messagesUnread = conversations.reduce((sum, row) => sum + row.unread_count, 0);
   const notificationsUnread = notices.filter((notice) => !notice.read_at).length;
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+  const visibleConversations = useMemo(() => {
+    if (!normalizedSearch) return conversations;
+    return conversations.filter((row) =>
+      [row.title, row.other_names.join(', '), row.last_body]
+        .some((value) => value?.toLocaleLowerCase().includes(normalizedSearch))
+    );
+  }, [conversations, normalizedSearch]);
+  const visibleNotices = useMemo(() => {
+    if (!normalizedSearch) return notices;
+    return notices.filter((notice) =>
+      `${notice.title} ${notice.body ?? ''}`.toLocaleLowerCase().includes(normalizedSearch)
+    );
+  }, [notices, normalizedSearch]);
 
   if (isComposing) {
     return (
       <View style={[styles.panel, fullScreen && styles.fullScreenPanel]}>
+        <LinearGradient
+          colors={isWeb ? ['#EAF5FC', '#F6FAFE', '#FFFFFF'] : colors.backgroundGradient}
+          style={styles.panelGradient}
+          pointerEvents="none"
+        />
         <View style={styles.composeHeader}>
           <AnimatedPressable style={styles.iconButton} onPress={closeCompose}>
             <Ionicons name="arrow-back" size={16} color={colors.grey} />
@@ -318,26 +373,28 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
           {composeError ? <Text style={styles.errorText}>{composeError}</Text> : null}
         </ScrollView>
 
-        <AppButton
-          title={t('inbox.send')}
-          loading={isSending}
-          disabled={selectedPeople.size === 0}
+        <AnimatedPressable
+          style={[styles.composeSubmitButton, (selectedPeople.size === 0 || isSending) && styles.composeSubmitButtonDisabled]}
           onPress={handleSend}
-        />
+          disabled={selectedPeople.size === 0 || isSending}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: selectedPeople.size === 0 || isSending }}
+        >
+          {isSending ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.composeSubmitText}>{t('inbox.send')}</Text>}
+        </AnimatedPressable>
       </View>
     );
   }
 
   return (
     <View style={[styles.panel, fullScreen && styles.fullScreenPanel]}>
+      <LinearGradient
+        colors={isWeb ? ['#EAF5FC', '#F6FAFE', '#FFFFFF'] : colors.backgroundGradient}
+        style={styles.panelGradient}
+        pointerEvents="none"
+      />
       <Text style={styles.title}>{t('inbox.title')}</Text>
-
-      {tab === 'messages' ? (
-        <AnimatedPressable style={styles.sendMessageButton} onPress={openCompose}>
-          <Ionicons name="create-outline" size={14} color={colors.blackText} />
-          <Text style={styles.sendMessageButtonText}>{t('inbox.sendMessage')}</Text>
-        </AnimatedPressable>
-      ) : null}
+      <Text style={styles.subtitle}>{t('inbox.subtitle')}</Text>
 
       <View style={styles.tabRow}>
         <TabChip
@@ -358,55 +415,84 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
         />
       </View>
 
+      {tab === 'messages' ? (
+        <View style={styles.searchRow}>
+          <View style={styles.searchField}>
+            <Ionicons name="search-outline" size={16} color={colors.greyDark} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t('inbox.searchMessages')}
+              placeholderTextColor={colors.greyDark}
+              style={styles.searchInput}
+              accessibilityLabel={t('inbox.searchMessages')}
+              returnKeyType="search"
+            />
+          </View>
+          <AnimatedPressable
+            style={styles.composeButton}
+            onPress={openCompose}
+            accessibilityRole="button"
+            accessibilityLabel={t('inbox.sendMessage')}
+          >
+            <Ionicons name="create-outline" size={17} color={colors.blueDeep} />
+          </AnimatedPressable>
+        </View>
+      ) : null}
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
         {tab === 'messages' ? (
-          conversations.length === 0 ? (
+          visibleConversations.length === 0 ? (
             <EmptyState styles={styles} colors={colors} icon="chatbubbles-outline" text={t('inbox.noMessages')} />
           ) : (
-            conversations.map((row) => (
-              <AnimatedPressable
-                key={row.id}
-                pressedScale={0.98}
-                onPress={() =>
-                  router.push({
-                    pathname: '/academy-chat',
-                    params: { conversationId: row.id, asMemberId: row.for_member_id },
-                  } as any)
-                }
-              >
-                <View style={styles.row}>
-                  <View style={styles.rowIcon}>
-                    <Ionicons
-                      name={row.kind === 'group' ? 'people' : 'chatbubble-ellipses'}
-                      size={16}
-                      color={colors.greenLight}
-                    />
-                  </View>
-
-                  <View style={styles.rowInfo}>
-                    <Text style={styles.rowTitle} numberOfLines={1}>
-                      {row.kind === 'group'
-                        ? row.title || t('academyChat.untitledGroup')
-                        : row.other_names.join(', ') || t('academyChat.unknownPerson')}
-                    </Text>
-                    <Text style={styles.rowMeta} numberOfLines={1}>
-                      {row.last_body || t('academyChat.noMessagesYet')}
-                    </Text>
-                  </View>
-
-                  {row.unread_count > 0 ? (
-                    <View style={styles.unreadDot}>
-                      <Text style={styles.unreadText}>{row.unread_count}</Text>
+            visibleConversations.map((row) => {
+              const title = row.kind === 'group'
+                ? row.title || t('academyChat.untitledGroup')
+                : row.other_names.join(', ') || t('academyChat.unknownPerson');
+              const avatarUri = row.kind === 'group' ? row.image_url : row.other_avatar;
+              const initials = title.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+              return (
+                <AnimatedPressable
+                  key={row.id}
+                  pressedScale={0.98}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/academy-chat',
+                      params: { conversationId: row.id, asMemberId: row.for_member_id },
+                    } as any)
+                  }
+                >
+                  <View style={[styles.messageRow, row.unread_count > 0 && styles.messageRowUnread]}>
+                    <View style={styles.avatar}>
+                      {avatarUri ? (
+                        <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                      ) : (
+                        <Text style={styles.avatarInitials}>{initials || 'M'}</Text>
+                      )}
                     </View>
-                  ) : null}
-                </View>
-              </AnimatedPressable>
-            ))
+                    <View style={styles.rowInfo}>
+                      <Text style={styles.rowTitle} numberOfLines={1}>{title}</Text>
+                      <Text style={styles.rowMeta} numberOfLines={2}>
+                        {row.last_body || t('academyChat.noMessagesYet')}
+                      </Text>
+                    </View>
+                    <View style={styles.messageTrailing}>
+                      {row.last_at ? <Text style={styles.rowTime}>{timeAgo(row.last_at, t)}</Text> : null}
+                      {row.unread_count > 0 ? (
+                        <View style={styles.unreadDot}>
+                          <Text style={styles.unreadText}>{row.unread_count}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                </AnimatedPressable>
+              );
+            })
           )
-        ) : notices.length === 0 ? (
+        ) : visibleNotices.length === 0 ? (
           <EmptyState styles={styles} colors={colors} icon="notifications-outline" text={t('inbox.noNotifications')} />
         ) : (
-          notices.map((notice) => (
+          visibleNotices.map((notice) => (
             <AnimatedPressable key={notice.id} pressedScale={0.98} onPress={() => openNotice(notice)}>
               <View style={[styles.row, !notice.read_at && styles.rowUnread]}>
                 <View style={styles.rowIcon}>
@@ -488,11 +574,23 @@ const makeStyles = (colors: AppColors) =>
       right: 0,
       bottom: 0,
       width: INBOX_WIDTH,
-      backgroundColor: colors.card,
+      backgroundColor: colors.background,
       borderLeftWidth: 1,
       borderLeftColor: colors.border,
-      paddingTop: spacing.xl,
-      paddingHorizontal: spacing.md,
+      paddingTop: 20,
+      paddingHorizontal: 14,
+      overflow: 'hidden',
+      shadowColor: '#6A93AC',
+      shadowOpacity: 0.12,
+      shadowRadius: 18,
+      shadowOffset: { width: -5, height: 0 },
+    },
+    panelGradient: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
     },
     fullScreenPanel: {
       position: 'relative',
@@ -503,10 +601,17 @@ const makeStyles = (colors: AppColors) =>
     },
     title: {
       color: colors.white,
-      fontSize: scaleFont(15),
-      fontWeight: '900',
-      marginBottom: spacing.md,
-      marginLeft: spacing.xs,
+      fontSize: scaleFont(22),
+      fontWeight: '800',
+      marginBottom: 3,
+      marginLeft: 2,
+    },
+    subtitle: {
+      color: colors.grey,
+      fontSize: scaleFont(12),
+      fontWeight: '500',
+      marginLeft: 2,
+      marginBottom: 15,
     },
     sendMessageButton: {
       flexDirection: 'row',
@@ -528,6 +633,22 @@ const makeStyles = (colors: AppColors) =>
       alignItems: 'center',
       gap: spacing.sm,
       marginBottom: spacing.md,
+    },
+    composeSubmitButton: {
+      minHeight: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 11,
+      backgroundColor: colors.blue,
+      marginTop: 10,
+    },
+    composeSubmitButtonDisabled: {
+      opacity: 0.45,
+    },
+    composeSubmitText: {
+      color: '#FFFFFF',
+      fontSize: scaleFont(12),
+      fontWeight: '800',
     },
     composeSectionHeader: {
       flexDirection: 'row',
@@ -589,31 +710,35 @@ const makeStyles = (colors: AppColors) =>
     },
     tabRow: {
       flexDirection: 'row',
-      gap: spacing.sm,
-      marginBottom: spacing.md,
+      gap: 8,
+      marginBottom: 12,
     },
     tabChip: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 6,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 8,
-      borderRadius: radius.round,
+      minHeight: 42,
+      paddingHorizontal: 7,
+      paddingVertical: 7,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: colors.cardSoft,
+      backgroundColor: 'rgba(255,255,255,0.84)',
     },
     tabChipActive: {
-      borderColor: colors.borderGreen,
-      backgroundColor: colors.greenSoft,
+      borderColor: colors.borderBlue,
+      backgroundColor: colors.blueSoft,
     },
     tabChipText: {
       color: colors.grey,
-      fontSize: scaleFont(12),
-      fontWeight: '800',
+      flexShrink: 1,
+      fontSize: scaleFont(11.5),
+      fontWeight: '700',
     },
     tabChipTextActive: {
-      color: colors.greenLight,
+      color: colors.blueDeep,
     },
     tabChipBell: {
       minWidth: 16,
@@ -622,15 +747,16 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.greenLight,
+      backgroundColor: colors.blue,
     },
     tabChipBellText: {
-      color: colors.blackText,
+      color: '#FFFFFF',
       fontSize: 9,
       fontWeight: '900',
     },
     list: {
       paddingBottom: spacing.xl,
+      flexGrow: 1,
     },
     row: {
       flexDirection: 'row',
@@ -644,8 +770,8 @@ const makeStyles = (colors: AppColors) =>
       marginBottom: 8,
     },
     rowUnread: {
-      borderColor: colors.borderGreen,
-      backgroundColor: colors.greenSoft,
+      borderColor: colors.borderBlue,
+      backgroundColor: colors.blueSoft,
     },
     rowIcon: {
       width: 32,
@@ -653,7 +779,7 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.card,
+      backgroundColor: colors.blueSoft,
     },
     iconButton: {
       width: 30,
@@ -669,19 +795,20 @@ const makeStyles = (colors: AppColors) =>
     },
     rowTitle: {
       color: colors.white,
-      fontSize: scaleFont(13),
-      fontWeight: '800',
+      fontSize: scaleFont(12.5),
+      fontWeight: '700',
     },
     rowMeta: {
       color: colors.grey,
       fontSize: scaleFont(11),
-      fontWeight: '600',
+      fontWeight: '500',
       marginTop: 2,
     },
     rowTime: {
-      color: colors.greyDark,
-      fontSize: scaleFont(10),
-      fontWeight: '700',
+      color: colors.grey,
+      fontSize: scaleFont(9.5),
+      fontWeight: '600',
+      textAlign: 'right',
     },
     unreadDot: {
       minWidth: 18,
@@ -690,10 +817,10 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 9,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.greenLight,
+      backgroundColor: colors.blue,
     },
     unreadText: {
-      color: colors.blackText,
+      color: '#FFFFFF',
       fontSize: 10,
       fontWeight: '900',
     },
@@ -707,5 +834,84 @@ const makeStyles = (colors: AppColors) =>
       fontSize: scaleFont(12),
       fontWeight: '600',
       textAlign: 'center',
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 11,
+    },
+    searchField: {
+      flex: 1,
+      minWidth: 0,
+      height: 40,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 11,
+      borderRadius: 11,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: 'rgba(255,255,255,0.88)',
+    },
+    searchInput: {
+      flex: 1,
+      minWidth: 0,
+      paddingVertical: 0,
+      color: colors.white,
+      fontSize: scaleFont(11.5),
+      outlineStyle: 'none',
+    } as any,
+    composeButton: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 11,
+      borderWidth: 1,
+      borderColor: colors.borderBlue,
+      backgroundColor: colors.blueSoft,
+    },
+    messageRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 11,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 13,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      shadowColor: '#7C9EB2',
+      shadowOpacity: 0.07,
+      shadowRadius: 7,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    messageRowUnread: {
+      borderColor: colors.borderBlue,
+      backgroundColor: '#EFF8FE',
+    },
+    avatar: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.blueSoft,
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
+    },
+    avatarInitials: {
+      color: colors.blueDeep,
+      fontSize: scaleFont(11),
+      fontWeight: '800',
+    },
+    messageTrailing: {
+      minWidth: 34,
+      alignItems: 'flex-end',
+      gap: 6,
     },
   });

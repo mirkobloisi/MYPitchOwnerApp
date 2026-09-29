@@ -62,8 +62,10 @@ export const translations = {
     },
     inbox: {
       title: 'Inbox',
+      subtitle: 'Keep up with your conversations.',
       messages: 'Messages',
       notifications: 'Notifications',
+      searchMessages: 'Search messages',
       noMessages: 'No conversations yet.',
       noNotifications: 'Nothing yet.',
       justNow: 'Now',
@@ -691,8 +693,10 @@ export const translations = {
     },
     inbox: {
       title: 'Εισερχόμενα',
+      subtitle: 'Μείνετε ενημερωμένοι για τις συνομιλίες σας.',
       messages: 'Μηνύματα',
       notifications: 'Ειδοποιήσεις',
+      searchMessages: 'Αναζήτηση μηνυμάτων',
       noMessages: 'Καμία συνομιλία ακόμη.',
       noNotifications: 'Τίποτα ακόμη.',
       justNow: 'Τώρα',
@@ -1323,8 +1327,10 @@ export const translations = {
     },
     inbox: {
       title: 'Входящие',
+      subtitle: 'Следите за своими переписками.',
       messages: 'Сообщения',
       notifications: 'Уведомления',
+      searchMessages: 'Поиск сообщений',
       noMessages: 'Пока нет переписок.',
       noNotifications: 'Пока ничего нет.',
       justNow: 'Сейчас',
