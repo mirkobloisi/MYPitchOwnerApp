@@ -67,6 +67,15 @@ export async function markNoticeRead(id: string) {
     .eq('id', id);
 }
 
+/** Mark every unread academy session notice read from the owner inbox. */
+export async function markSessionNoticesRead() {
+  return academy()
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('type', 'session')
+    .is('read_at', null);
+}
+
 /**
  * Marks everything in one area read. Called when the owner opens that tab —
  * looking at it is what counts as having read it, so there is no separate
