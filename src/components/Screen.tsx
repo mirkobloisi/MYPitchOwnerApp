@@ -20,6 +20,7 @@ import AnimatedSwap from './AnimatedSwap';
 
 type ScreenProps = {
   children: ReactNode;
+  background?: ReactNode;
   scroll?: boolean;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
@@ -34,6 +35,7 @@ type ScreenProps = {
 
 export default function Screen({
   children,
+  background,
   scroll = true,
   style,
   contentStyle,
@@ -52,6 +54,7 @@ export default function Screen({
 
   return (
     <AnimatedBackground style={[styles.root, style]} ambientGlows={ambientGlows}>
+      {background}
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           style={styles.container}
