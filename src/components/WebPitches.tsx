@@ -89,10 +89,6 @@ export default function WebPitches() {
           )}
         </View>
       )}
-      <View style={[styles.supportNote, isDesktop && styles.desktopSupportNote]}>
-        <Ionicons name="information-circle-outline" size={15} color={colors.greyDark} />
-        <Text style={styles.supportText}>{t('pitches.noteText')}</Text>
-      </View>
     </Screen>
   );
 }
@@ -167,6 +163,10 @@ function PitchDetails({ pitch, desktop }: { pitch: PitchRecord; desktop: boolean
           <Ionicons name="options-outline" size={15} color={colors.blackText} /><Text style={styles.primaryText}>{t('pitches.manageBookingSettings')}</Text>
         </Pressable>
       </View>
+      <View style={[styles.supportNote, desktop && styles.desktopSupportNote]}>
+        <Ionicons name="information-circle-outline" size={15} color={colors.greyDark} />
+        <Text style={styles.supportText}>{t('pitches.noteText')}</Text>
+      </View>
     </View>
   );
 }
@@ -181,21 +181,21 @@ const styles = StyleSheet.create({
   desktopContent: { paddingTop: 14, paddingBottom: 12, minHeight: 0 },
   desktopHeading: { marginBottom: 12, flexShrink: 0 },
   desktopWorkspace: { flex: 1, minHeight: 0 },
-  desktopNavigator: { width: 240, minHeight: 0 },
+  desktopNavigator: { width: 280, minHeight: 0 },
   // The list scrolls independently; it cannot push the detail panel off screen.
-  desktopDetail: { padding: 12, minHeight: 0, overflowY: 'auto' } as any,
-  // Spend only the remaining vertical space on photography, keeping text/actions readable.
-  desktopHero: { flexGrow: 1, flexShrink: 1, flexBasis: 180, aspectRatio: undefined, minHeight: 70, maxHeight: 260 },
+  desktopDetail: { padding: 16, minHeight: 0, overflowY: 'auto' } as any,
+  // Keep the photo present but give the pitch information room to breathe.
+  desktopHero: { flexGrow: 0, flexShrink: 1, height: 175, aspectRatio: undefined, minHeight: 120, maxHeight: 200 },
   desktopGallery: { marginTop: 6, flexShrink: 0, height: 46 },
   desktopThumbnail: { width: 68, height: 40 },
-  desktopDetailHeading: { marginVertical: 10, gap: 8, flexShrink: 0 },
-  desktopSpecs: { paddingVertical: 10, gap: 10, flexShrink: 0 },
-  desktopSections: { flexDirection: 'row', gap: 20, flexShrink: 0 },
-  desktopSection: { flex: 1, minWidth: 0, marginTop: 12, gap: 6 },
-  desktopDescription: { fontSize: 12, lineHeight: 18 },
-  desktopFacilities: { gap: 10 },
-  desktopActions: { marginTop: 12, paddingTop: 10, flexShrink: 0 },
-  desktopSupportNote: { marginTop: 8, flexShrink: 0 },
+  desktopDetailHeading: { marginVertical: 16, gap: 10, flexShrink: 0 },
+  desktopSpecs: { paddingVertical: 14, gap: 14, flexShrink: 0 },
+  desktopSections: { flexDirection: 'row', gap: 28, flexShrink: 0 },
+  desktopSection: { flex: 1, minWidth: 0, marginTop: 16, gap: 8 },
+  desktopDescription: { fontSize: 13, lineHeight: 20 },
+  desktopFacilities: { gap: 12 },
+  desktopActions: { marginTop: 16, paddingTop: 12, flexShrink: 0 },
+  desktopSupportNote: { marginTop: 12, justifyContent: 'flex-start', flexShrink: 0 },
   heading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 22 },
   headingText: { flexGrow: 1, flexBasis: 260 },
   title: { color: colors.white, fontSize: 24, fontWeight: '600', letterSpacing: -0.6 },
@@ -206,13 +206,13 @@ const styles = StyleSheet.create({
   workspaceCompact: { flexDirection: 'column' },
   navigator: { width: 280, padding: 14, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.card },
   navigatorCompact: { width: '100%', borderRightWidth: 0, borderBottomWidth: 1, borderBottomColor: colors.border },
-  search: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 7, paddingHorizontal: 10, marginBottom: 12, backgroundColor: colors.backgroundSoft },
-  searchInput: { flex: 1, minWidth: 0, color: colors.white, fontSize: 13, paddingVertical: 8 },
+  search: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: colors.border, borderRadius: 7, paddingHorizontal: 12, marginBottom: 12, backgroundColor: colors.backgroundSoft },
+  searchInput: { flex: 1, minWidth: 0, color: colors.white, fontSize: 14, paddingVertical: 10 },
   clearSearch: { padding: 4 },
   pitchList: { flex: 1, minHeight: 0 },
   pitchListCompact: { maxHeight: 230 },
-  pitchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, marginBottom: 8, borderRadius: 7, borderWidth: 1, borderColor: 'transparent' },
-  pitchRowSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
+  pitchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, marginBottom: 8, borderRadius: 4, borderWidth: 1, borderColor: 'transparent' },
+  pitchRowSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft, borderRadius: 4 },
   listPhoto: { width: 62, height: 76, borderRadius: 5, overflow: 'hidden' },
   listInfo: { flex: 1, minWidth: 0, gap: 4 },
   listName: { color: colors.white, fontSize: 13, fontWeight: '600' },

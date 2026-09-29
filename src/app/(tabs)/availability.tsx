@@ -374,7 +374,7 @@ export default function AvailabilityScreen() {
             <Text style={styles.desktopSubtitle}>{t('availability.subtitle')}</Text>
           </View>
           <View style={styles.desktopPitchBadge}>
-            <View style={styles.desktopPitchDot} />
+            <Ionicons name="business-outline" size={16} color={colors.blueLight} />
             <Text style={styles.desktopPitchText} numberOfLines={1}>{pitchOwner?.business_name?.trim() || t('availability.sportsCenter')}</Text>
           </View>
         </View>
