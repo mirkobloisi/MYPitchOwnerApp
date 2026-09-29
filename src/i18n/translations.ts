@@ -58,6 +58,7 @@ export const translations = {
       stats: 'Stats',
       transactions: 'Transactions',
       profile: 'Profile',
+      more: 'More',
     },
     inbox: {
       title: 'Inbox',
@@ -674,6 +675,7 @@ export const translations = {
       stats: 'Στατιστικά',
       transactions: 'Συναλλαγές',
       profile: 'Προφίλ',
+      more: 'Περισσότερα',
     },
     inbox: {
       title: 'Εισερχόμενα',
@@ -1293,6 +1295,7 @@ export const translations = {
       stats: 'Статистика',
       transactions: 'Транзакции',
       profile: 'Профиль',
+      more: 'Ещё',
     },
     inbox: {
       title: 'Входящие',
