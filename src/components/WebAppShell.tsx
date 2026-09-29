@@ -29,6 +29,9 @@ const NAV_ITEMS: { name: string; href: string; labelKey: string; icon: IconName 
   { name: 'transactions', href: '/transactions', labelKey: 'nav.transactions', icon: 'card-outline' },
   { name: 'profile', href: '/profile', labelKey: 'nav.profile', icon: 'person-circle-outline' },
 ];
+const PRIMARY_NAV_NAMES = new Set(['agenda', 'availability', 'academy']);
+const PRIMARY_NAV_ITEMS = NAV_ITEMS.filter((item) => PRIMARY_NAV_NAMES.has(item.name));
+const MORE_NAV_ITEMS = NAV_ITEMS.filter((item) => !PRIMARY_NAV_NAMES.has(item.name));
 
 /**
  * A detail screen reached from a tab (a booking, an academy's own page)
@@ -62,9 +65,13 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
   const { unread } = useAcademyRealtime();
   const { pitchOwner } = useAuth();
   const [isInboxOpen, setIsInboxOpen] = useState(false);
-  useEffect(() => setIsInboxOpen(false), [pathname]);
+  useEffect(() => {
+    setIsInboxOpen(false);
+    setIsMoreOpen(false);
+  }, [pathname]);
   const { colors } = useAppTheme();
-  const themed = useMemo(() => makeStyles(isWeeklineAgenda ? weeklineColors : colors), [colors, isWeeklineAgenda]);
+  const themed = useMemo(() => makeStyles(isDesktop ? weeklineColors : colors), [colors, isDesktop]);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
 
   if (Platform.OS !== 'web') return <>{children}</>;
 
@@ -94,21 +101,18 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
               style={StyleSheet.absoluteFill}
             />
           )}
-          <View style={[themed.brandRow, isWeeklineAgenda && styles.weeklineBrandRow]}>
+          <View style={[themed.brandRow, styles.weeklineBrandRow]}>
             <Image
-              source={isWeeklineAgenda
-                ? require('../../assets/images/mypitch-weekline-logo.png')
-                : require('../../assets/images/mypitch-logo.png')}
-              style={[themed.brandLogo, isWeeklineAgenda && styles.weeklineBrandLogo]}
+              source={require('../../assets/images/mypitch-weekline-logo.png')}
+              style={[themed.brandLogo, styles.weeklineBrandLogo]}
               resizeMode="contain"
               accessibilityLabel="MYPitch"
             />
-            {!isWeeklineAgenda && <Text style={themed.brandRole}>{t('login.subtitle')}</Text>}
           </View>
 
-          {isWeeklineAgenda && <Text style={styles.weeklineNavHeading}>{t('nav.workspace')}</Text>}
+          <Text style={styles.weeklineNavHeading}>{t('nav.workspace')}</Text>
           <View style={themed.navGroup}>
-            {NAV_ITEMS.map((item) => (
+            {PRIMARY_NAV_ITEMS.map((item) => (
               <NavItem
                 key={item.name}
                 label={t(item.labelKey)}
@@ -116,27 +120,33 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
                 isDesktop
                 isFocused={effectivePath === item.href}
                 waiting={waiting[item.name] ?? 0}
-                colorsOverride={isWeeklineAgenda ? weeklineColors : undefined}
-                weekline={isWeeklineAgenda}
+                colorsOverride={weeklineColors}
+                weekline
                 onPress={() => router.replace(item.href as any)}
               />
             ))}
-          </View>
-          <Pressable style={[themed.inboxOpenButton, isWeeklineAgenda && styles.weeklineInboxButton]} onPress={() => setIsInboxOpen(true)}>
-            <Ionicons name="mail-outline" size={isWeeklineAgenda ? 15 : 17} color={isWeeklineAgenda ? weeklineColors.greenLight : colors.greenLight} />
-            <Text style={[themed.inboxOpenLabel, isWeeklineAgenda && styles.weeklineInboxLabel]}>{t('inbox.title')}</Text>
-            {unread.messages > 0 ? <Text style={themed.inboxOpenCount}>{unread.messages}</Text> : null}
-          </Pressable>
-          {isWeeklineAgenda && (
-            <View style={styles.weeklineOwnerFooter}>
-              <Text style={styles.weeklineOwnerName} numberOfLines={1}>{pitchOwner?.business_name || 'MYPitch'}</Text>
-              <Text style={styles.weeklineOwnerCaption}>{t('nav.ownerWorkspace')}</Text>
+            <View style={styles.moreAnchor}>
+              <Pressable
+                style={({ pressed }) => [themed.sidebarItem, styles.weeklineNavItem, (isMoreOpen || MORE_NAV_ITEMS.some((item) => item.href === effectivePath)) && styles.weeklineNavItemActive, pressed && themed.itemPressed]}
+                onPress={() => setIsMoreOpen((open) => !open)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isMoreOpen }}
+              >
+                <Ionicons name="ellipsis-horizontal" size={17} color={weeklineColors.greyDark} />
+                <Text style={[styles.weeklineNavText, { color: weeklineColors.greyDark }]}>{t('nav.more')}</Text>
+                <Ionicons name={isMoreOpen ? 'chevron-up' : 'chevron-down'} size={13} color={weeklineColors.greyDark} />
+              </Pressable>
+              {isMoreOpen ? <MoreMenu items={MORE_NAV_ITEMS} label={t} activePath={effectivePath} onNavigate={(href) => { setIsMoreOpen(false); router.replace(href as any); }} desktop /> : null}
             </View>
-          )}
+          </View>
+          <View style={styles.weeklineOwnerFooter}>
+            <Text style={styles.weeklineOwnerName} numberOfLines={1}>{pitchOwner?.business_name || 'MYPitch'}</Text>
+            <Text style={styles.weeklineOwnerCaption}>{t('nav.ownerWorkspace')}</Text>
+          </View>
         </View>
       ) : (
         <View style={themed.bottomBar}>
-          {NAV_ITEMS.map((item) => (
+          {PRIMARY_NAV_ITEMS.map((item) => (
             <NavItem
               key={item.name}
               label={t(item.labelKey)}
@@ -147,19 +157,76 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
               onPress={() => router.replace(item.href as any)}
             />
           ))}
+          <Pressable
+            style={({ pressed }) => [themed.bottomItem, MORE_NAV_ITEMS.some((item) => item.href === effectivePath) && themed.bottomItemActive, pressed && themed.itemPressed]}
+            onPress={() => setIsMoreOpen((open) => !open)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: isMoreOpen }}
+          >
+            <View style={styles.moreIconWrap}>
+              <Ionicons name="ellipsis-horizontal" size={20} color={MORE_NAV_ITEMS.some((item) => item.href === effectivePath) ? colors.greenLight : colors.greyDark} />
+            </View>
+            <Text style={[themed.bottomLabel, { color: MORE_NAV_ITEMS.some((item) => item.href === effectivePath) ? colors.greenLight : colors.greyDark }]}>{t('nav.more')}</Text>
+          </Pressable>
         </View>
       )}
+
+      {!isDesktop && isMoreOpen ? <MoreMenu items={MORE_NAV_ITEMS} label={t} activePath={effectivePath} onNavigate={(href) => { setIsMoreOpen(false); router.replace(href as any); }} /> : null}
+
+      <Pressable
+        style={[styles.notificationButton, isWeeklineAgenda && styles.weeklineNotificationButton]}
+        onPress={() => setIsInboxOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={t('inbox.notifications')}
+      >
+        <Ionicons name="notifications-outline" size={20} color={isWeeklineAgenda ? weeklineColors.white : colors.white} />
+        {unread.players + unread.parents + unread.messages > 0 ? (
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationBadgeText}>{unread.players + unread.parents + unread.messages}</Text>
+          </View>
+        ) : null}
+      </Pressable>
 
       {isInboxOpen ? (
         <View style={styles.inboxOverlay}>
           <Pressable style={styles.inboxBackdrop} onPress={() => setIsInboxOpen(false)} />
-          <WebInboxPanel />
+          <WebInboxPanel initialTab="notifications" />
           <Pressable style={styles.closeInbox} onPress={() => setIsInboxOpen(false)} accessibilityLabel="Close inbox">
             <Ionicons name="close" size={19} color={colors.grey} />
           </Pressable>
         </View>
       ) : null}
 
+    </View>
+  );
+}
+
+function MoreMenu({
+  items,
+  label,
+  activePath,
+  onNavigate,
+  desktop = false,
+}: {
+  items: typeof NAV_ITEMS;
+  label: (key: string) => string;
+  activePath: string;
+  onNavigate: (href: string) => void;
+  desktop?: boolean;
+}) {
+  const { colors: appColors } = useAppTheme();
+  const colors = desktop ? weeklineColors : appColors;
+  return (
+    <View style={[styles.moreMenu, desktop ? styles.desktopMoreMenu : styles.mobileMoreMenu, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {items.map((item) => {
+        const active = activePath === item.href;
+        return (
+          <Pressable key={item.name} style={[styles.moreMenuItem, active && { backgroundColor: colors.greenSoft }]} onPress={() => onNavigate(item.href)}>
+            <Ionicons name={item.icon} size={17} color={active ? colors.greenLight : colors.greyDark} />
+            <Text style={[styles.moreMenuLabel, { color: active ? colors.white : colors.grey }]}>{label(item.labelKey)}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -291,6 +358,86 @@ const styles = StyleSheet.create({
   },
   weeklineInboxLabel: {
     fontSize: 14,
+  },
+  moreAnchor: {
+    position: 'relative',
+    zIndex: 25,
+  },
+  moreMenu: {
+    position: 'absolute',
+    zIndex: 40,
+    elevation: 14,
+    backgroundColor: weeklineColors.card,
+    borderWidth: 1,
+    borderColor: weeklineColors.border,
+    borderRadius: 9,
+    padding: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+  },
+  desktopMoreMenu: {
+    top: 0,
+    left: '100%',
+    width: 210,
+  },
+  mobileMoreMenu: {
+    right: 8,
+    bottom: BOTTOM_BAR_HEIGHT + 7,
+    width: 220,
+  },
+  moreMenuItem: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  moreMenuLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  moreIconWrap: {
+    width: 22,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationButton: {
+    position: 'absolute',
+    zIndex: 45,
+    top: 9,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(16,28,39,0.94)',
+    borderWidth: 1,
+    borderColor: weeklineColors.border,
+  },
+  weeklineNotificationButton: {
+    backgroundColor: '#101C27',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    right: -2,
+    top: -2,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: weeklineColors.greenLight,
+  },
+  notificationBadgeText: {
+    color: weeklineColors.blackText,
+    fontSize: 9,
+    fontWeight: '800',
   },
   weeklineOwnerFooter: {
     marginTop: 'auto',
@@ -443,6 +590,9 @@ const makeStyles = (colors: AppColors) =>
       justifyContent: 'center',
       gap: 2,
       paddingVertical: spacing.xs,
+    },
+    bottomItemActive: {
+      backgroundColor: colors.greenSoft,
     },
     bottomLabel: {
       fontSize: scaleFont(11),
