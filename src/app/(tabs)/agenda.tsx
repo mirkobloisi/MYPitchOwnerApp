@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AnimatedSelectable from '../../components/AnimatedSelectable';
@@ -37,12 +37,9 @@ type AgendaEvent =
 
 type ViewMode = 'week' | 'month' | 'list';
 
-// The week grid only needs to cover the hours a pitch is realistically open.
-// Anything outside this window still exists in the data — it just won't be
-// visible on the grid, which is fine for a booking calendar (nobody plays at
-// 3am) and keeps the grid a fixed, predictable height.
-const HOURS_START = 8;
-const HOURS_END = 23;
+// Include early and late bookings; the desktop grid scrolls within its panel.
+const HOURS_START = 6;
+const HOURS_END = 24;
 const HOURS = Array.from({ length: HOURS_END - HOURS_START }, (_, i) => HOURS_START + i);
 const HOUR_ROW_HEIGHT = 52;
 const WEEK_GRID_HEIGHT = HOURS.length * HOUR_ROW_HEIGHT;
@@ -138,7 +135,6 @@ export default function AgendaScreen() {
   const { activePitch, pitches, setActivePitchId, pitchOwner } = useAuth();
   const router = useRouter();
   const { isDesktop } = useBreakpoint();
-  const { height: windowHeight } = useWindowDimensions();
   const { t, tList } = useTranslation();
   const WEEKDAY_LABELS = tList('agenda.weekdays');
   const MONTH_LABELS = tList('agenda.months');
@@ -154,8 +150,7 @@ export default function AgendaScreen() {
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   const colors = Platform.OS === 'web' && isDesktop ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  // Fifteen hours remain visible at once, even on a short laptop screen.
-  const desktopHourHeight = Math.max(24, Math.min(36, Math.floor((windowHeight - 270) / HOURS.length)));
+  const desktopHourHeight = 56;
   const desktopGridHeight = HOURS.length * desktopHourHeight;
 
   const loadMonth = useCallback(async () => {
@@ -670,7 +665,8 @@ export default function AgendaScreen() {
               })}
             </View>
 
-            <View style={styles.weeklineGrid}>
+            <ScrollView style={styles.weeklineGridScroll} nestedScrollEnabled showsVerticalScrollIndicator>
+            <View style={[styles.weeklineGrid, { height: desktopGridHeight }]}>
               <View style={[styles.weeklineTimeGutter, { height: desktopGridHeight }]}>
                 {HOURS.map((hour, index) => (
                   <Text key={hour} style={[styles.weeklineHour, { top: index * desktopHourHeight + 3 }]}>
@@ -714,6 +710,7 @@ export default function AgendaScreen() {
                 </View>
               ))}
             </View>
+            </ScrollView>
             {isLoading ? <ActivityIndicator style={styles.weeklineLoading} color={colors.greenLight} /> : null}
             {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
           </View>
@@ -1069,7 +1066,7 @@ const makeStyles = (colors: AppColors) =>
       gap: 5,
     },
     weeklineActionText: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '600',
     },
     weeklinePrimaryButton: {
@@ -1077,7 +1074,7 @@ const makeStyles = (colors: AppColors) =>
       minWidth: 146,
     },
     weeklinePrimaryText: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '700',
     },
     weeklineToolbar: {
@@ -1106,7 +1103,7 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 7,
     },
     weeklineToggleText: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '600',
     },
     weeklineLayout: {
@@ -1134,14 +1131,14 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineEyebrow: {
       color: colors.greyDark,
-      fontSize: 10,
+      fontSize: 11,
       fontWeight: '700',
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
     weeklineRange: {
       color: colors.white,
-      fontSize: 13,
+      fontSize: 15,
       fontWeight: '600',
       marginTop: 4,
     },
@@ -1160,7 +1157,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineDayHead: {
       flexDirection: 'row',
-      height: 45,
+      height: 48,
       borderTopWidth: 1,
       borderBottomWidth: 1,
       borderColor: colors.border,
@@ -1182,23 +1179,27 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineDayName: {
       color: colors.greyDark,
-      fontSize: 9,
+      fontSize: 11,
       fontWeight: '600',
     },
     weeklineDayDate: {
       color: colors.white,
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: '600',
     },
     weeklineDayDateSelected: {
       color: colors.greenLight,
+    },
+    weeklineGridScroll: {
+      flex: 1,
+      minHeight: 0,
     },
     weeklineGrid: {
       flexDirection: 'row',
     },
     weeklineHour: {
       color: colors.greyDark,
-      fontSize: 9,
+      fontSize: 11,
       textAlign: 'right',
       paddingRight: 8,
       position: 'absolute',
@@ -1225,19 +1226,19 @@ const makeStyles = (colors: AppColors) =>
       position: 'absolute',
       left: 2,
       right: 2,
-      paddingHorizontal: 4,
-      paddingVertical: 2,
+      paddingHorizontal: 6,
+      paddingVertical: 4,
       borderLeftWidth: 2,
       borderRadius: 3,
       overflow: 'hidden',
     },
     weeklineEventTime: {
-      fontSize: 9,
+      fontSize: 11,
       fontWeight: '700',
     },
     weeklineEventLabel: {
       color: colors.white,
-      fontSize: 9,
+      fontSize: 11,
       fontWeight: '500',
     },
     weeklineLoading: {
@@ -1293,12 +1294,12 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineRowTime: {
       color: colors.white,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '600',
     },
     weeklineRowLabel: {
       color: colors.grey,
-      fontSize: 10,
+      fontSize: 11,
       marginTop: 3,
     },
     weeklineStatsCard: {
@@ -1458,7 +1459,7 @@ const makeStyles = (colors: AppColors) =>
       flex: 1,
       minWidth: 0,
       color: colors.white,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '600',
     },
     pitchColorDot: {
