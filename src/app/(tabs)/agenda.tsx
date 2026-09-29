@@ -168,10 +168,11 @@ export default function AgendaScreen() {
   const mobileTimelineRef = useRef<ScrollView>(null);
   const loadVersionRef = useRef(0);
   const isNativeMobile = Platform.OS !== 'web';
+  const isCompactAgenda = isNativeMobile || !isDesktop;
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   const isDesktopMonth = Platform.OS === 'web' && isDesktop && viewMode === 'month';
   const isDesktopAgenda = isDesktopWeek || isDesktopMonth;
-  const colors = isNativeMobile || (Platform.OS === 'web' && isDesktop) ? weeklineColors : appColors;
+  const colors = isNativeMobile || Platform.OS === 'web' ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const desktopHourHeight = 56;
   const desktopGridHeight = HOURS.length * desktopHourHeight;
@@ -183,7 +184,7 @@ export default function AgendaScreen() {
 
   useEffect(() => {
     if (!monthStripWidth) return;
-    const selectedIndex = viewMode === 'week' && isNativeMobile
+    const selectedIndex = viewMode === 'week' && isCompactAgenda
       ? Math.max(0, Math.round((Date.UTC(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())
         - Date.UTC(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate())) / 86400000))
       : selectedDate.getDate() - 1;
@@ -192,13 +193,13 @@ export default function AgendaScreen() {
       x: Math.max(0, selectedIndex * itemWidth - (monthStripWidth - itemWidth) / 2),
       animated: false,
     });
-  }, [monthStripWidth, selectedDate, visibleMonth, viewMode, weekStart, isNativeMobile]);
+  }, [monthStripWidth, selectedDate, visibleMonth, viewMode, weekStart, isCompactAgenda]);
 
   useEffect(() => {
-    if (!isNativeMobile) return;
+    if (!isCompactAgenda) return;
     const initialHour = Math.min(Math.max(new Date().getHours() - 1, HOURS_START), HOURS_END - 5);
     mobileTimelineRef.current?.scrollTo({ y: (initialHour - HOURS_START) * 64, animated: false });
-  }, [isNativeMobile]);
+  }, [isCompactAgenda]);
 
   const loadMonth = useCallback(async (silent = false) => {
     const loadVersion = ++loadVersionRef.current;
@@ -691,7 +692,7 @@ export default function AgendaScreen() {
     );
   }
 
-  if (isNativeMobile) {
+  if (isCompactAgenda) {
     const visibleMobileDays = viewMode === 'week'
       ? mobileWeekDays
       : mobileMonthDays;
