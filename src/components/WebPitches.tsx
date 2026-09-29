@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import BookingSettingsModal from './BookingSettingsModal';
 import Screen from './Screen';
 import { useTranslation } from '../i18n/LanguageContext';
 import { PitchRecord, useAuth } from '../lib/auth';
@@ -23,6 +24,7 @@ export default function WebPitches() {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [settingsPitch, setSettingsPitch] = useState<PitchRecord | null>(null);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visiblePitches = pitches.filter((pitch) =>
     [pitch.name, pitch.city, pitch.area, pitch.format].some((value) =>
@@ -32,7 +34,10 @@ export default function WebPitches() {
     ?? visiblePitches[0];
 
   if (isDesktop) {
-    return <DesktopPitches pitches={visiblePitches} selectedPitch={selectedPitch} query={query} setQuery={setQuery} setPreviewId={setPreviewId} pitchOwner={pitchOwner} />;
+    return <>
+      <DesktopPitches pitches={visiblePitches} selectedPitch={selectedPitch} query={query} setQuery={setQuery} setPreviewId={setPreviewId} pitchOwner={pitchOwner} onManageSettings={setSettingsPitch} />
+      <BookingSettingsModal pitch={settingsPitch} visible={!!settingsPitch} onDismiss={() => setSettingsPitch(null)} />
+    </>;
   }
 
   return (
@@ -88,17 +93,18 @@ export default function WebPitches() {
             </ScrollView>
           </View>
 
-          {selectedPitch ? <PitchDetails key={selectedPitch.id} pitch={selectedPitch} desktop={false} /> : (
+          {selectedPitch ? <PitchDetails key={selectedPitch.id} pitch={selectedPitch} desktop={false} onManageSettings={() => setSettingsPitch(selectedPitch)} /> : (
             <View style={styles.detail}><Text style={styles.empty}>{t('pitches.noSearchResults')}</Text></View>
           )}
         </View>
       )}
+      <BookingSettingsModal pitch={settingsPitch} visible={!!settingsPitch} onDismiss={() => setSettingsPitch(null)} />
     </Screen>
   );
 }
 
 function DesktopPitches({
-  pitches, selectedPitch, query, setQuery, setPreviewId, pitchOwner,
+  pitches, selectedPitch, query, setQuery, setPreviewId, pitchOwner, onManageSettings,
 }: {
   pitches: PitchRecord[];
   selectedPitch?: PitchRecord;
@@ -106,6 +112,7 @@ function DesktopPitches({
   setQuery: (value: string) => void;
   setPreviewId: (value: string) => void;
   pitchOwner?: { business_name?: string | null } | null;
+  onManageSettings: (pitch: PitchRecord) => void;
 }) {
   const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
@@ -128,7 +135,7 @@ function DesktopPitches({
         </View>
         <View style={styles.desktopTableHeader}>{['Pitch', 'Format', 'Type', 'Price / hour', 'Durations', 'Status', 'Actions'].map((label, index) => <Text key={label} style={[styles.desktopColumnLabel, [styles.desktopColPitch, styles.desktopColFormat, styles.desktopColType, styles.desktopColPrice, styles.desktopColDuration, styles.desktopColStatus, styles.desktopColActions][index]]}>{label}</Text>)}</View>
         <ScrollView style={styles.desktopPitchRows} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
-          {filtered.map((pitch) => <DesktopPitchRow key={pitch.id} pitch={pitch} selected={pitch.id === displayedPitch?.id} onPress={() => setPreviewId(pitch.id)} />)}
+          {filtered.map((pitch) => <DesktopPitchRow key={pitch.id} pitch={pitch} selected={pitch.id === displayedPitch?.id} onPress={() => setPreviewId(pitch.id)} onManageSettings={() => onManageSettings(pitch)} />)}
           {filtered.length === 0 ? <Text style={styles.empty}>{pitches.length === 0 ? t('pitches.noPitches') : t('pitches.noSearchResults')}</Text> : null}
         </ScrollView>
       </View>
@@ -138,22 +145,20 @@ function DesktopPitches({
   );
 }
 
-function DesktopPitchRow({ pitch, selected, onPress }: { pitch: PitchRecord; selected: boolean; onPress: () => void }) {
+function DesktopPitchRow({ pitch, selected, onPress, onManageSettings }: { pitch: PitchRecord; selected: boolean; onPress: () => void; onManageSettings: () => void }) {
   const { t } = useTranslation();
   const { setActivePitchId, activePitch } = useAuth();
-  const router = useRouter();
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
   return <Pressable onPress={onPress} style={[styles.desktopPitchRow, selected && styles.desktopPitchRowSelected]}>
     <View style={[styles.desktopPitchCell, styles.desktopColPitch]}><View style={styles.desktopRowPhoto}><PitchPhoto uri={pitch.image_urls?.[0]} label={pitch.name} /></View><View style={styles.desktopPitchName}><Text style={styles.desktopCellStrong} numberOfLines={1}>{pitch.name}</Text><Text style={styles.desktopCellMuted}><Ionicons name="location" size={14} color={colors.blueLight} /> {pitch.city || pitch.area}</Text></View></View>
     <View style={styles.desktopColFormat}><Text style={styles.desktopCellStrong}>{pitch.format}</Text></View><View style={styles.desktopColType}><Text style={styles.desktopCellMuted} numberOfLines={2}>{pitch.pitch_type || 'Outdoor'}</Text></View><View style={styles.desktopColPrice}><Text style={styles.desktopCellStrong}>€{Number(pitch.price_per_hour).toFixed(0)}</Text></View><View style={styles.desktopColDuration}><Text style={styles.desktopCellMuted}>{durations.map((minutes) => `${minutes} min`).join(' / ')}</Text></View>
     <View style={styles.desktopColStatus}><PitchStatus status={pitch.status} /><Text style={styles.desktopCellMuted}>{pitch.id === activePitch?.id ? 'Selected in Agenda' : 'Not in Agenda'}</Text></View>
-    <View style={[styles.desktopRowActions, styles.desktopColActions]}><Pressable style={styles.desktopOutlineButton} onPress={() => router.push({ pathname: '/booking-settings', params: { pitchId: pitch.id } })}><Ionicons name="settings-outline" size={15} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.manageBookingSettings')}</Text></Pressable><Pressable style={styles.desktopPrimaryButton} onPress={() => setActivePitchId(pitch.id)}><Ionicons name="calendar-outline" size={15} color={colors.blackText} /><Text style={styles.desktopPrimaryText}>Use in Agenda</Text></Pressable></View>
+    <View style={[styles.desktopRowActions, styles.desktopColActions]}><Pressable style={styles.desktopOutlineButton} onPress={onManageSettings}><Ionicons name="settings-outline" size={15} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.manageBookingSettings')}</Text></Pressable><Pressable style={styles.desktopPrimaryButton} onPress={() => setActivePitchId(pitch.id)}><Ionicons name="calendar-outline" size={15} color={colors.blackText} /><Text style={styles.desktopPrimaryText}>Use in Agenda</Text></Pressable></View>
   </Pressable>;
 }
 
 function DesktopPitchDetails({ pitch }: { pitch: PitchRecord }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const photos = (pitch.image_urls ?? []).filter(Boolean);
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
   return <View style={styles.desktopDetailCard}>
@@ -185,7 +190,7 @@ function PitchStatus({ status }: { status: PitchRecord['status'] }) {
   return <View style={styles.status}><View style={[styles.statusDot, { backgroundColor: color }]} /><Text style={[styles.statusText, { color }]}>{t(label)}</Text></View>;
 }
 
-function PitchDetails({ pitch, desktop }: { pitch: PitchRecord; desktop: boolean }) {
+function PitchDetails({ pitch, desktop, onManageSettings }: { pitch: PitchRecord; desktop: boolean; onManageSettings?: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -227,7 +232,7 @@ function PitchDetails({ pitch, desktop }: { pitch: PitchRecord; desktop: boolean
       </View>
       <View style={[styles.actions, desktop && styles.desktopActions]}>
         {pitch.maps_url ? <Pressable style={styles.outlineButton} onPress={() => Linking.openURL(pitch.maps_url!)} accessibilityRole="link"><Ionicons name="location-outline" size={15} color={colors.blueLight} /><Text style={styles.actionText}>{t('pitches.openInMaps')}</Text></Pressable> : null}
-        <Pressable style={styles.primaryButton} accessibilityRole="button" onPress={() => router.push({ pathname: '/booking-settings', params: { pitchId: pitch.id } })}>
+        <Pressable style={styles.primaryButton} accessibilityRole="button" onPress={onManageSettings ?? (() => router.push({ pathname: '/booking-settings', params: { pitchId: pitch.id } }))}>
           <Ionicons name="options-outline" size={15} color={colors.blackText} /><Text style={styles.primaryText}>{t('pitches.manageBookingSettings')}</Text>
         </Pressable>
       </View>

@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Image, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
+import BookingSettingsModal from '../../components/BookingSettingsModal';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
 import StatusBadge from '../../components/StatusBadge';
@@ -47,10 +47,10 @@ export default function PitchesScreen() {
 
 function NativePitchesScreen() {
   const { colors } = useAppTheme();
-  const router = useRouter();
   const { pitches, activePitch, setActivePitchId } = useAuth();
   const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [settingsPitch, setSettingsPitch] = useState<PitchRecord | null>(null);
   const STATUS_LABEL: Record<PitchRecord['status'], string> = {
     active: t('pitches.statusActive'),
     paused: t('pitches.statusPaused'),
@@ -149,7 +149,7 @@ function NativePitchesScreen() {
                 <AnimatedPressable
                   pressedScale={0.97}
                   style={styles.smallLinkButton}
-                  onPress={() => router.push({ pathname: '/booking-settings' as any, params: { pitchId: pitch.id } })}
+                  onPress={() => setSettingsPitch(pitch)}
                 >
                   <Ionicons name="options-outline" size={12} color={colors.greenLight} />
                   <Text style={styles.smallLinkText}>{t('pitches.manageBookingSettings')}</Text>
@@ -191,6 +191,7 @@ function NativePitchesScreen() {
         <Ionicons name="information-circle-outline" size={16} color={colors.blueLight} />
         <Text style={styles.noteText}>{t('pitches.noteText')}</Text>
       </View>
+      <BookingSettingsModal pitch={settingsPitch} visible={!!settingsPitch} onDismiss={() => setSettingsPitch(null)} />
     </Screen>
   );
 }
