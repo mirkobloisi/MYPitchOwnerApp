@@ -125,7 +125,19 @@ function PitchDetails({ pitch, desktop }: { pitch: PitchRecord; desktop: boolean
 
   return (
     <View style={[styles.detail, desktop && styles.desktopDetail]}>
-      <View style={[styles.hero, desktop && styles.desktopHero]}><PitchPhoto key={photo ?? 'empty'} uri={photo} label={pitch.name} large /></View>
+      <View style={desktop ? styles.desktopIdentityRow : undefined}>
+        <View style={[styles.hero, desktop && styles.desktopHero]}><PitchPhoto key={photo ?? 'empty'} uri={photo} label={pitch.name} large /></View>
+        <View style={[styles.detailHeading, desktop && styles.desktopDetailHeading]}>
+          <View style={styles.detailHeadingText}>
+            <View style={styles.nameRow}><Text accessibilityRole="header" style={styles.pitchTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View>
+            <View style={styles.location}><Ionicons name="location-outline" size={15} color={colors.grey} /><Text style={styles.locationText}>{[pitch.city, pitch.area].filter(Boolean).join(' · ')}</Text></View>
+            {pitch.address ? <Text style={styles.address}>{pitch.address}</Text> : null}
+          </View>
+          {selectedInAgenda ? <View style={styles.selectedBadge}><Ionicons name="checkmark-circle-outline" size={15} color={colors.blueLight} /><Text style={styles.selectedText}>{t('pitches.showingInAgenda')}</Text></View> : (
+            <Pressable style={styles.outlineButton} onPress={() => setActivePitchId(pitch.id)} accessibilityRole="button"><Ionicons name="calendar-outline" size={15} color={colors.blueLight} /><Text style={styles.actionText}>{t('pitches.manageInAgenda')}</Text></Pressable>
+          )}
+        </View>
+      </View>
       {photos.length > 1 ? (
         <ScrollView horizontal style={[styles.gallery, desktop && styles.desktopGallery]} contentContainerStyle={styles.galleryContent} showsHorizontalScrollIndicator>
           {photos.map((uri, index) => <Pressable key={`${uri}-${index}`} onPress={() => setPhotoIndex(index)} accessibilityRole="button" accessibilityLabel={t('pitches.viewPhoto', { index: index + 1 })} accessibilityState={{ selected: uri === photo }} style={[styles.thumbnail, desktop && styles.desktopThumbnail, uri === photo && styles.thumbnailSelected]}>
@@ -133,17 +145,6 @@ function PitchDetails({ pitch, desktop }: { pitch: PitchRecord; desktop: boolean
           </Pressable>)}
         </ScrollView>
       ) : null}
-
-      <View style={[styles.detailHeading, desktop && styles.desktopDetailHeading]}>
-        <View style={styles.detailHeadingText}>
-          <View style={styles.nameRow}><Text accessibilityRole="header" style={styles.pitchTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View>
-          <View style={styles.location}><Ionicons name="location-outline" size={15} color={colors.grey} /><Text style={styles.locationText}>{[pitch.city, pitch.area].filter(Boolean).join(' · ')}</Text></View>
-          {pitch.address ? <Text style={styles.address}>{pitch.address}</Text> : null}
-        </View>
-        {selectedInAgenda ? <View style={styles.selectedBadge}><Ionicons name="checkmark-circle-outline" size={15} color={colors.blueLight} /><Text style={styles.selectedText}>{t('pitches.showingInAgenda')}</Text></View> : (
-          <Pressable style={styles.outlineButton} onPress={() => setActivePitchId(pitch.id)} accessibilityRole="button"><Ionicons name="calendar-outline" size={15} color={colors.blueLight} /><Text style={styles.actionText}>{t('pitches.manageInAgenda')}</Text></Pressable>
-        )}
-      </View>
 
       <View style={[styles.specs, desktop && styles.desktopSpecs]}>
         <Spec icon="people-outline" label={t('pitches.formatLabel')} value={pitch.format} />
@@ -184,11 +185,12 @@ const styles = StyleSheet.create({
   desktopNavigator: { width: 280, minHeight: 0 },
   // The list scrolls independently; it cannot push the detail panel off screen.
   desktopDetail: { padding: 16, minHeight: 0, overflowY: 'auto' } as any,
-  // Keep the photo present but give the pitch information room to breathe.
-  desktopHero: { flexGrow: 0, flexShrink: 1, height: 175, aspectRatio: undefined, minHeight: 120, maxHeight: 200 },
+  desktopIdentityRow: { flexDirection: 'row', alignItems: 'stretch', gap: 20, flexShrink: 0 },
+  // Keep the pitch image square and let the identity information use the space beside it.
+  desktopHero: { width: 190, height: 190, aspectRatio: 1, flexGrow: 0, flexShrink: 0, minHeight: 0, maxHeight: 190 },
   desktopGallery: { marginTop: 6, flexShrink: 0, height: 46 },
   desktopThumbnail: { width: 68, height: 40 },
-  desktopDetailHeading: { marginVertical: 16, gap: 10, flexShrink: 0 },
+  desktopDetailHeading: { flex: 1, flexDirection: 'column', alignItems: 'stretch', justifyContent: 'flex-start', marginVertical: 0, gap: 18, flexShrink: 1 },
   desktopSpecs: { paddingVertical: 14, gap: 14, flexShrink: 0 },
   desktopSections: { flexDirection: 'row', gap: 28, flexShrink: 0 },
   desktopSection: { flex: 1, minWidth: 0, marginTop: 16, gap: 8 },
