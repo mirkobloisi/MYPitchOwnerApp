@@ -118,3 +118,36 @@ export const lightColors: typeof darkColors = {
 };
 
 export type AppColors = typeof darkColors;
+
+/** The compact desktop Agenda's Weekline palette. */
+export const weeklineColors: AppColors = {
+  ...darkColors,
+  background: '#090F16',
+  backgroundSoft: '#0D1620',
+  card: '#101C27',
+  cardSoft: '#14222E',
+  cardDark: '#101C27',
+  border: '#2A3C49',
+  borderSoft: '#1B303D',
+  white: '#F2F7F9',
+  offWhite: '#F2F7F9',
+  grey: '#A5B8C4',
+  greySoft: '#C4D4DE',
+  greyDark: '#7291A1',
+  green: '#85C6F7',
+  greenLight: '#85C6F7',
+  greenSoft: '#1D3F58',
+  neon: '#85C6F7',
+  neonLight: '#85C6F7',
+  neonSoft: '#1D3F58',
+  blue: '#61BAFB',
+  blueLight: '#61BAFB',
+  blueSoft: '#18344A',
+  orange: '#E9AE60',
+  orangeSoft: '#3B3027',
+  pink: '#E884AD',
+  pinkSoft: '#382C3C',
+  blackText: '#090F16',
+  surfaceMuted: 'rgba(133,198,247,0.035)',
+  backgroundGradient: ['#090F16', '#090F16', '#090F16'] as const,
+};
