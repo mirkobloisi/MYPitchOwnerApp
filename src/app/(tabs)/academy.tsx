@@ -80,22 +80,12 @@ export default function AcademyScreen() {
     [academies]
   );
 
-  const totalUnread = unread.players + unread.parents + unread.messages;
-
   return (
     <Screen maxWidth={900}>
       <AppHeader
         title={t('academy.title')}
         subtitle={t('academy.subtitle')}
         showBack={false}
-        right={
-          totalUnread > 0 ? (
-            <View style={styles.headerBell}>
-              <Ionicons name="notifications" size={11} color={colors.blackText} />
-              <Text style={styles.headerBellText}>{totalUnread}</Text>
-            </View>
-          ) : undefined
-        }
       />
 
       {showCreate ? (

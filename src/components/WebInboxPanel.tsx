@@ -54,7 +54,7 @@ function noticeIcon(type: string): keyof typeof Ionicons.glyphMap {
  * switchable, so either is a glance away from whatever screen they're on.
  * Website only — see WebAppShell.
  */
-export default function WebInboxPanel({ initialTab = 'messages' }: { initialTab?: InboxTab }) {
+export default function WebInboxPanel({ initialTab = 'messages', fullScreen = false }: { initialTab?: InboxTab; fullScreen?: boolean }) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
   const router = useRouter();
@@ -247,7 +247,7 @@ export default function WebInboxPanel({ initialTab = 'messages' }: { initialTab?
 
   if (isComposing) {
     return (
-      <View style={styles.panel}>
+      <View style={[styles.panel, fullScreen && styles.fullScreenPanel]}>
         <View style={styles.composeHeader}>
           <AnimatedPressable style={styles.iconButton} onPress={closeCompose}>
             <Ionicons name="arrow-back" size={16} color={colors.grey} />
@@ -329,7 +329,7 @@ export default function WebInboxPanel({ initialTab = 'messages' }: { initialTab?
   }
 
   return (
-    <View style={styles.panel}>
+    <View style={[styles.panel, fullScreen && styles.fullScreenPanel]}>
       <Text style={styles.title}>{t('inbox.title')}</Text>
 
       {tab === 'messages' ? (
@@ -493,6 +493,13 @@ const makeStyles = (colors: AppColors) =>
       borderLeftColor: colors.border,
       paddingTop: spacing.xl,
       paddingHorizontal: spacing.md,
+    },
+    fullScreenPanel: {
+      position: 'relative',
+      width: '100%',
+      flex: 1,
+      minHeight: 0,
+      borderLeftWidth: 0,
     },
     title: {
       color: colors.white,
