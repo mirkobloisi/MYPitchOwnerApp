@@ -21,6 +21,7 @@ import {
   PitchBlockRow,
 } from '../../lib/pitchData';
 import { isPastDay } from '../../lib/slots';
+import { supabase } from '../../lib/supabase';
 import { useBreakpoint, WIDE_CONTENT_MAX_WIDTH } from '../../theme/breakpoints';
 import { AppColors, weeklineColors } from '../../theme/palettes';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -163,6 +164,7 @@ export default function AgendaScreen() {
   const [monthStripWidth, setMonthStripWidth] = useState(0);
   const monthStripRef = useRef<ScrollView>(null);
   const mobileTimelineRef = useRef<ScrollView>(null);
+  const loadVersionRef = useRef(0);
   const isNativeMobile = Platform.OS !== 'web';
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   const isDesktopMonth = Platform.OS === 'web' && isDesktop && viewMode === 'month';
@@ -196,14 +198,15 @@ export default function AgendaScreen() {
     mobileTimelineRef.current?.scrollTo({ y: (initialHour - HOURS_START) * 64, animated: false });
   }, [isNativeMobile]);
 
-  const loadMonth = useCallback(async () => {
+  const loadMonth = useCallback(async (silent = false) => {
+    const loadVersion = ++loadVersionRef.current;
     if (!activePitch) {
       setEvents([]);
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     setErrorMessage('');
 
     try {
@@ -253,11 +256,15 @@ export default function AgendaScreen() {
           session,
         }));
 
-      setEvents([...matchEvents, ...blockEvents, ...academyEvents]);
+      if (loadVersion === loadVersionRef.current) {
+        setEvents([...matchEvents, ...blockEvents, ...academyEvents]);
+      }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t('agenda.couldNotLoad'));
+      if (loadVersion === loadVersionRef.current) {
+        setErrorMessage(error instanceof Error ? error.message : t('agenda.couldNotLoad'));
+      }
     } finally {
-      setIsLoading(false);
+      if (loadVersion === loadVersionRef.current) setIsLoading(false);
     }
   }, [activePitch, visibleMonth, isNativeMobile]);
 
@@ -266,6 +273,33 @@ export default function AgendaScreen() {
       loadMonth();
     }, [loadMonth])
   );
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !activePitch) return;
+
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => { void loadMonth(true); }, 150);
+    };
+    const channel = supabase.channel(`agenda-live-${activePitch.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pitch_blocks' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'academy', table: 'sessions' }, refresh)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') refresh();
+      });
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      void supabase.removeChannel(channel);
+    };
+  }, [activePitch?.id, loadMonth]);
 
   const gridStart = startOfCalendarGrid(visibleMonth);
   const gridDays = useMemo(() => {
@@ -581,17 +615,19 @@ export default function AgendaScreen() {
                       style={styles.weeklineEventRow}
                       onPress={() => openEventDetails(event)}
                     >
-                      <View style={[styles.weeklineEventMark, { backgroundColor: meta.color }]} />
-                      <View style={styles.weeklineEventRowText}>
-                        <Text style={styles.weeklineRowTime}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
-                        <Text style={styles.weeklineRowLabel} numberOfLines={1}>{meta.label}</Text>
-                        {event.kind === 'block' && (event.block.block_type === 'party' || event.block.block_type === 'external_booking') && (event.block.reference || readBookingReference(event.block.notes).phone) ? (
-                          <Text style={styles.weeklineReference} numberOfLines={2}>
-                            {[event.block.reference, readBookingReference(event.block.notes).phone].filter(Boolean).join(' · ')}
-                          </Text>
-                        ) : null}
+                      <View style={styles.weeklineEventContent}>
+                        <View style={[styles.weeklineEventMark, { backgroundColor: meta.color }]} />
+                        <View style={styles.weeklineEventRowText}>
+                          <Text style={styles.weeklineRowTime}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
+                          <Text style={styles.weeklineRowLabel}>{meta.label}</Text>
+                          {event.kind === 'block' && (event.block.block_type === 'party' || event.block.block_type === 'external_booking') && (event.block.reference || readBookingReference(event.block.notes).phone) ? (
+                            <Text style={styles.weeklineReference}>
+                              {[event.block.reference, readBookingReference(event.block.notes).phone].filter(Boolean).join(' · ')}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <Ionicons name="chevron-forward" size={13} color={colors.greyDark} />
                       </View>
-                      <Ionicons name="chevron-forward" size={13} color={colors.greyDark} />
                     </AnimatedPressable>
                   );
                 })}
@@ -2189,16 +2225,18 @@ const makeStyles = (colors: AppColors) =>
       flex: 1,
     },
     weeklineEventRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 9,
       paddingVertical: 10,
       borderTopWidth: 1,
       borderTopColor: colors.borderSoft,
     },
+    weeklineEventContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+    },
     weeklineEventMark: {
       width: 3,
-      height: 26,
+      alignSelf: 'stretch',
       borderRadius: 2,
     },
     weeklineEventRowText: {
