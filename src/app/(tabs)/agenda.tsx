@@ -485,6 +485,13 @@ export default function AgendaScreen() {
     setVisibleMonth(startOfMonth(next));
   }
 
+  function selectAgendaDay(day: Date) {
+    setSelectedDate(day);
+    if (day.getMonth() !== visibleMonth.getMonth() || day.getFullYear() !== visibleMonth.getFullYear()) {
+      setVisibleMonth(startOfMonth(day));
+    }
+  }
+
   function goToPrevious() {
     if (viewMode === 'week') goToPreviousWeek();
     else goToPreviousMonth();
@@ -657,7 +664,9 @@ export default function AgendaScreen() {
               </ScrollView>
             </View>
             <View style={styles.weeklineStatsCard}>
-              <Text style={styles.weeklineEyebrow}>{t('agenda.statsThisMonth')}</Text>
+              <Text style={styles.weeklineEyebrow}>
+                {visibleMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }).toUpperCase()}
+              </Text>
               <View style={styles.weeklineStatsRow}>
                 {[
                   { count: monthStats.confirmedMatches, label: t('agenda.statsConfirmedMatches') },
@@ -1061,7 +1070,7 @@ export default function AgendaScreen() {
                   <AnimatedPressable
                     key={day.toISOString()}
                     style={[styles.weeklineDayHeading, isSelected && styles.weeklineDayHeadingSelected]}
-                    onPress={() => setSelectedDate(day)}
+                    onPress={() => selectAgendaDay(day)}
                   >
                     <Text style={styles.weeklineDayName}>{WEEKDAY_LABELS[(day.getDay() + 6) % 7]}</Text>
                     <Text style={[styles.weeklineDayDate, isSelected && styles.weeklineDayDateSelected]}>
@@ -1157,7 +1166,7 @@ export default function AgendaScreen() {
                   <Pressable
                     key={day.toISOString()}
                     style={[styles.weeklineMonthCell, isSelected && styles.weeklineMonthCellSelected]}
-                    onPress={() => setSelectedDate(day)}
+                    onPress={() => selectAgendaDay(day)}
                   >
                     <Text style={[styles.weeklineMonthDate, !inMonth && styles.weeklineMonthOutside, isSelected && styles.weeklineMonthDateSelected]}>
                       {day.getDate()}
