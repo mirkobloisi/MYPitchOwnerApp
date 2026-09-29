@@ -1040,13 +1040,13 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklinePageTitle: {
       color: colors.white,
-      fontSize: 22,
+      fontSize: 24,
       fontWeight: '600',
       letterSpacing: -0.6,
     },
     weeklinePageSubtitle: {
       color: colors.grey,
-      fontSize: 11,
+      fontSize: 12,
       marginTop: 3,
     },
     weeklineActions: {
@@ -1066,7 +1066,7 @@ const makeStyles = (colors: AppColors) =>
       gap: 5,
     },
     weeklineActionText: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '600',
     },
     weeklinePrimaryButton: {
@@ -1074,7 +1074,7 @@ const makeStyles = (colors: AppColors) =>
       minWidth: 146,
     },
     weeklinePrimaryText: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '700',
     },
     weeklineToolbar: {
@@ -1103,7 +1103,7 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 7,
     },
     weeklineToggleText: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '600',
     },
     weeklineLayout: {
@@ -1179,7 +1179,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineDayName: {
       color: colors.greyDark,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '600',
     },
     weeklineDayDate: {
@@ -1199,7 +1199,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineHour: {
       color: colors.greyDark,
-      fontSize: 11,
+      fontSize: 12,
       textAlign: 'right',
       paddingRight: 8,
       position: 'absolute',
@@ -1233,12 +1233,12 @@ const makeStyles = (colors: AppColors) =>
       overflow: 'hidden',
     },
     weeklineEventTime: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '700',
     },
     weeklineEventLabel: {
       color: colors.white,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '500',
     },
     weeklineLoading: {
@@ -1269,7 +1269,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineSelectedLabel: {
       color: colors.grey,
-      fontSize: 12,
+      fontSize: 13,
       marginBottom: 14,
     },
     weeklineEvents: {
@@ -1294,12 +1294,12 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineRowTime: {
       color: colors.white,
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '600',
     },
     weeklineRowLabel: {
       color: colors.grey,
-      fontSize: 11,
+      fontSize: 12,
       marginTop: 3,
     },
     weeklineStatsCard: {
@@ -1326,7 +1326,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineStatLabel: {
       color: colors.grey,
-      fontSize: 9,
+      fontSize: 11,
       marginTop: 3,
     },
     desktopColumns: {
@@ -1459,7 +1459,7 @@ const makeStyles = (colors: AppColors) =>
       flex: 1,
       minWidth: 0,
       color: colors.white,
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '600',
     },
     pitchColorDot: {
