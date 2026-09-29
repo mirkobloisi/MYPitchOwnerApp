@@ -43,6 +43,7 @@ const HOURS_END = 24;
 const HOURS = Array.from({ length: HOURS_END - HOURS_START }, (_, i) => HOURS_START + i);
 const HOUR_ROW_HEIGHT = 52;
 const WEEK_GRID_HEIGHT = HOURS.length * HOUR_ROW_HEIGHT;
+const NATIVE_HOUR_ROW_HEIGHT = 76;
 const PITCH_COLORS = ['#75C8EE', '#77D7BA', '#E9B46C', '#DDA0C8', '#B5A7EF', '#E59A86'];
 
 function startOfMonth(date: Date) {
@@ -149,7 +150,9 @@ export default function AgendaScreen() {
   const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
   const [monthMenuOpen, setMonthMenuOpen] = useState(false);
   const [monthStripWidth, setMonthStripWidth] = useState(0);
+  const [nativeMenuOpen, setNativeMenuOpen] = useState(false);
   const monthStripRef = useRef<ScrollView>(null);
+  const nativeTimelineRef = useRef<ScrollView>(null);
   const isDesktopWeek = Platform.OS === 'web' && isDesktop && viewMode === 'week';
   const isDesktopMonth = Platform.OS === 'web' && isDesktop && viewMode === 'month';
   const isDesktopAgenda = isDesktopWeek || isDesktopMonth;
@@ -557,6 +560,295 @@ export default function AgendaScreen() {
               </View>
             </View>
           </View>
+    );
+  }
+
+  if (isNativeMobile) {
+    const nativeTimelineHeight = HOURS.length * NATIVE_HOUR_ROW_HEIGHT;
+    const nativeGaps: { start: Date; end: Date }[] = [];
+    for (let index = 0; index < selectedDayEvents.length - 1; index += 1) {
+      const current = selectedDayEvents[index];
+      const next = selectedDayEvents[index + 1];
+      if (next.startsAt.getTime() - current.endsAt.getTime() >= 45 * 60 * 1000) {
+        nativeGaps.push({ start: current.endsAt, end: next.startsAt });
+      }
+    }
+
+    return (
+      <Screen
+        scroll={false}
+        ambientGlows={false}
+        background={<Image source={require('../../../assets/images/weekline-soft-halo.png')} style={styles.weeklineBackground} resizeMode="stretch" />}
+        style={{ backgroundColor: weeklineColors.background }}
+        contentStyle={styles.nativeAgendaScreen}
+      >
+        <View style={styles.nativeAgendaRoot}>
+          <AppHeader
+            title={t('agenda.title')}
+            showBack={false}
+            colorsOverride={weeklineColors}
+            refined
+            brandLogo
+            showMenu
+            onMenuPress={() => setNativeMenuOpen((open) => !open)}
+          />
+
+          {nativeMenuOpen ? (
+            <>
+              <Pressable style={styles.nativeMenuBackdrop} onPress={() => setNativeMenuOpen(false)} />
+              <View style={[styles.nativeQuickMenu, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                {[
+                  { href: '/pitches', label: t('nav.pitches'), icon: 'football-outline' as const },
+                  { href: '/stats', label: t('nav.stats'), icon: 'bar-chart-outline' as const },
+                  { href: '/transactions', label: t('nav.transactions'), icon: 'card-outline' as const },
+                  { href: '/profile', label: t('nav.profile'), icon: 'person-circle-outline' as const },
+                ].map((item) => (
+                  <Pressable
+                    key={item.href}
+                    style={styles.nativeQuickMenuItem}
+                    onPress={() => { setNativeMenuOpen(false); router.navigate(item.href as any); }}
+                  >
+                    <Ionicons name={item.icon} size={18} color={colors.greyDark} />
+                    <Text style={styles.nativeQuickMenuText}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {!activePitch ? (
+            <View style={styles.nativeEmptyState}>
+              <Text style={styles.emptyText}>{t('agenda.noPitchLinked')}</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.nativeAgendaTitleRow}>
+                <Text style={styles.nativeAgendaTitle}>{t('agenda.title')}</Text>
+                <View style={styles.mobileMonthPickerWrap}>
+                  <Pressable
+                    style={styles.nativeMonthTrigger}
+                    onPress={() => setMonthMenuOpen((open) => !open)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${MONTH_LABELS[visibleMonth.getMonth()]} ${visibleMonth.getFullYear()}`}
+                    accessibilityState={{ expanded: monthMenuOpen }}
+                  >
+                    <Text style={styles.nativeMonthTriggerText}>
+                      {MONTH_LABELS[visibleMonth.getMonth()]} {visibleMonth.getFullYear()}
+                    </Text>
+                    <Ionicons name={monthMenuOpen ? 'chevron-up' : 'chevron-down'} size={15} color={colors.greenLight} />
+                  </Pressable>
+                  {monthMenuOpen ? (
+                    <View style={[styles.mobileMonthMenu, styles.nativeMonthMenu]}>
+                      <View style={styles.mobileMonthMenuYearRow}>
+                        <Pressable style={styles.mobileMonthYearButton} onPress={() => changeMonthMenuYear(-1)} accessibilityLabel={String(visibleMonth.getFullYear() - 1)}>
+                          <Ionicons name="chevron-back" size={16} color={colors.grey} />
+                        </Pressable>
+                        <Text style={styles.mobileMonthMenuYear}>{visibleMonth.getFullYear()}</Text>
+                        <Pressable style={styles.mobileMonthYearButton} onPress={() => changeMonthMenuYear(1)} accessibilityLabel={String(visibleMonth.getFullYear() + 1)}>
+                          <Ionicons name="chevron-forward" size={16} color={colors.grey} />
+                        </Pressable>
+                      </View>
+                      <ScrollView style={styles.mobileMonthMenuList} nestedScrollEnabled showsVerticalScrollIndicator>
+                        {MONTH_LABELS.map((month, index) => (
+                          <Pressable
+                            key={`${visibleMonth.getFullYear()}-${index}`}
+                            style={[styles.mobileMonthOption, index === visibleMonth.getMonth() && styles.mobileMonthOptionSelected]}
+                            onPress={() => selectMobileMonth(index)}
+                          >
+                            <Text style={[styles.mobileMonthOptionText, index === visibleMonth.getMonth() && styles.mobileMonthOptionTextSelected]}>{month}</Text>
+                            {index === visibleMonth.getMonth() ? <Ionicons name="checkmark" size={16} color={colors.greenLight} /> : null}
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={[styles.nativePitchPicker, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                {pitches.length > 1 ? (
+                  <View style={styles.nativePitchDropdown}>
+                    <Pressable
+                      style={styles.nativePitchTrigger}
+                      onPress={() => setPitchMenuOpen((open) => !open)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('agenda.choosePitch')}
+                      accessibilityState={{ expanded: pitchMenuOpen }}
+                    >
+                      <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
+                      <Text style={styles.nativePitchName} numberOfLines={1}>{activePitch.name}</Text>
+                      <Ionicons name={pitchMenuOpen ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
+                    </Pressable>
+                    {pitchMenuOpen ? (
+                      <View style={[styles.pitchDropdownMenu, styles.nativePitchMenu]}>
+                        {pitches.map((pitch, index) => (
+                          <Pressable
+                            key={pitch.id}
+                            style={[styles.pitchDropdownOption, pitch.id === activePitch.id && styles.pitchDropdownOptionActive]}
+                            onPress={() => { setActivePitchId(pitch.id); setPitchMenuOpen(false); }}
+                            accessibilityRole="menuitem"
+                          >
+                            <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[index % PITCH_COLORS.length] }]} />
+                            <Text style={styles.nativePitchName} numberOfLines={1}>{pitch.name}</Text>
+                            {pitch.id === activePitch.id ? <Ionicons name="checkmark" size={16} color={colors.greenLight} /> : null}
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
+                ) : (
+                  <View style={styles.nativePitchDropdown}>
+                    <View style={styles.nativePitchTrigger}>
+                      <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
+                      <Text style={styles.nativePitchName} numberOfLines={1}>{activePitch.name}</Text>
+                      <Ionicons name="chevron-down" size={17} color={colors.grey} />
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.nativeViewModeRow}>
+                {(['week', 'month'] as ViewMode[]).map((mode) => (
+                  <Pressable
+                    key={mode}
+                    style={[styles.nativeViewModeButton, viewMode === mode && styles.nativeViewModeButtonActive]}
+                    onPress={() => selectViewMode(mode)}
+                  >
+                    <Text style={[styles.nativeViewModeText, viewMode === mode && styles.nativeViewModeTextActive]}>
+                      {mode === 'week' ? t('agenda.viewWeek') : t('agenda.viewMonth')}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <ScrollView
+                horizontal
+                nestedScrollEnabled
+                showsHorizontalScrollIndicator={false}
+                style={styles.nativeDayStrip}
+                contentContainerStyle={styles.nativeDayStripContent}
+                ref={viewMode === 'month' ? monthStripRef : undefined}
+                onLayout={viewMode === 'month' ? (event) => setMonthStripWidth(event.nativeEvent.layout.width) : undefined}
+              >
+                {(viewMode === 'month' ? mobileMonthDays : weekDays).map((day) => {
+                  const isSelected = isSameDay(day, selectedDate);
+                  const isToday = isSameDay(day, new Date());
+                  return (
+                    <Pressable
+                      key={day.toISOString()}
+                      style={[styles.nativeDayCell, isSelected && styles.nativeDayCellSelected]}
+                      onPress={() => setSelectedDate(day)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={day.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                    >
+                      <Text style={[styles.nativeDayWeekday, isSelected && styles.nativeDayTextSelected]}>
+                        {WEEKDAY_LABELS[(day.getDay() + 6) % 7]}
+                      </Text>
+                      <Text style={[styles.nativeDayNumber, isSelected && styles.nativeDayTextSelected]}>
+                        {day.getDate()}
+                      </Text>
+                      {isToday && !isSelected ? <View style={styles.nativeTodayDot} /> : null}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              <Text style={styles.nativeSelectedDay}>
+                {selectedDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+              </Text>
+
+              {isLoading ? (
+                <View style={styles.nativeTimelineLoading}><ActivityIndicator color={colors.greenLight} /></View>
+              ) : (
+                <ScrollView
+                  ref={nativeTimelineRef}
+                  style={styles.nativeTimelineScroll}
+                  contentContainerStyle={{ height: nativeTimelineHeight }}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  onContentSizeChange={() => {
+                    const now = new Date();
+                    const startHour = isSameDay(selectedDate, now) ? clamp(hourFraction(now) - 1, HOURS_START, HOURS_END - 6) : HOURS_START;
+                    nativeTimelineRef.current?.scrollTo({ y: (startHour - HOURS_START) * NATIVE_HOUR_ROW_HEIGHT, animated: false });
+                  }}
+                >
+                  <View style={[styles.nativeTimelineGrid, { height: nativeTimelineHeight }]}>
+                    {HOURS.map((hour, index) => (
+                      <React.Fragment key={hour}>
+                        <Text style={[styles.nativeTimelineHour, { top: index * NATIVE_HOUR_ROW_HEIGHT - 8 }]}>{formatHourLabel(hour)}</Text>
+                        <View style={[styles.nativeTimelineRule, { top: index * NATIVE_HOUR_ROW_HEIGHT }]} />
+                      </React.Fragment>
+                    ))}
+
+                    {nativeGaps.map((gap, index) => {
+                      const top = clamp((hourFraction(gap.start) - HOURS_START) * NATIVE_HOUR_ROW_HEIGHT, 0, nativeTimelineHeight);
+                      const bottom = clamp((hourFraction(gap.end) - HOURS_START) * NATIVE_HOUR_ROW_HEIGHT, 0, nativeTimelineHeight);
+                      if (bottom - top < 45) return null;
+                      return (
+                        <Pressable
+                          key={`available-${index}`}
+                          style={[styles.nativeAvailableSlot, { top: top + 3, height: bottom - top - 6 }]}
+                          onPress={openAddExternalBooking}
+                        >
+                          <Ionicons name="add" size={16} color={colors.blueLight} />
+                          <Text style={styles.nativeAvailableText}>{t('agenda.available')}</Text>
+                        </Pressable>
+                      );
+                    })}
+
+                    {selectedDayEvents.map((event) => {
+                      const meta = eventStatusMeta(event, colors, t);
+                      const top = clamp((hourFraction(event.startsAt) - HOURS_START) * NATIVE_HOUR_ROW_HEIGHT, 0, nativeTimelineHeight);
+                      const bottom = clamp((hourFraction(event.endsAt) - HOURS_START) * NATIVE_HOUR_ROW_HEIGHT, 0, nativeTimelineHeight);
+                      if (bottom <= top) return null;
+                      const title = event.kind === 'block'
+                        ? (event.block.block_type === 'external_booking' ? t('agenda.externalBookingDefault') : event.block.block_type === 'party' ? (event.block.reference || t('agenda.partyDefault')) : t('agenda.blockedDefault'))
+                        : event.kind === 'academy' ? event.session.title : t('agenda.statusConfirmedPaid');
+                      const detail = event.kind === 'block'
+                        ? (event.block.block_type === 'external_booking' ? event.block.reference || '' : event.block.block_type === 'party' ? event.block.reason || '' : event.block.reason || '')
+                        : event.kind === 'academy'
+                          ? event.session.title
+                          : t('agenda.playersLabel', { paid: event.match.players_paid_count, required: event.match.players_required });
+                      return (
+                        <Pressable
+                          key={event.id}
+                          style={[
+                            styles.nativeTimelineEvent,
+                            { top: top + 4, height: Math.max(bottom - top - 8, 56), backgroundColor: meta.background, borderColor: meta.color, borderLeftColor: meta.color },
+                          ]}
+                          onPress={() => openEventDetails(event)}
+                        >
+                          <View style={styles.nativeTimelineEventHeader}>
+                            <Text style={styles.nativeTimelineEventTitle} numberOfLines={1}>{title}</Text>
+                            <Text style={[styles.nativeTimelineEventTime, { color: meta.color }]} numberOfLines={1}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
+                          </View>
+                          {detail ? <Text style={styles.nativeTimelineEventDetail} numberOfLines={1}>{detail}</Text> : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              )}
+
+              <View style={styles.nativeActionFooter}>
+                <Pressable style={[styles.nativeActionButton, styles.nativeActionExternal, selectedDayIsPast && styles.actionDisabled]} onPress={openAddExternalBooking} disabled={selectedDayIsPast}>
+                  <Ionicons name="calendar-outline" size={22} color={colors.blueLight} />
+                  <Text style={[styles.nativeActionText, { color: colors.blueLight }]} numberOfLines={1}>{t('agenda.externalBookingDefault')}</Text>
+                </Pressable>
+                <Pressable style={[styles.nativeActionButton, styles.nativeActionBlock, selectedDayIsPast && styles.actionDisabled]} onPress={openBlockSlot} disabled={selectedDayIsPast}>
+                  <Ionicons name="ban-outline" size={22} color={colors.greySoft} />
+                  <Text style={[styles.nativeActionText, { color: colors.greySoft }]} numberOfLines={1}>{t('agenda.blockSlot')}</Text>
+                </Pressable>
+                <Pressable style={[styles.nativeActionButton, styles.nativeActionParty, selectedDayIsPast && styles.actionDisabled]} onPress={openAddParty} disabled={selectedDayIsPast}>
+                  <Ionicons name="people-outline" size={22} color={colors.pink} />
+                  <Text style={[styles.nativeActionText, { color: colors.pink }]} numberOfLines={1}>{t('agenda.addParty')}</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+        </View>
+      </Screen>
     );
   }
 
@@ -2260,5 +2552,317 @@ const makeStyles = (colors: AppColors) =>
       fontSize: scaleFont(13),
       fontWeight: '900',
       maxWidth: '100%',
+    },
+    nativeAgendaScreen: {
+      flex: 1,
+      paddingTop: 8,
+      paddingBottom: 10,
+      paddingHorizontal: 14,
+    },
+    nativeAgendaRoot: {
+      flex: 1,
+      minHeight: 0,
+    },
+    nativeAgendaTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      marginTop: 4,
+      marginBottom: 12,
+      zIndex: 21,
+    },
+    nativeAgendaTitle: {
+      color: colors.white,
+      fontSize: scaleFont(30),
+      fontWeight: '700',
+      letterSpacing: -0.8,
+    },
+    nativeMonthTrigger: {
+      minHeight: 38,
+      maxWidth: 155,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: colors.blueDeep,
+      borderRadius: 22,
+      backgroundColor: colors.blueSoft,
+    },
+    nativeMonthTriggerText: {
+      color: colors.blueLight,
+      fontSize: scaleFont(13),
+      fontWeight: '600',
+    },
+    nativeMonthMenu: {
+      top: 43,
+      borderRadius: 9,
+    },
+    nativePitchPicker: {
+      minHeight: 54,
+      borderWidth: 1,
+      borderRadius: 10,
+      marginBottom: 10,
+      zIndex: 15,
+      elevation: 4,
+    },
+    nativePitchDropdown: {
+      position: 'relative',
+      zIndex: 16,
+    },
+    nativePitchTrigger: {
+      minHeight: 52,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+    },
+    nativePitchName: {
+      flex: 1,
+      minWidth: 0,
+      color: colors.white,
+      fontSize: scaleFont(15),
+      fontWeight: '600',
+    },
+    nativePitchMenu: {
+      top: 54,
+      borderRadius: 9,
+    },
+    nativeViewModeRow: {
+      flexDirection: 'row',
+      alignSelf: 'flex-start',
+      gap: 6,
+      marginBottom: 8,
+    },
+    nativeViewModeButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 14,
+      backgroundColor: 'transparent',
+    },
+    nativeViewModeButtonActive: {
+      backgroundColor: colors.blueSoft,
+    },
+    nativeViewModeText: {
+      color: colors.greyDark,
+      fontSize: scaleFont(12),
+      fontWeight: '500',
+    },
+    nativeViewModeTextActive: {
+      color: colors.blueLight,
+      fontWeight: '700',
+    },
+    nativeDayStrip: {
+      flexGrow: 0,
+      height: 68,
+      marginBottom: 8,
+    },
+    nativeDayStripContent: {
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 1,
+    },
+    nativeDayCell: {
+      width: 45,
+      height: 62,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 3,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    nativeDayCellSelected: {
+      backgroundColor: colors.blue,
+      borderColor: colors.blueLight,
+    },
+    nativeDayWeekday: {
+      color: colors.grey,
+      fontSize: scaleFont(10),
+      fontWeight: '500',
+    },
+    nativeDayNumber: {
+      color: colors.white,
+      fontSize: scaleFont(15),
+      fontWeight: '500',
+    },
+    nativeDayTextSelected: {
+      color: colors.blackText,
+      fontWeight: '700',
+    },
+    nativeTodayDot: {
+      position: 'absolute',
+      bottom: 1,
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.blueLight,
+    },
+    nativeSelectedDay: {
+      color: colors.white,
+      fontSize: scaleFont(19),
+      fontWeight: '600',
+      marginTop: 2,
+      marginBottom: 8,
+      letterSpacing: -0.2,
+    },
+    nativeTimelineLoading: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nativeTimelineScroll: {
+      flex: 1,
+      minHeight: 120,
+      marginBottom: 10,
+    },
+    nativeTimelineGrid: {
+      position: 'relative',
+      width: '100%',
+    },
+    nativeTimelineHour: {
+      position: 'absolute',
+      left: 0,
+      width: 42,
+      color: colors.grey,
+      fontSize: scaleFont(12),
+      fontWeight: '500',
+      textAlign: 'left',
+    },
+    nativeTimelineRule: {
+      position: 'absolute',
+      left: 48,
+      right: 0,
+      height: 1,
+      backgroundColor: colors.border,
+      opacity: 0.7,
+    },
+    nativeTimelineEvent: {
+      position: 'absolute',
+      left: 52,
+      right: 0,
+      borderWidth: 1,
+      borderLeftWidth: 4,
+      borderRadius: 9,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      overflow: 'hidden',
+      justifyContent: 'center',
+    },
+    nativeTimelineEventHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    nativeTimelineEventTitle: {
+      flex: 1,
+      minWidth: 0,
+      color: colors.white,
+      fontSize: scaleFont(14),
+      fontWeight: '600',
+    },
+    nativeTimelineEventTime: {
+      color: colors.blueLight,
+      fontSize: scaleFont(11),
+      fontWeight: '500',
+    },
+    nativeTimelineEventDetail: {
+      color: colors.grey,
+      fontSize: scaleFont(12),
+      marginTop: 4,
+    },
+    nativeAvailableSlot: {
+      position: 'absolute',
+      left: 54,
+      right: 2,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.greyDark,
+      borderRadius: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+    },
+    nativeAvailableText: {
+      color: colors.blueLight,
+      fontSize: scaleFont(13),
+      fontWeight: '500',
+    },
+    nativeActionFooter: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSoft,
+    },
+    nativeActionButton: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 74,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      borderWidth: 1,
+      borderRadius: 9,
+      backgroundColor: 'rgba(8,17,26,0.55)',
+      paddingHorizontal: 4,
+    },
+    nativeActionExternal: {
+      borderColor: colors.blueLight,
+    },
+    nativeActionBlock: {
+      borderColor: colors.greyDark,
+    },
+    nativeActionParty: {
+      borderColor: colors.pink,
+    },
+    nativeActionText: {
+      fontSize: scaleFont(11),
+      fontWeight: '600',
+    },
+    nativeEmptyState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nativeMenuBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 28,
+    },
+    nativeQuickMenu: {
+      position: 'absolute',
+      top: 48,
+      left: 2,
+      width: 215,
+      zIndex: 30,
+      elevation: 15,
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 5,
+      shadowColor: '#000',
+      shadowOpacity: 0.25,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 5 },
+    },
+    nativeQuickMenuItem: {
+      minHeight: 43,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 11,
+      paddingHorizontal: 10,
+      borderRadius: 7,
+    },
+    nativeQuickMenuText: {
+      color: colors.white,
+      fontSize: scaleFont(13),
+      fontWeight: '500',
     },
   });
