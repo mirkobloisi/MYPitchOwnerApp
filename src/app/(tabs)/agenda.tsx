@@ -12,6 +12,7 @@ import WebAgendaBookingModal from '../../components/WebAgendaBookingModal';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { useAcademyRealtime } from '../../lib/academyRealtime';
 import { useAuth } from '../../lib/auth';
+import { readBookingReference } from '../../lib/bookingReference';
 import {
   AcademySessionOccurrence,
   fetchAgendaRange,
@@ -95,8 +96,9 @@ function eventStatusMeta(
   if (event.kind === 'block') {
     // Pink, so a party reads as neither a match nor an ordinary booking.
     if (event.block.block_type === 'party') {
+      const partyReference = readBookingReference(event.block.notes);
       return {
-        label: event.block.reference || t('agenda.partyDefault'),
+        label: partyReference.title || (partyReference.isWebParty ? t('agenda.partyDefault') : event.block.reference || t('agenda.partyDefault')),
         color: colors.pink,
         background: colors.pinkSoft,
       };
@@ -317,7 +319,9 @@ export default function AgendaScreen() {
   // events already loaded for the calendar grid — no extra query needed.
   const monthStats = useMemo(() => {
     let confirmedMatches = 0;
+    let pendingMatches = 0;
     let externalBookings = 0;
+    let parties = 0;
     let unavailable = 0;
 
     events.forEach((event) => {
@@ -329,12 +333,15 @@ export default function AgendaScreen() {
       }
 
       if (event.kind === 'match') {
-        confirmedMatches += 1;
+        if (event.match.status === 'confirmed' || event.match.status === 'completed') confirmedMatches += 1;
+        else pendingMatches += 1;
       } else if (event.kind === 'academy') {
         // An academy training or match occupies the pitch just as a block does.
         unavailable += 1;
       } else if (event.block.block_type === 'external_booking') {
         externalBookings += 1;
+      } else if (event.block.block_type === 'party') {
+        parties += 1;
       } else {
         unavailable += 1;
       }
@@ -342,9 +349,11 @@ export default function AgendaScreen() {
 
     return {
       confirmedMatches,
+      pendingMatches,
       externalBookings,
+      parties,
       unavailable,
-      total: confirmedMatches + externalBookings + unavailable,
+      total: confirmedMatches + pendingMatches + externalBookings + parties + unavailable,
     };
   }, [events, visibleMonth]);
 
@@ -576,6 +585,11 @@ export default function AgendaScreen() {
                       <View style={styles.weeklineEventRowText}>
                         <Text style={styles.weeklineRowTime}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
                         <Text style={styles.weeklineRowLabel} numberOfLines={1}>{meta.label}</Text>
+                        {event.kind === 'block' && (event.block.block_type === 'party' || event.block.block_type === 'external_booking') && (event.block.reference || readBookingReference(event.block.notes).phone) ? (
+                          <Text style={styles.weeklineReference} numberOfLines={2}>
+                            {[event.block.reference, readBookingReference(event.block.notes).phone].filter(Boolean).join(' · ')}
+                          </Text>
+                        ) : null}
                       </View>
                       <Ionicons name="chevron-forward" size={13} color={colors.greyDark} />
                     </AnimatedPressable>
@@ -588,12 +602,13 @@ export default function AgendaScreen() {
               <View style={styles.weeklineStatsRow}>
                 {[
                   { count: monthStats.confirmedMatches, label: t('agenda.statsConfirmedMatches') },
+                  { count: monthStats.pendingMatches, label: t('agenda.statsPendingMatches') },
                   { count: monthStats.externalBookings, label: t('agenda.statsExternalBookings') },
-                  { count: monthStats.unavailable, label: t('agenda.statsUnavailable') },
+                  { count: monthStats.parties, label: t('agenda.statsParties') },
                 ].map((stat) => (
                   <View key={stat.label} style={styles.weeklineStat}>
                     <Text style={styles.weeklineStatCount}>{stat.count}</Text>
-                    <Text style={styles.weeklineStatLabel} numberOfLines={2}>{stat.label}</Text>
+                    <Text style={styles.weeklineStatLabel} numberOfLines={3}>{stat.label}</Text>
                   </View>
                 ))}
               </View>
@@ -1312,9 +1327,21 @@ export default function AgendaScreen() {
         </View>
 
         <View style={styles.statsRow}>
+          <View style={[styles.statsDot, { backgroundColor: colors.orange }]} />
+          <Text style={styles.statsLabel}>{t('agenda.statsPendingMatches')}</Text>
+          <Text style={styles.statsCount}>{monthStats.pendingMatches}</Text>
+        </View>
+
+        <View style={styles.statsRow}>
           <View style={[styles.statsDot, { backgroundColor: colors.blueLight }]} />
           <Text style={styles.statsLabel}>{t('agenda.statsExternalBookings')}</Text>
           <Text style={styles.statsCount}>{monthStats.externalBookings}</Text>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={[styles.statsDot, { backgroundColor: colors.pink }]} />
+          <Text style={styles.statsLabel}>{t('agenda.statsParties')}</Text>
+          <Text style={styles.statsCount}>{monthStats.parties}</Text>
         </View>
 
         <View style={styles.statsRow}>
@@ -2185,6 +2212,11 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineRowLabel: {
       color: colors.grey,
+      fontSize: 12,
+      marginTop: 3,
+    },
+    weeklineReference: {
+      color: colors.greySoft,
       fontSize: 12,
       marginTop: 3,
     },

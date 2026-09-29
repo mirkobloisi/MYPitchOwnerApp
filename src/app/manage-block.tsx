@@ -275,8 +275,8 @@ export default function ManageBlockScreen() {
         startTime,
         endTime,
         reason: reason.trim(),
-        reference: isExternalBooking ? reference.trim() || null : null,
-        notes: isExternalBooking ? notes.trim() || null : null,
+        reference: isExternalBooking || block.block_type === 'party' ? reference.trim() || null : null,
+        notes: isExternalBooking || block.block_type === 'party' ? notes.trim() || null : null,
       });
 
       router.back();
