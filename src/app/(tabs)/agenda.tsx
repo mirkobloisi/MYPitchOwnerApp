@@ -48,6 +48,7 @@ const HOURS = Array.from({ length: HOURS_END - HOURS_START }, (_, i) => HOURS_ST
 const HOUR_ROW_HEIGHT = 52;
 const WEEK_GRID_HEIGHT = HOURS.length * HOUR_ROW_HEIGHT;
 const PITCH_COLORS = ['#75C8EE', '#77D7BA', '#E9B46C', '#DDA0C8', '#B5A7EF', '#E59A86'];
+const EMPTY_EVENTS: AgendaEvent[] = [];
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -155,7 +156,7 @@ export default function AgendaScreen() {
   });
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [events, setEvents] = useState<AgendaEvent[]>([]);
-  const [monthEvents, setMonthEvents] = useState<AgendaEvent[]>([]);
+  const [loadedPitchId, setLoadedPitchId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
@@ -203,7 +204,7 @@ export default function AgendaScreen() {
     const loadVersion = ++loadVersionRef.current;
     if (!activePitch) {
       setEvents([]);
-      setMonthEvents([]);
+      setLoadedPitchId(null);
       setIsLoading(false);
       return;
     }
@@ -216,15 +217,9 @@ export default function AgendaScreen() {
       const rangeEnd = new Date(rangeStart);
       rangeEnd.setDate(rangeEnd.getDate() + (isNativeMobile ? 49 : 42));
 
-      const pitchResults = await Promise.all(
-        pitches.map(async (pitch) => ({
-          pitchId: pitch.id,
-          data: await fetchAgendaRange(pitch.id, rangeStart, rangeEnd),
-        }))
+      const { matches, blocks, academySessions } = await fetchAgendaRange(
+        activePitch.id, rangeStart, rangeEnd
       );
-      const selectedPitchData = pitchResults.find(({ pitchId }) => pitchId === activePitch.id)?.data;
-      if (!selectedPitchData) throw new Error('Selected pitch is unavailable');
-      const { matches, blocks, academySessions } = selectedPitchData;
 
       // A cancelled match frees up its slot everywhere else (the User App's
       // booking list drops it, and get_pitch_busy_ranges stops counting it as
@@ -264,18 +259,7 @@ export default function AgendaScreen() {
 
       if (loadVersion === loadVersionRef.current) {
         setEvents([...matchEvents, ...blockEvents, ...academyEvents]);
-        setMonthEvents(pitchResults.flatMap(({ data }) => [
-          ...data.matches.filter((match) => match.status !== 'cancelled').map((match): AgendaEvent => ({
-            kind: 'match', id: match.id, startsAt: new Date(match.starts_at), endsAt: new Date(match.ends_at), match,
-          })),
-          ...data.blocks.map((block): AgendaEvent => ({
-            kind: 'block', id: block.id, startsAt: new Date(block.start_time), endsAt: new Date(block.end_time), block,
-          })),
-          ...data.academySessions.filter((session) => !session.is_cancelled).map((session): AgendaEvent => ({
-            kind: 'academy', id: `${session.id}:${session.starts_at}`,
-            startsAt: new Date(session.starts_at), endsAt: new Date(session.ends_at), session,
-          })),
-        ]));
+        setLoadedPitchId(activePitch.id);
       }
     } catch (error) {
       if (loadVersion === loadVersionRef.current) {
@@ -284,7 +268,7 @@ export default function AgendaScreen() {
     } finally {
       if (loadVersion === loadVersionRef.current) setIsLoading(false);
     }
-  }, [activePitch, pitches, visibleMonth, isNativeMobile]);
+  }, [activePitch, visibleMonth, isNativeMobile]);
 
   useFocusEffect(
     useCallback(() => {
@@ -314,7 +298,7 @@ export default function AgendaScreen() {
     // Recover missed Realtime events after a socket or browser connection interruption.
     const fallbackTimer = setInterval(() => {
       if (document.visibilityState === 'visible') refresh();
-    }, 15000);
+    }, 30000);
 
     return () => {
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -353,9 +337,11 @@ export default function AgendaScreen() {
     });
   }, [weekStart]);
 
+  // Never show the previous pitch's bookings while a newly selected pitch loads.
+  const pitchEvents = loadedPitchId === activePitch?.id ? events : EMPTY_EVENTS;
   const eventsByDay = useMemo(() => {
     const map = new Map<string, AgendaEvent[]>();
-    monthEvents.forEach((event) => {
+    pitchEvents.forEach((event) => {
       const key = event.startsAt.toDateString();
       const list = map.get(key) ?? [];
       list.push(event);
@@ -363,7 +349,7 @@ export default function AgendaScreen() {
     });
     map.forEach((list) => list.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime()));
     return map;
-  }, [events]);
+  }, [pitchEvents]);
 
   const selectedDayEvents = eventsByDay.get(selectedDate.toDateString()) ?? [];
 
@@ -381,7 +367,7 @@ export default function AgendaScreen() {
     let parties = 0;
     let unavailable = 0;
 
-    events.forEach((event) => {
+    pitchEvents.forEach((event) => {
       if (
         event.startsAt.getMonth() !== visibleMonth.getMonth() ||
         event.startsAt.getFullYear() !== visibleMonth.getFullYear()
@@ -390,8 +376,8 @@ export default function AgendaScreen() {
       }
 
       if (event.kind === 'match') {
-        if (event.match.status === 'confirmed' || event.match.status === 'completed') confirmedMatches += 1;
-        else pendingMatches += 1;
+        if (event.match.status === 'confirmed') confirmedMatches += 1;
+        else if (event.match.status === 'open' || event.match.status === 'almost_full' || event.match.status === 'fully_paid') pendingMatches += 1;
       } else if (event.kind === 'academy') {
         // An academy training or match occupies the pitch just as a block does.
         unavailable += 1;
@@ -412,7 +398,7 @@ export default function AgendaScreen() {
       unavailable,
       total: confirmedMatches + pendingMatches + externalBookings + parties + unavailable,
     };
-  }, [monthEvents, visibleMonth]);
+  }, [pitchEvents, visibleMonth]);
 
   // The month grid always loads a fixed 42-day (6-week) window. A week the
   // owner browses to in Week view can fall outside that window (e.g. flipping
@@ -665,7 +651,7 @@ export default function AgendaScreen() {
             </View>
             <View style={styles.weeklineStatsCard}>
               <Text style={styles.weeklineEyebrow}>
-                {visibleMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }).toUpperCase()}
+                {visibleMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }).toUpperCase()} · {activePitch?.name}
               </Text>
               <View style={styles.weeklineStatsRow}>
                 {[
