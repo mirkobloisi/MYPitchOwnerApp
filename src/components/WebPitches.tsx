@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   desktopSpecs: { paddingVertical: 14, gap: 14, flexShrink: 0 },
   desktopSections: { flexDirection: 'row', gap: 28, flexShrink: 0 },
   desktopSection: { flex: 1, minWidth: 0, marginTop: 16, gap: 8 },
-  desktopDescription: { fontSize: 13, lineHeight: 20 },
+  desktopDescription: { color: colors.greySoft, fontSize: 13, lineHeight: 20 },
   desktopFacilities: { gap: 12 },
   desktopActions: { marginTop: 16, paddingTop: 12, flexShrink: 0 },
   desktopSupportNote: { marginTop: 12, justifyContent: 'flex-start', flexShrink: 0 },
