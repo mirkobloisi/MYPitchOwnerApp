@@ -8,6 +8,7 @@ import AnimatedSelectable from '../../components/AnimatedSelectable';
 import AnimatedSwap from '../../components/AnimatedSwap';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
+import WebAgendaBookingModal from '../../components/WebAgendaBookingModal';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { useAcademyRealtime } from '../../lib/academyRealtime';
 import { useAuth } from '../../lib/auth';
@@ -104,7 +105,7 @@ function eventStatusMeta(
     if (event.block.block_type === 'external_booking') {
       return { label: t('agenda.externalBookingDefault'), color: colors.blueLight, background: colors.blueSoft };
     }
-    return { label: event.block.reason || t('agenda.blockedDefault'), color: colors.greyDark, background: colors.neutralSoft };
+    return { label: event.block.reference || event.block.reason || t('agenda.blockedDefault'), color: colors.greyDark, background: colors.neutralSoft };
   }
 
   if (event.kind === 'academy') {
@@ -156,6 +157,7 @@ export default function AgendaScreen() {
   const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
   const [monthMenuOpen, setMonthMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [webBookingKind, setWebBookingKind] = useState<'blocked' | 'party' | 'external_booking' | null>(null);
   const [monthStripWidth, setMonthStripWidth] = useState(0);
   const monthStripRef = useRef<ScrollView>(null);
   const mobileTimelineRef = useRef<ScrollView>(null);
@@ -454,6 +456,7 @@ export default function AgendaScreen() {
 
   function openAddParty() {
     if (!activePitch || selectedDayIsPast) return;
+    if (Platform.OS === 'web') { setWebBookingKind('party'); return; }
     router.push({
       pathname: '/add-external-booking',
       params: {
@@ -466,6 +469,7 @@ export default function AgendaScreen() {
 
   function openAddExternalBooking() {
     if (!activePitch || selectedDayIsPast) return;
+    if (Platform.OS === 'web') { setWebBookingKind('external_booking'); return; }
     router.push({
       pathname: '/add-external-booking',
       params: { pitchId: activePitch.id, date: selectedDate.toISOString() },
@@ -474,6 +478,7 @@ export default function AgendaScreen() {
 
   function openBlockSlot() {
     if (!activePitch || selectedDayIsPast) return;
+    if (Platform.OS === 'web') { setWebBookingKind('blocked'); return; }
     router.push({
       pathname: '/block-slot',
       params: { pitchId: activePitch.id, date: selectedDate.toISOString() },
@@ -539,7 +544,7 @@ export default function AgendaScreen() {
           <Text style={styles.eventDetail}>
             {event.block.block_type === 'external_booking'
               ? event.block.reference || t('agenda.externalBookingDefault')
-              : event.block.reason || t('agenda.blockedDefault')}
+              : event.block.reference || event.block.reason || t('agenda.blockedDefault')}
             {event.block.recurrence_group_id ? t('agenda.repeatsWeekly') : ''}
           </Text>
         ) : null}
@@ -780,7 +785,7 @@ export default function AgendaScreen() {
                   const detail = event.kind === 'match'
                       ? t('agenda.playersLabel', { paid: event.match.players_paid_count, required: event.match.players_required })
                     : event.kind === 'block'
-                      ? event.block.block_type === 'external_booking' ? (event.block.reference || t('agenda.externalBookingDefault')) : (event.block.reason || t('agenda.blockedDefault'))
+                      ? event.block.block_type === 'external_booking' ? (event.block.reference || t('agenda.externalBookingDefault')) : (event.block.reference || event.block.reason || t('agenda.blockedDefault'))
                       : event.session.title;
                   return (
                     <Pressable key={event.id} style={[styles.nativeEventCard, { top: start + 4, height: Math.max(52, end - start - 8), borderColor: meta.color, backgroundColor: meta.background }]} onPress={() => openEventDetails(event)}>
@@ -1367,6 +1372,15 @@ export default function AgendaScreen() {
         </View>
       </View>
       )}
+      {Platform.OS === 'web' && activePitch ? (
+        <WebAgendaBookingModal
+          kind={webBookingKind}
+          selectedDate={selectedDate}
+          initialPitchId={activePitch.id}
+          onClose={() => setWebBookingKind(null)}
+          onSaved={loadMonth}
+        />
+      ) : null}
     </Screen>
   );
 }
