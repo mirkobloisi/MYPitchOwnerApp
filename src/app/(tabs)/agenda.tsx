@@ -1980,8 +1980,9 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklinePageTitle: {
       color: colors.white,
-      fontSize: 24,
-      fontWeight: '600',
+      fontSize: 32.4,
+      lineHeight: 39.6,
+      fontWeight: '700',
       letterSpacing: -0.6,
     },
     weeklinePageSubtitle: {
