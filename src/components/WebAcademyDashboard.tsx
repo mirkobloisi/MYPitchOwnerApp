@@ -627,7 +627,7 @@ export default function WebAcademyDashboard({
           <Pressable style={styles.primaryButton} onPress={createForm.onStartCreate}><Ionicons name="add" size={18} color={colors.blackText} /><Text style={styles.primaryButtonText}>{t('academy.createAction')}</Text></Pressable>
         </View>
       ) : selectedAcademy ? (
-          <View style={[styles.dashboardGrid, width < 1180 && styles.dashboardGridNarrow, width >= 1180 && { ...styles.dashboardGridFill, minHeight: Math.max(420, viewportHeight - 144) }]}>
+          <View style={[styles.dashboardGrid, width < 1180 && styles.dashboardGridNarrow, width >= 1180 && { ...styles.dashboardGridFill, minHeight: Math.max(420, viewportHeight - 180) }]}>
           <View style={[styles.leftColumn, width < 1180 && styles.columnFullWidth, width >= 1180 && styles.leftColumnFill]}>
             <AcademyCard
               academy={selectedAcademy}
