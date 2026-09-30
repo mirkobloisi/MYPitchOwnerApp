@@ -126,7 +126,7 @@ function DesktopPitches({
         <View style={styles.desktopPitchBadge}><Ionicons name="business-outline" size={15} color={colors.blueLight} /><Text style={styles.centerName} numberOfLines={1}>{pitchOwner?.business_name?.trim() || t('availability.sportsCenter')}</Text></View>
       </View>
       <View style={styles.desktopMain}>
-      <View style={[styles.desktopTableCard, { height: Math.min(560, 146 + filtered.length * 108) }]}>
+      <View style={[styles.desktopTableCard, { height: filtered.length === 0 ? 180 : Math.min(560, 329 + filtered.length * 47) }]}>
         <View style={styles.desktopTableToolbar}>
           <View><Text style={styles.desktopTableTitle}>Your pitches</Text><Text style={styles.desktopTableCount}>{pitches.length} {pitches.length === 1 ? 'pitch' : 'pitches'}</Text></View>
           <View style={styles.desktopTableFilters}>
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   desktopButtonText: { color: colors.blueLight, fontSize: 14, fontWeight: '600' },
   desktopPrimaryText: { color: colors.blackText, fontSize: 14, fontWeight: '600' },
   desktopDetailCard: { flexGrow: 1, flexShrink: 0, minHeight: 382, padding: 22, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft },
-  desktopDetailTop: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16 },
+  desktopDetailTop: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16 },
   desktopDetailActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 },
   desktopDetailTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
   desktopDetailTitle: { color: colors.white, fontSize: 21, fontWeight: '600' },
