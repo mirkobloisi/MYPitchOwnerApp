@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AnimatedSelectable from '../../components/AnimatedSelectable';
@@ -142,6 +142,7 @@ export default function AgendaScreen() {
   const { unread } = useAcademyRealtime();
   const router = useRouter();
   const { isDesktop } = useBreakpoint();
+  const { height: viewportHeight } = useWindowDimensions();
   const { t, tList } = useTranslation();
   const WEEKDAY_LABELS = tList('agenda.weekdays');
   const MONTH_LABELS = tList('agenda.months');
@@ -174,7 +175,7 @@ export default function AgendaScreen() {
   const isDesktopAgenda = isDesktopWeek || isDesktopMonth;
   const colors = isNativeMobile || Platform.OS === 'web' ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const desktopHourHeight = 56;
+  const desktopHourHeight = Math.min(56, Math.max(34, Math.round((viewportHeight - 247) / HOURS.length)));
   const desktopGridHeight = HOURS.length * desktopHourHeight;
   const monthDayCount = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
   const mobileMonthDays = useMemo(
@@ -2243,7 +2244,7 @@ const makeStyles = (colors: AppColors) =>
       left: 2,
       right: 2,
       paddingHorizontal: 6,
-      paddingVertical: 4,
+      paddingVertical: 3,
       borderLeftWidth: 2,
       borderRadius: 3,
       overflow: 'hidden',
