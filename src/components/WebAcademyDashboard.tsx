@@ -74,10 +74,6 @@ const MatchDateInput = 'input' as any;
 const MatchTimeSelect = 'select' as any;
 const MatchTimeOption = 'option' as any;
 
-function matchTimeLabel(minutes: number | null) {
-  return minutes === null ? 'Select time' : String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0');
-}
-
 const AREAS: { key: AcademyArea; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { key: 'overview', icon: 'aperture-outline', label: 'academy.dashboardOverview' },
   { key: 'academies', icon: 'school-outline', label: 'academy.dashboardAcademies' },
@@ -796,10 +792,8 @@ export default function WebAcademyDashboard({
                   <View style={styles.matchDateTimeRow}>
                     <View style={[styles.matchFieldColumn, styles.matchDateColumn]}>
                       <Text style={styles.formLabel}>Match date</Text>
-                      <View style={[styles.matchSelectButton, styles.matchDateSelectButton, styles.matchNativeField]}>
-                        <Ionicons name="calendar-outline" size={18} color={colors.blueLight} />
-                        <Text style={styles.matchNativeValue}>{new Date(matchDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-                        <Ionicons name="chevron-down" size={16} color={colors.grey} />
+                      <View style={styles.matchNativeField}>
+                        <Ionicons name="calendar-outline" size={18} color={colors.blueLight} style={styles.matchNativeIcon} />
                         <MatchDateInput
                           type="date"
                           value={matchDate}
@@ -816,7 +810,7 @@ export default function WebAcademyDashboard({
                             setMatchStartMinutes(startTime);
                             setMatchEndMinutes(startTime !== null && startTime + 90 <= 1440 ? startTime + 90 : null);
                           }}
-                          style={styles.matchNativePickerOverlay}
+                          style={styles.matchNativeInput}
                         />
                       </View>
                     </View>
@@ -824,10 +818,8 @@ export default function WebAcademyDashboard({
                       <View style={styles.matchTimeRow}>
                         <View style={styles.matchTimeField}>
                           <Text style={styles.formLabel}>Kick-off</Text>
-                          <View style={[styles.matchSelectButton, styles.matchDateSelectButton, styles.matchNativeField]}>
-                            <Ionicons name="time-outline" size={20} color={colors.blueLight} />
-                            <Text style={styles.matchNativeValue}>{matchTimeLabel(matchStartMinutes)}</Text>
-                            <Ionicons name="chevron-down" size={16} color={colors.grey} />
+                          <View style={styles.matchNativeField}>
+                            <Ionicons name="time-outline" size={20} color={colors.blueLight} style={styles.matchNativeIcon} />
                             <MatchTimeSelect
                               value={matchStartMinutes === null ? '' : String(matchStartMinutes)}
                               onChange={(event: any) => {
@@ -835,26 +827,24 @@ export default function WebAcademyDashboard({
                                 setMatchStartMinutes(Number.isFinite(minutes) ? minutes : null);
                                 setMatchEndMinutes(null);
                               }}
-                              style={styles.matchNativePickerOverlay}
+                              style={styles.matchNativeInputWithIcon}
                             >
                               <MatchTimeOption value="">Select time</MatchTimeOption>
-                              {matchStartOptions.map((minutes) => <MatchTimeOption key={minutes} value={String(minutes)}>{matchTimeLabel(minutes)}</MatchTimeOption>)}
+                              {matchStartOptions.map((minutes) => <MatchTimeOption key={minutes} value={String(minutes)}>{String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0')}</MatchTimeOption>)}
                             </MatchTimeSelect>
                           </View>
                         </View>
                         <View style={styles.matchTimeField}>
                           <Text style={styles.formLabel}>End time</Text>
-                          <View style={[styles.matchSelectButton, styles.matchDateSelectButton, styles.matchNativeField]}>
-                            <Ionicons name="time-outline" size={20} color={colors.blueLight} />
-                            <Text style={styles.matchNativeValue}>{matchTimeLabel(matchEndMinutes)}</Text>
-                            <Ionicons name="chevron-down" size={16} color={colors.grey} />
+                          <View style={styles.matchNativeField}>
+                            <Ionicons name="time-outline" size={20} color={colors.blueLight} style={styles.matchNativeIcon} />
                             <MatchTimeSelect
                               value={matchEndMinutes === null ? '' : String(matchEndMinutes)}
                               onChange={(event: any) => setMatchEndMinutes(event.target.value ? Number(event.target.value) : null)}
-                              style={styles.matchNativePickerOverlay}
+                              style={styles.matchNativeInputWithIcon}
                             >
                               <MatchTimeOption value="">Select time</MatchTimeOption>
-                              {matchEndOptions.map((minutes) => <MatchTimeOption key={minutes} value={String(minutes)}>{matchTimeLabel(minutes)}</MatchTimeOption>)}
+                              {matchEndOptions.map((minutes) => <MatchTimeOption key={minutes} value={String(minutes)}>{String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0')}</MatchTimeOption>)}
                             </MatchTimeSelect>
                           </View>
                         </View>
@@ -1400,10 +1390,10 @@ function makeStyles(colors: AppColors) {
     matchFieldRow: { flexDirection: 'row', gap: 14.4 },
     matchFieldColumn: { flex: 1, minWidth: 0 },
     matchDateColumn: { flex: 0, width: '100%' as any },
-    matchDateSelectButton: { minHeight: 56, height: 56 },
-    matchNativeField: { position: 'relative' },
-    matchNativeValue: { flex: 1, minWidth: 0, color: colors.white, fontSize: 16.8, fontWeight: '500' },
-    matchNativePickerOverlay: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', opacity: 0, zIndex: 2, cursor: 'pointer', colorScheme: 'dark' } as any,
+    matchNativeField: { position: 'relative', minWidth: 0 },
+    matchNativeIcon: { position: 'absolute', left: 14, top: 18, zIndex: 1, pointerEvents: 'none' } as any,
+    matchNativeInput: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #2B4050', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
+    matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #2B4050', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
     matchTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14.4 },
     matchTimeField: { flex: 1, minWidth: 0 },
     matchTimeOptionsColumn: { flex: 1, minWidth: 0, paddingTop: 0 },
