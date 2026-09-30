@@ -164,7 +164,7 @@ function DesktopPitchDetails({ pitch }: { pitch: PitchRecord }) {
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
   return <View style={styles.desktopDetailCard}>
     <View style={styles.desktopDetailTop}><View style={styles.desktopDetailTitleRow}><Text style={styles.desktopDetailTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View><View style={styles.desktopDetailActions}><PlayerBookingPauseControl pitch={pitch} />{pitch.maps_url ? <Pressable style={styles.desktopOutlineButton} onPress={() => Linking.openURL(pitch.maps_url!)}><Ionicons name="open-outline" size={16} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.openInMaps')}</Text></Pressable> : null}</View></View>
-    <View style={styles.desktopDetailBodyWrap}><View style={styles.desktopDetailBody}><View style={styles.desktopDetailImage}><PitchPhoto uri={photos[0]} label={pitch.name} large /></View><View style={styles.desktopDescriptionColumn}>{pitch.description ? <Text style={styles.desktopDescription}>{pitch.description}</Text> : null}<Text style={styles.desktopFacilitiesTitle}>{t('pitches.facilitiesLabel')}</Text><View style={styles.desktopDetailFacilities}>{(pitch.facilities ?? []).map((facility, index) => <View key={`${facility}-${index}`} style={styles.desktopDetailFacility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={21} color={colors.blueLight} /><Text style={styles.desktopCellMuted}>{facility}</Text></View>)}</View></View><View style={styles.desktopDetailStats}><SpecLine label={t('pitches.formatLabel')} value={pitch.format} /><SpecLine label={t('pitches.typeLabel')} value={pitch.pitch_type || 'Outdoor'} /><SpecLine label={t('pitches.priceLabel')} value={`€${Number(pitch.price_per_hour).toFixed(0)}`} /><SpecLine label={t('pitches.matchDurationLabel')} value={durations.map((minutes) => `${minutes} min`).join(' / ')} /><SpecLine label={t('pitches.locationLabel')} value={pitch.city || pitch.area || ''} /></View></View>
+    <View style={styles.desktopDetailBodyWrap}><View style={styles.desktopDetailBody}><View style={styles.desktopDetailImage}><PitchPhoto uri={photos[0]} label={pitch.name} large /></View><View style={styles.desktopDescriptionColumn}>{pitch.description ? <Text style={styles.desktopDescription}>{pitch.description}</Text> : null}<Text style={styles.desktopFacilitiesTitle}>{t('pitches.facilitiesLabel')}</Text><View style={styles.desktopDetailFacilities}>{(pitch.facilities ?? []).map((facility, index) => <View key={`${facility}-${index}`} style={styles.desktopDetailFacility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={17} color={colors.blueLight} /><Text style={styles.desktopCellMuted}>{facility}</Text></View>)}</View></View><View style={styles.desktopDetailStats}><SpecLine label={t('pitches.formatLabel')} value={pitch.format} /><SpecLine label={t('pitches.typeLabel')} value={pitch.pitch_type || 'Outdoor'} /><SpecLine label={t('pitches.priceLabel')} value={`€${Number(pitch.price_per_hour).toFixed(0)}`} /><SpecLine label={t('pitches.matchDurationLabel')} value={durations.map((minutes) => `${minutes} min`).join(' / ')} /><SpecLine label={t('pitches.locationLabel')} value={pitch.city || pitch.area || ''} /></View></View>
     </View>
     <View style={styles.desktopDetailNote}><Ionicons name="information-circle-outline" size={18} color={colors.grey} /><Text style={styles.supportText}>{t('pitches.noteText')}</Text></View>
   </View>;
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   desktopContent: { paddingTop: 14, paddingBottom: 28 },
   desktopHeading: { marginBottom: 15, flexShrink: 0, minHeight: 70 },
   desktopTitle: { fontSize: 32.4, lineHeight: 39.6, fontWeight: '700', letterSpacing: -0.6 },
-  desktopSubtitle: { fontSize: 16, lineHeight: 21, marginTop: 5 },
+  desktopSubtitle: { fontSize: 12, lineHeight: 16, marginTop: 3 },
   desktopWorkspace: { flex: 1, minHeight: 0 },
   desktopNavigator: { width: 280, minHeight: 0 },
   // The list scrolls independently; it cannot push the detail panel off screen.
@@ -323,10 +323,10 @@ const styles = StyleSheet.create({
   desktopDetailBodyWrap: { flexGrow: 1, justifyContent: 'center', minHeight: 0 },
    desktopDetailBody: { flexDirection: 'row', alignItems: 'center', gap: 22, minHeight: 230, maxHeight: 230 },
    desktopDetailImage: { width: '34%' as any, height: 230, flexGrow: 0, flexShrink: 0, borderRadius: 5, overflow: 'hidden' },
-  desktopDescriptionColumn: { flex: 1.5, paddingVertical: 3, borderRightWidth: 1, borderRightColor: colors.border, paddingRight: 16 },
-  desktopFacilitiesTitle: { color: colors.white, fontSize: 15, fontWeight: '600', marginTop: 16, marginBottom: 10 },
-  desktopDetailFacilities: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  desktopDetailFacility: { alignItems: 'center', gap: 4, minWidth: 68 },
+  desktopDescriptionColumn: { flex: 1.5, justifyContent: 'center', paddingVertical: 3, borderRightWidth: 1, borderRightColor: colors.border, paddingRight: 16 },
+  desktopFacilitiesTitle: { color: colors.white, fontSize: 14, fontWeight: '600', marginTop: 8, marginBottom: 10 },
+  desktopDetailFacilities: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  desktopDetailFacility: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 6, backgroundColor: colors.card },
   desktopDetailStats: { flex: 1, justifyContent: 'space-between', paddingVertical: 2 },
   desktopSpecLine: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
   desktopDetailNote: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border },
