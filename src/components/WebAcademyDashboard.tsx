@@ -39,11 +39,10 @@ import { fetchNotices, markNoticeRead, AcademyNotice } from '../lib/academyNotic
 import { useAcademyRealtime } from '../lib/academyRealtime';
 import { WIDE_CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
 import * as Clipboard from 'expo-clipboard';
-import * as ImageManipulator from 'expo-image-manipulator';
-import { supabase } from '../lib/supabase';
-import { PickedAvatarImage, cropAndUploadAcademyLogo } from '../lib/avatarUpload';
+import { PickedAvatarImage, cropAndUploadAcademyCover, cropAndUploadAcademyLogo } from '../lib/avatarUpload';
 import { addSessionAttendees, createSession, fetchPublicAcademiesForMatches, setMainAcademy, updateAcademy } from '../lib/academyData';
 import AvatarPickerTrigger from './AvatarPickerTrigger';
+import AvatarCropModal from './AvatarCropModal';
 import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius } from '../theme/layout';
@@ -179,6 +178,8 @@ export default function WebAcademyDashboard({
   const [editDescription, setEditDescription] = useState('');
   const [editAgeGroup, setEditAgeGroup] = useState('');
   const [editLogo, setEditLogo] = useState<string | null>(null);
+  const [cropImage, setCropImage] = useState<PickedAvatarImage | null>(null);
+  const [cropTarget, setCropTarget] = useState<'logo' | 'cover'>('logo');
   const [editBusy, setEditBusy] = useState(false);
   const [makeMain, setMakeMain] = useState(false);
   const [showMatch, setShowMatch] = useState(false);
@@ -400,14 +401,32 @@ export default function WebAcademyDashboard({
     setEditAgeGroup(row.age_group ?? ''); setEditLogo(row.logo_url); setMakeMain(row.is_main); setMatchError('');
   }
 
-  async function uploadLogo(image: PickedAvatarImage) {
-    if (!editAcademy) return;
+  function chooseLogoImage(image: PickedAvatarImage) {
+    setCropTarget('logo');
+    setCropImage(image);
+  }
+
+  function chooseCoverImage(image: PickedAvatarImage) {
+    setCropTarget('cover');
+    setCropImage(image);
+  }
+
+  async function uploadCroppedAcademyImage(crop: { originX: number; originY: number; size: number; width: number; height: number }) {
+    const image = cropImage;
+    if (!image) return;
     try {
-      const size = Math.min(image.width, image.height);
-      const url = await cropAndUploadAcademyLogo(editAcademy.id, image, {
-        originX: Math.round((image.width - size) / 2), originY: Math.round((image.height - size) / 2), size,
-      });
-      setEditLogo(url);
+      if (cropTarget === 'logo') {
+        if (!editAcademy) return;
+        const url = await cropAndUploadAcademyLogo(editAcademy.id, image, crop);
+        setEditLogo(url);
+      } else {
+        if (!selectedAcademy) return;
+        const url = await cropAndUploadAcademyCover(selectedAcademy.id, image, crop);
+        const { error } = await updateAcademy(selectedAcademy.id, { cover_url: url });
+        if (error) throw error;
+        await onRefresh();
+      }
+      setCropImage(null);
     } catch (error) { setMatchError(String(error)); }
   }
 
@@ -422,20 +441,6 @@ export default function WebAcademyDashboard({
     setEditBusy(false);
     if (error) { setMatchError(error.message); return; }
     setEditAcademy(null); await onRefresh(); await loadAcademyContent(editAcademy.id);
-  }
-
-  async function uploadCover(image: PickedAvatarImage) {
-    if (!selectedAcademy) return;
-    try {
-      const resized = await ImageManipulator.manipulateAsync(image.uri, [{ resize: { width: 1440 } }], { compress: 0.86, format: ImageManipulator.SaveFormat.JPEG });
-      const bytes = await (await fetch(resized.uri)).arrayBuffer();
-      const path = `${selectedAcademy.id}/cover-${Date.now()}.jpg`;
-      const { error } = await supabase.storage.from('academy-images').upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
-      if (error) throw error;
-      const { data } = supabase.storage.from('academy-images').getPublicUrl(path);
-      await updateAcademy(selectedAcademy.id, { cover_url: data.publicUrl });
-      await loadAcademyContent(selectedAcademy.id);
-    } catch (error) { setMatchError(String(error)); }
   }
 
   async function copyJoinLink(kind: 'parent' | 'coach') {
@@ -606,7 +611,7 @@ export default function WebAcademyDashboard({
               colors={colors}
               t={t}
               onEdit={() => beginEdit(selectedAcademy)}
-              onUploadCover={uploadCover}
+              onUploadCover={chooseCoverImage}
             />
             <RosterPanel
               players={visiblePlayerCount}
@@ -724,7 +729,7 @@ export default function WebAcademyDashboard({
               <View style={styles.editProfileRow}>
                 <View style={styles.editLogoColumn}>
                   <Text style={styles.editLabel}>Academy logo</Text>
-                  <AvatarPickerTrigger onPicked={uploadLogo} onError={(error) => setMatchError(String(error))} style={styles.editLogoPicker}>
+                  <AvatarPickerTrigger onPicked={chooseLogoImage} onError={(error) => setMatchError(String(error))} style={styles.editLogoPicker}>
                     {editLogo ? <Image source={{ uri: editLogo }} style={styles.editLogoImage} /> : <View style={[styles.headerCrestPlaceholder, styles.editLogoImage]}><Ionicons name="shield-outline" size={25} color={colors.blueLight} /></View>}
                     <View style={styles.editLogoChange}><Ionicons name="camera-outline" size={12} color={colors.blueLight} /><Text style={styles.editLogoChangeText}>Change</Text></View>
                   </AvatarPickerTrigger>
@@ -801,6 +806,17 @@ export default function WebAcademyDashboard({
         const start = options.includes(17 * 60) ? 17 * 60 : options[0] ?? null;
         setMatchStartMinutes(start); setMatchEndMinutes(start !== null ? start + 90 <= 1440 ? start + 90 : null : null);
       }} />
+      <AvatarCropModal
+        visible={!!cropImage}
+        imageUri={cropImage?.uri ?? null}
+        imageWidth={cropImage?.width ?? 0}
+        imageHeight={cropImage?.height ?? 0}
+        cropShape={cropTarget === 'logo' ? 'circle' : 'rectangle'}
+        cropAspectRatio={cropTarget === 'logo' ? 1 : 4}
+        cropWidth={cropTarget === 'logo' ? 280 : 320}
+        onCancel={() => setCropImage(null)}
+        onConfirm={uploadCroppedAcademyImage}
+      />
     </Screen>
   );
 }

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   Gesture,
   GestureDetector,
@@ -21,9 +21,12 @@ type AvatarCropModalProps = {
   imageUri: string | null;
   imageWidth: number;
   imageHeight: number;
+  cropShape?: 'circle' | 'rectangle';
+  cropAspectRatio?: number;
+  cropWidth?: number;
   onCancel: () => void;
   /** originX/originY/size are in the ORIGINAL image's own pixel coordinates. */
-  onConfirm: (crop: { originX: number; originY: number; size: number }) => void;
+  onConfirm: (crop: { originX: number; originY: number; size: number; width: number; height: number }) => void;
 };
 
 // A custom circular crop selector: neither platform's native picker editor
@@ -38,6 +41,9 @@ export default function AvatarCropModal({
   imageUri,
   imageWidth,
   imageHeight,
+  cropShape = 'circle',
+  cropAspectRatio = 1,
+  cropWidth = CROP_SIZE,
   onCancel,
   onConfirm,
 }: AvatarCropModalProps) {
@@ -45,11 +51,11 @@ export default function AvatarCropModal({
   const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  // The scale at which the image, undragged and at gesture scale 1, exactly
-  // covers the crop circle (its shorter side fills CROP_SIZE) - the same
-  // "cover" behaviour a resizeMode: 'cover' Image gets, computed by hand
-  // because the pan/pinch transform needs the underlying number.
-  const baseScale = imageWidth > 0 && imageHeight > 0 ? CROP_SIZE / Math.min(imageWidth, imageHeight) : 1;
+  const frameWidth = cropWidth;
+  const frameHeight = cropWidth / Math.max(0.25, cropAspectRatio);
+  const baseScale = imageWidth > 0 && imageHeight > 0
+    ? Math.max(frameWidth / imageWidth, frameHeight / imageHeight)
+    : 1;
 
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
@@ -58,14 +64,24 @@ export default function AvatarCropModal({
   const savedTranslateX = useSharedValue(0);
   const savedTranslateY = useSharedValue(0);
 
+  useEffect(() => {
+    if (!visible || !imageUri) return;
+    scale.value = 1;
+    savedScale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
+  }, [visible, imageUri, scale, savedScale, translateX, translateY, savedTranslateX, savedTranslateY]);
+
   // Keeps the crop circle fully covered by the image at all times - without
   // this a fast drag or pinch-out could leave empty space inside the circle.
   function clampTranslation(x: number, y: number, currentScale: number) {
     'worklet';
     const displayWidth = imageWidth * baseScale * currentScale;
     const displayHeight = imageHeight * baseScale * currentScale;
-    const maxX = Math.max(0, (displayWidth - CROP_SIZE) / 2);
-    const maxY = Math.max(0, (displayHeight - CROP_SIZE) / 2);
+    const maxX = Math.max(0, (displayWidth - frameWidth) / 2);
+    const maxY = Math.max(0, (displayHeight - frameHeight) / 2);
 
     return {
       x: Math.min(maxX, Math.max(-maxX, x)),
@@ -101,6 +117,17 @@ export default function AvatarCropModal({
 
   const composedGesture = Gesture.Simultaneous(panGesture, pinchGesture);
 
+  function zoomBy(factor: number) {
+    const nextScale = Math.min(MAX_GESTURE_SCALE, Math.max(1, scale.value * factor));
+    scale.value = nextScale;
+    savedScale.value = nextScale;
+    const clamped = clampTranslation(translateX.value, translateY.value, nextScale);
+    translateX.value = clamped.x;
+    translateY.value = clamped.y;
+    savedTranslateX.value = clamped.x;
+    savedTranslateY.value = clamped.y;
+  }
+
   const imageAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
@@ -119,22 +146,23 @@ export default function AvatarCropModal({
 
     // The image's rendered top-left corner, relative to the crop circle's
     // own top-left - centered by default, then shifted by the pan.
-    const imageLeft = (CROP_SIZE - displayWidth) / 2 + translateX.value;
-    const imageTop = (CROP_SIZE - displayHeight) / 2 + translateY.value;
+    const imageLeft = (frameWidth - displayWidth) / 2 + translateX.value;
+    const imageTop = (frameHeight - displayHeight) / 2 + translateY.value;
 
     // Where the crop circle's bounding box falls inside the ORIGINAL image,
     // in the image's own pixel coordinates.
     const originX = Math.min(
       Math.max(0, -imageLeft / effectiveScale),
-      imageWidth - CROP_SIZE / effectiveScale
+      imageWidth - frameWidth / effectiveScale
     );
     const originY = Math.min(
       Math.max(0, -imageTop / effectiveScale),
-      imageHeight - CROP_SIZE / effectiveScale
+      imageHeight - frameHeight / effectiveScale
     );
-    const size = CROP_SIZE / effectiveScale;
+    const width = frameWidth / effectiveScale;
+    const height = frameHeight / effectiveScale;
 
-    onConfirm({ originX, originY, size });
+    onConfirm({ originX, originY, size: width, width, height });
   }
 
   if (!imageUri) return null;
@@ -149,15 +177,19 @@ export default function AvatarCropModal({
 
         <View style={styles.stage}>
           <GestureDetector gesture={composedGesture}>
-            <View style={styles.cropCircle}>
+            <View style={[styles.cropFrame, {
+              width: frameWidth,
+              height: frameHeight,
+              borderRadius: cropShape === 'circle' ? frameWidth / 2 : 10,
+            }]}>
               <Animated.Image
                 source={{ uri: imageUri }}
                 style={[
                   {
                     width: imageWidth * baseScale,
                     height: imageHeight * baseScale,
-                    left: (CROP_SIZE - imageWidth * baseScale) / 2,
-                    top: (CROP_SIZE - imageHeight * baseScale) / 2,
+                    left: (frameWidth - imageWidth * baseScale) / 2,
+                    top: (frameHeight - imageHeight * baseScale) / 2,
                     position: 'absolute',
                   },
                   imageAnimatedStyle,
@@ -165,7 +197,19 @@ export default function AvatarCropModal({
               />
             </View>
           </GestureDetector>
-          <View pointerEvents="none" style={styles.cropCircleRing} />
+          <View pointerEvents="none" style={[styles.cropFrameRing, {
+            width: frameWidth + 4,
+            height: frameHeight + 4,
+            borderRadius: cropShape === 'circle' ? (frameWidth + 4) / 2 : 12,
+            top: '50%' as any,
+            left: '50%' as any,
+            marginTop: -(frameHeight + 4) / 2,
+            marginLeft: -(frameWidth + 4) / 2,
+          }]} />
+          <View style={styles.zoomControls}>
+            <Pressable onPress={() => zoomBy(1 / 1.2)} style={styles.zoomButton} accessibilityLabel="Zoom out"><Text style={styles.zoomText}>−</Text></Pressable>
+            <Pressable onPress={() => zoomBy(1.2)} style={styles.zoomButton} accessibilityLabel="Zoom in"><Text style={styles.zoomText}>+</Text></Pressable>
+          </View>
         </View>
 
         <View style={styles.actions}>
@@ -210,22 +254,20 @@ const makeStyles = (colors: AppColors) =>
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
+      gap: spacing.md,
     },
-    cropCircle: {
-      width: CROP_SIZE,
-      height: CROP_SIZE,
-      borderRadius: CROP_SIZE / 2,
+    cropFrame: {
       overflow: 'hidden',
       backgroundColor: colors.cardDark,
     },
-    cropCircleRing: {
+    cropFrameRing: {
       position: 'absolute',
-      width: CROP_SIZE + 4,
-      height: CROP_SIZE + 4,
-      borderRadius: (CROP_SIZE + 4) / 2,
       borderWidth: 2,
       borderColor: colors.greenLight,
     },
+    zoomControls: { flexDirection: 'row', gap: spacing.sm },
+    zoomButton: { width: 38, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, cursor: 'pointer' as any },
+    zoomText: { color: colors.white, fontSize: 20, lineHeight: 24, fontWeight: '600' },
     actions: {
       flexDirection: 'row',
       gap: spacing.md,

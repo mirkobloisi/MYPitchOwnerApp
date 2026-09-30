@@ -120,6 +120,33 @@ export async function cropAndUploadAcademyLogo(
   return data.publicUrl;
 }
 
+/** Crops the academy's wide cover image using the rectangle selected in the crop preview. */
+export async function cropAndUploadAcademyCover(
+  academyId: string,
+  image: PickedAvatarImage,
+  crop: { originX: number; originY: number; width: number; height: number }
+): Promise<string> {
+  const manipulated = await ImageManipulator.manipulateAsync(
+    image.uri,
+    [
+      { crop: { originX: crop.originX, originY: crop.originY, width: crop.width, height: crop.height } },
+      { resize: { width: 1440 } },
+    ],
+    { compress: 0.86, format: ImageManipulator.SaveFormat.JPEG }
+  );
+
+  const response = await fetch(manipulated.uri);
+  const arrayBuffer = await response.arrayBuffer();
+  const path = `${academyId}/cover-${Date.now()}.jpg`;
+  const { error } = await supabase.storage
+    .from('academy-images')
+    .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: false });
+
+  if (error) throw error;
+  const { data } = supabase.storage.from('academy-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /**
  * A viewable URL for an academy member's photo.
  *

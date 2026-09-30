@@ -139,7 +139,7 @@ export const translations = {
       dashboardPaused: 'Paused',
       dashboardTagline: 'Play · Develop · Belong',
       dashboardAgeGroups: '{count} age groups',
-      dashboardAgeGroupValue: 'Category: {ageGroup}',
+      dashboardAgeGroupValue: '{ageGroup}',
       dashboardNoAgeGroups: 'No age groups',
       dashboardSportAcademy: 'Youth development',
       dashboardEdit: 'Edit academy',
@@ -483,7 +483,7 @@ export const translations = {
     },
     avatarCrop: {
       title: 'Adjust your photo',
-      subtitle: 'Drag to reposition, pinch to zoom',
+      subtitle: 'Drag to reposition; use +/− or pinch to zoom',
       usePhoto: 'Use Photo',
     },
     addExternalBooking: {
@@ -855,7 +855,7 @@ export const translations = {
       dashboardPaused: 'Σε παύση',
       dashboardTagline: 'Παίξε · Εξελίξου · Ανήκε',
       dashboardAgeGroups: '{count} ηλικιακές κατηγορίες',
-      dashboardAgeGroupValue: 'Κατηγορία: {ageGroup}',
+      dashboardAgeGroupValue: '{ageGroup}',
       dashboardNoAgeGroups: 'Δεν υπάρχουν ηλικιακές κατηγορίες',
       dashboardSportAcademy: 'Ανάπτυξη νέων',
       dashboardEdit: 'Επεξεργασία ακαδημίας',
@@ -1203,7 +1203,7 @@ export const translations = {
     },
     avatarCrop: {
       title: 'Προσαρμόστε τη φωτογραφία σας',
-      subtitle: 'Σύρετε για επανατοποθέτηση, τσιμπήστε για ζουμ',
+      subtitle: 'Σύρετε για μετακίνηση, χρησιμοποιήστε +/− ή τσιμπήστε για ζουμ',
       usePhoto: 'Χρήση Φωτογραφίας',
     },
     addExternalBooking: {
@@ -1574,7 +1574,7 @@ export const translations = {
       dashboardPaused: 'Приостановлена',
       dashboardTagline: 'Играй · Развивайся · Принадлежи',
       dashboardAgeGroups: 'Возрастные группы: {count}',
-      dashboardAgeGroupValue: 'Категория: {ageGroup}',
+      dashboardAgeGroupValue: '{ageGroup}',
       dashboardNoAgeGroups: 'Нет возрастных групп',
       dashboardSportAcademy: 'Развитие юных игроков',
       dashboardEdit: 'Изменить академию',
@@ -1922,7 +1922,7 @@ export const translations = {
     },
     avatarCrop: {
       title: 'Настройте фото',
-      subtitle: 'Перетащите, чтобы переместить, сведите пальцы, чтобы увеличить',
+      subtitle: 'Перетаскивайте для перемещения; используйте +/− или сведите пальцы для увеличения',
       usePhoto: 'Использовать фото',
     },
     addExternalBooking: {
