@@ -918,7 +918,7 @@ function makeStyles(colors: AppColors) {
     activityBody: { color: colors.greySoft, fontSize: 9, lineHeight: 13 },
     unreadDotSmall: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.blueLight },
     emptyActivity: { minHeight: 80, justifyContent: 'center', alignItems: 'center', gap: 8 },
-    coachesPanel: { minHeight: 0 },
+    coachesPanel: { minHeight: 0, paddingBottom: 10 },
     dutyRange: { color: colors.grey, fontSize: 10, marginHorizontal: 14, marginTop: 7, marginBottom: 4 },
     coachEmpty: { minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 },
     emptyDashboard: { minHeight: 330, justifyContent: 'center', alignItems: 'center', gap: 12 },
