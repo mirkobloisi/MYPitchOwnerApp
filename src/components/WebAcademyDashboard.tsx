@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 
 import Screen from './Screen';
+import CalendarModal from './CalendarModal';
+import StartEndTimePicker from './StartEndTimePicker';
 import { useTranslation } from '../i18n/LanguageContext';
 import {
   Conversation,
@@ -42,7 +44,6 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../lib/supabase';
 import { PickedAvatarImage, cropAndUploadAcademyLogo } from '../lib/avatarUpload';
 import { addSessionAttendees, createSession, fetchPublicAcademiesForMatches, setMainAcademy, updateAcademy } from '../lib/academyData';
-import { Place, mapsUrlFor, searchPlaces } from '../lib/placeSearch';
 import AvatarPickerTrigger from './AvatarPickerTrigger';
 import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -97,6 +98,34 @@ function matchDateParts(iso: string) {
     date: date.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }).toUpperCase(),
     time: date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }),
   };
+}
+
+function localDateIso(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function isGoogleMapsLink(value: string) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    const googleHost = host === 'google.com' || /(^|\.)google\.[a-z.]+$/.test(host);
+    return url.protocol.startsWith('http') && (
+      host === 'maps.app.goo.gl' ||
+      (host === 'goo.gl' && url.pathname.startsWith('/maps')) ||
+      (googleHost && (url.pathname.startsWith('/maps') || host.startsWith('maps.')))
+    );
+  } catch { return false; }
+}
+
+function mapsLocationLabel(value: string) {
+  try {
+    const url = new URL(value);
+    const place = url.pathname.match(/\/maps\/place\/([^/]+)/)?.[1];
+    if (place) return decodeURIComponent(place.replaceAll('+', ' '));
+    const query = url.searchParams.get('q') || url.searchParams.get('query');
+    if (query && !/^[-\d.,\s]+$/.test(query)) return query;
+  } catch { /* The submit handler validates the URL before reaching here. */ }
+  return 'Google Maps location';
 }
 
 function ageGroupSummary(rows: EnrolmentRow[]) {
@@ -166,18 +195,27 @@ export default function WebAcademyDashboard({
   const [editBusy, setEditBusy] = useState(false);
   const [makeMain, setMakeMain] = useState(false);
   const [showMatch, setShowMatch] = useState(false);
+  const [showMatchCalendar, setShowMatchCalendar] = useState(false);
+  const [showMatchAcademies, setShowMatchAcademies] = useState(false);
   const [matchBusy, setMatchBusy] = useState(false);
-  const [matchDate, setMatchDate] = useState(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
-  const [matchTime, setMatchTime] = useState('17:00');
+  const [matchDate, setMatchDate] = useState(() => { const date = new Date(); date.setDate(date.getDate() + 1); return localDateIso(date); });
+  const [matchStartMinutes, setMatchStartMinutes] = useState<number | null>(17 * 60);
+  const [matchEndMinutes, setMatchEndMinutes] = useState<number | null>(18 * 60 + 30);
   const [matchOpponent, setMatchOpponent] = useState('');
   const [matchOpponentId, setMatchOpponentId] = useState<string | null>(null);
   const [opponentOptions, setOpponentOptions] = useState<Awaited<ReturnType<typeof fetchPublicAcademiesForMatches>>>([]);
-  const [matchPlaceQuery, setMatchPlaceQuery] = useState('');
-  const [matchPlace, setMatchPlace] = useState<Place | null>(null);
   const [matchMapsUrl, setMatchMapsUrl] = useState('');
-  const [placeOptions, setPlaceOptions] = useState<Place[]>([]);
   const [matchSelected, setMatchSelected] = useState<Set<string>>(new Set());
   const [matchError, setMatchError] = useState('');
+  const matchStartOptions = useMemo(() => {
+    const day = new Date(`${matchDate}T00:00:00`);
+    return Array.from({ length: 48 }, (_, i) => i * 30).filter((minutes) =>
+      new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(minutes / 60), minutes % 60).getTime() >= Date.now()
+    );
+  }, [matchDate]);
+  const matchEndOptions = useMemo(() => matchStartMinutes === null ? [] :
+    Array.from({ length: 48 }, (_, i) => (i + 1) * 30 + matchStartMinutes)
+      .filter((minutes) => minutes <= 48 * 30), [matchStartMinutes]);
 
   useEffect(() => {
     if (!sortedAcademies.length) {
@@ -425,26 +463,24 @@ export default function WebAcademyDashboard({
   }
 
   async function openMatchDialog() {
-    setMatchError(''); setMatchSelected(new Set()); setMatchPlace(null); setMatchPlaceQuery('');
+    setMatchError(''); setMatchSelected(new Set()); setShowMatchAcademies(false);
     setMatchOpponent(''); setMatchOpponentId(null); setMatchMapsUrl(''); setShowMatch(true);
     setOpponentOptions(await fetchPublicAcademiesForMatches());
   }
 
-  useEffect(() => {
-    if (!showMatch || matchPlaceQuery.trim().length < 3) { setPlaceOptions([]); return; }
-    const timer = setTimeout(() => { searchPlaces(matchPlaceQuery).then(setPlaceOptions); }, 1100);
-    return () => clearTimeout(timer);
-  }, [showMatch, matchPlaceQuery]);
-
   async function saveMatch() {
-    if (!selectedAcademy || matchBusy) return;
-    const starts = new Date(`${matchDate}T${matchTime}:00`).toISOString();
+    if (!selectedAcademy || matchBusy || matchStartMinutes === null || matchEndMinutes === null) return;
+    const mapsLink = matchMapsUrl.trim();
+    if (mapsLink && !isGoogleMapsLink(mapsLink)) { setMatchError('Paste a valid Google Maps share link.'); return; }
+    const startDay = new Date(`${matchDate}T00:00:00`);
+    const starts = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate(), Math.floor(matchStartMinutes / 60), matchStartMinutes % 60).toISOString();
+    const ends = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate(), Math.floor(matchEndMinutes / 60), matchEndMinutes % 60).toISOString();
     setMatchBusy(true); setMatchError('');
     const result = await createSession({ academyId: selectedAcademy.id, kind: 'match', startsAt: starts,
-      endsAt: new Date(new Date(starts).getTime() + 90 * 60000).toISOString(),
+      endsAt: ends,
       opponent: matchOpponent, opponentAcademyId: matchOpponentId,
-      locationName: matchPlace?.name || matchPlaceQuery || null,
-      mapsUrl: matchPlace ? mapsUrlFor(matchPlace) : matchMapsUrl || null });
+      locationName: mapsLink ? mapsLocationLabel(mapsLink) : null,
+      mapsUrl: mapsLink || null });
     const sessionId = typeof result.data === 'string' ? result.data : Array.isArray(result.data) ? (result.data[0] as string) : null;
     if (result.error || !sessionId) { setMatchBusy(false); setMatchError(result.error?.message || 'Could not create match.'); return; }
     const invited = await addSessionAttendees(sessionId, [...matchSelected]);
@@ -728,11 +764,31 @@ export default function WebAcademyDashboard({
 
       <Modal transparent visible={showMatch} animationType="fade" onRequestClose={() => setShowMatch(false)}>
         <View style={styles.modalBackdrop}><Pressable style={StyleSheet.absoluteFill} onPress={() => setShowMatch(false)} />
-          <View style={[styles.composeModal, { maxWidth: 650, maxHeight: '92%' }]}>
+          <View style={[styles.composeModal, styles.matchModal]}>
             <View style={styles.composeHeader}><View><Text style={styles.panelTitle}>{t('academy.dashboardCreateMatch')}</Text><Text style={styles.panelHint}>Schedule a match and invite your squad</Text></View><Pressable onPress={() => setShowMatch(false)} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable></View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.formLabel}>Date and time</Text><View style={{ flexDirection: 'row', gap: 8 }}><TextInput value={matchDate} onChangeText={setMatchDate} style={[styles.formInput, { flex: 1 }]} placeholder="YYYY-MM-DD" placeholderTextColor={colors.greyDark} /><TextInput value={matchTime} onChangeText={setMatchTime} style={[styles.formInput, { width: 110 }]} placeholder="HH:mm" placeholderTextColor={colors.greyDark} /></View>
-              <Text style={styles.formLabel}>Your academy</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 8 }}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); setMatchSelected(new Set()); setEnrolments(await fetchEnrolments(a.id)); }} style={[styles.outlineButton, a.id === selectedAcademy?.id && styles.selectedChoice]}><Text style={styles.outlineButtonText}>{a.name}</Text></Pressable>)}</View>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.matchFormScroll} contentContainerStyle={styles.matchFormContent}>
+              <View style={styles.matchFieldRow}>
+                <View style={[styles.matchFieldColumn, styles.matchDateColumn]}>
+                  <Text style={styles.formLabel}>Match date</Text>
+                  <Pressable onPress={() => setShowMatchCalendar(true)} style={styles.matchSelectButton}>
+                    <Ionicons name="calendar-outline" size={17} color={colors.blueLight} />
+                    <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{new Date(`${matchDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text><Text style={styles.matchSelectHint}>Tap to choose a date</Text></View>
+                    <Ionicons name="chevron-down" size={16} color={colors.grey} />
+                  </Pressable>
+                </View>
+                <View style={styles.matchTimeOptionsColumn}>
+                  <StartEndTimePicker startLabel="Kick-off" endLabel="End time" startMinutes={matchStartMinutes} endMinutes={matchEndMinutes} startOptions={matchStartOptions} endOptions={matchEndOptions} onChangeStart={(minutes) => { setMatchStartMinutes(minutes); setMatchEndMinutes(null); }} onChangeEnd={setMatchEndMinutes} startPlaceholder="Select time" endPlaceholder="Select time" pickStartTitle="Choose kick-off time" pickEndTitle="Choose end time" emptyText="Choose a kick-off time first." />
+                </View>
+              </View>
+              <View style={styles.matchFieldColumn}>
+                <Text style={styles.formLabel}>Your academy</Text>
+                <Pressable onPress={() => setShowMatchAcademies((v) => !v)} style={[styles.matchSelectButton, showMatchAcademies && styles.matchSelectButtonOpen]}>
+                  {selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.matchAcademyLogo} /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={16} color={colors.blueLight} /></View>}
+                  <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{selectedAcademy?.name || 'Choose an academy'}</Text><Text style={styles.matchSelectHint}>{selectedAcademy?.city || 'Select the team playing this match'}</Text></View>
+                  <Ionicons name={showMatchAcademies ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
+                </Pressable>
+                {showMatchAcademies ? <View style={styles.matchAcademyDropdown}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); setMatchSelected(new Set()); setEnrolments(await fetchEnrolments(a.id)); setShowMatchAcademies(false); }} style={[styles.matchAcademyOption, a.id === selectedAcademy?.id && styles.matchAcademyOptionActive]}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={16} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'Location not added'}</Text></View>{a.id === selectedAcademy?.id ? <Ionicons name="checkmark-circle" size={18} color={colors.blueLight} /> : null}</Pressable>)}</View> : null}
+              </View>
               {selectedAcademy ? <View style={styles.matchRosterBlock}>
                 {(['player', 'staff'] as const).map((kind) => {
                   const label = kind === 'player' ? 'Players' : 'Coaches';
@@ -740,17 +796,25 @@ export default function WebAcademyDashboard({
                   return <View key={kind}><View style={styles.rosterSelectHeader}><Text style={styles.formLabel}>{label}</Text><Pressable onPress={() => { const ids = roster.map((r) => r.member_id); setMatchSelected((s) => new Set([...s, ...ids])); }}><Text style={styles.textAction}>Select all</Text></Pressable></View>{roster.map((r) => <Pressable key={r.member_id} onPress={() => setMatchSelected((s) => { const n = new Set(s); n.has(r.member_id) ? n.delete(r.member_id) : n.add(r.member_id); return n; })} style={[styles.recipientRow, matchSelected.has(r.member_id) && styles.recipientRowActive]}><View style={[styles.checkbox, matchSelected.has(r.member_id) && styles.checkboxActive]}>{matchSelected.has(r.member_id) ? <Ionicons name="checkmark" size={12} color={colors.blackText} /> : null}</View><Text style={styles.recipientName}>{r.member?.full_name}</Text></Pressable>)}{!roster.length ? <Text style={styles.panelHint}>{kind === 'player' ? 'No registered players yet.' : 'No coaches are registered yet.'}</Text> : null}</View>;
                 })}
               </View> : null}
-              <Text style={styles.formLabel}>Opponent academy or name</Text><TextInput value={matchOpponent} onChangeText={(value) => { setMatchOpponent(value); setMatchOpponentId(null); }} style={styles.formInput} placeholder="Search academies or enter opponent" placeholderTextColor={colors.greyDark} />
-              {matchOpponent.trim() ? opponentOptions.filter((a) => a.id !== selectedAcademy?.id && a.name.toLowerCase().includes(matchOpponent.toLowerCase())).slice(0, 5).map((a) => <Pressable key={a.id} onPress={() => { setMatchOpponent(a.name); setMatchOpponentId(a.id); }} style={styles.dropdownRow}><Text style={styles.dropdownTitle}>{a.name}</Text><Text style={styles.dropdownMeta}>{a.city}</Text></Pressable>) : null}
-              <Text style={styles.formLabel}>Match place</Text><TextInput value={matchPlaceQuery} onChangeText={(value) => { setMatchPlaceQuery(value); setMatchPlace(null); }} style={styles.formInput} placeholder="Search venue or place" placeholderTextColor={colors.greyDark} />
-              {placeOptions.slice(0, 4).map((place, i) => <Pressable key={`${place.latitude}-${i}`} onPress={() => { setMatchPlace(place); setMatchPlaceQuery(place.name); setMatchMapsUrl(mapsUrlFor(place)); setPlaceOptions([]); }} style={styles.dropdownRow}><Text style={styles.dropdownTitle}>{place.name}</Text><Text style={styles.dropdownMeta} numberOfLines={1}>{place.address}</Text></Pressable>)}
-              <TextInput value={matchMapsUrl} onChangeText={setMatchMapsUrl} style={styles.formInput} placeholder="Or paste a Google Maps link" placeholderTextColor={colors.greyDark} />
+              <View style={styles.matchFieldColumn}>
+                <Text style={styles.formLabel}>Opponent academy or name</Text>
+                <View style={styles.matchInputIcon}><Ionicons name="search" size={16} color={colors.grey} /><TextInput value={matchOpponent} onChangeText={(value) => { setMatchOpponent(value); setMatchOpponentId(null); }} style={styles.matchInputText} placeholder="Search or enter opponent name" placeholderTextColor={colors.greyDark} /></View>
+                {matchOpponent.trim() && !matchOpponentId ? (() => { const matches = opponentOptions.filter((a) => a.id !== selectedAcademy?.id && `${a.name} ${a.city ?? ''}`.toLowerCase().includes(matchOpponent.toLowerCase())).slice(0, 5); return matches.length ? <View style={styles.matchAcademyDropdown}>{matches.map((a) => <Pressable key={a.id} onPress={() => { setMatchOpponent(a.name); setMatchOpponentId(a.id); }} style={styles.matchAcademyOption}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={16} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'MYPitch academy'}</Text></View><Ionicons name="add-circle-outline" size={18} color={colors.blueLight} /></Pressable>)}</View> : <Text style={styles.matchFieldHint}>No academy found. The name will be saved as entered.</Text>; })() : !matchOpponent.trim() ? <Text style={styles.matchFieldHint}>Choose a MYPitch academy from the suggestions, or enter any opponent.</Text> : null}
+              </View>
+              <View style={styles.matchFieldColumn}><Text style={styles.formLabel}>Match place</Text><Text style={styles.matchFieldHint}>Paste a Google Maps share link for the venue.</Text><View style={styles.matchInputIcon}><Ionicons name="link-outline" size={16} color={colors.grey} /><TextInput value={matchMapsUrl} onChangeText={setMatchMapsUrl} style={styles.matchInputText} placeholder="https://maps.google.com/..." placeholderTextColor={colors.greyDark} autoCapitalize="none" autoCorrect={false} keyboardType="url" /></View></View>
               {matchError ? <Text style={styles.errorText}>{matchError}</Text> : null}
-              <View style={styles.modalActions}><Pressable onPress={() => setShowMatch(false)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable><Pressable disabled={!matchOpponent.trim() || !matchDate || matchBusy} onPress={saveMatch} style={[styles.primaryButton, (!matchOpponent.trim() || !matchDate || matchBusy) && styles.disabledButton]}>{matchBusy ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name="calendar" size={16} color={colors.blackText} />}<Text style={styles.primaryButtonText}>Create match</Text></Pressable></View>
             </ScrollView>
+            <View style={styles.modalActions}><Pressable onPress={() => setShowMatch(false)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable><Pressable disabled={!matchOpponent.trim() || !matchDate || matchStartMinutes === null || matchEndMinutes === null || matchBusy} onPress={saveMatch} style={[styles.primaryButton, (!matchOpponent.trim() || !matchDate || matchStartMinutes === null || matchEndMinutes === null || matchBusy) && styles.disabledButton]}>{matchBusy ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name="calendar" size={16} color={colors.blackText} />}<Text style={styles.primaryButtonText}>Create match</Text></Pressable></View>
           </View>
         </View>
       </Modal>
+      <CalendarModal visible={showMatchCalendar} value={matchDate} title="Choose match date" minDate={new Date()} onClose={() => setShowMatchCalendar(false)} onSelect={(date) => {
+        setMatchDate(date); setShowMatchCalendar(false);
+        const selectedDay = new Date(`${date}T00:00:00`);
+        const options = Array.from({ length: 48 }, (_, i) => i * 30).filter((minutes) => new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate(), Math.floor(minutes / 60), minutes % 60).getTime() >= Date.now());
+        const start = options.includes(17 * 60) ? 17 * 60 : options[0] ?? null;
+        setMatchStartMinutes(start); setMatchEndMinutes(start !== null ? start + 90 <= 1440 ? start + 90 : null : null);
+      }} />
     </Screen>
   );
 }
@@ -1063,15 +1127,15 @@ function makeStyles(colors: AppColors) {
     createForm: { marginTop: 14, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
     createFormHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
     createInputs: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-    formInput: { flex: 1, height: 38, color: colors.white, fontSize: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, paddingHorizontal: 11, outlineStyle: 'none' as any },
-    formLabel: { color: colors.greySoft, fontSize: 11, fontWeight: '500', marginBottom: 6 },
+    formInput: { flex: 1, minWidth: 0, height: 46, color: colors.white, fontSize: 14, fontWeight: '500', borderRadius: 8, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 13, outlineStyle: 'none' as any },
+    formLabel: { color: colors.greySoft, fontSize: 12, fontWeight: '600', marginBottom: 7 },
     editAcademyModal: { padding: 20 },
     editProfileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 18 },
     editLogoColumn: { width: 96, alignItems: 'center' },
     editLogoPicker: { alignItems: 'center', gap: 7, paddingTop: 3 },
     editLogoImage: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
     editLogoChange: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    editFieldsColumn: { flex: 1, gap: 5 },
+    editFieldsColumn: { flex: 1, minWidth: 0, gap: 7 },
     editDescriptionSection: { marginTop: 16 },
     editDescriptionInput: { flex: 0, height: 88, textAlignVertical: 'top', paddingTop: 10 },
     optionalLabel: { color: colors.grey, fontWeight: '400' },
@@ -1204,6 +1268,26 @@ function makeStyles(colors: AppColors) {
     recipientRowActive: { backgroundColor: colors.blueSoft },
     selectedChoice: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     matchRosterBlock: { borderWidth: 1, borderColor: colors.border, borderRadius: 7, padding: 9, marginBottom: 12, maxHeight: 180, overflow: 'scroll' as any },
+    matchModal: { width: 'min(650px, 92%)' as any, maxWidth: 650, maxHeight: '92%', padding: 20 },
+    matchFormScroll: { flexShrink: 1 },
+    matchFormContent: { gap: 16, paddingBottom: 8 },
+    matchFieldRow: { flexDirection: 'row', gap: 12 },
+    matchFieldColumn: { flex: 1, minWidth: 0 },
+    matchDateColumn: { flex: 0, width: '38%' as any },
+    matchTimeOptionsColumn: { flex: 1, minWidth: 0, paddingTop: 1 },
+    matchInputIcon: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 13 },
+    matchInputText: { flex: 1, minWidth: 0, height: 48, color: colors.white, fontSize: 14, fontWeight: '500', outlineStyle: 'none' as any },
+    matchSelectButton: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 8, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 12 },
+    matchSelectButtonOpen: { borderColor: colors.blueLight },
+    matchSelectText: { flex: 1, minWidth: 0, gap: 3 },
+    matchSelectTitle: { color: colors.white, fontSize: 13, fontWeight: '600' },
+    matchSelectHint: { color: colors.grey, fontSize: 11 },
+    matchAcademyLogo: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
+    matchAcademyLogoFallback: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
+    matchAcademyDropdown: { marginTop: 5, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
+    matchAcademyOption: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 11, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    matchAcademyOptionActive: { backgroundColor: colors.blueSoft },
+    matchFieldHint: { color: colors.grey, fontSize: 11, lineHeight: 16, marginTop: 5 },
     rosterSelectHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
     checkbox: { width: 17, height: 17, alignItems: 'center', justifyContent: 'center', borderRadius: 4, borderWidth: 1, borderColor: colors.border },
     checkboxActive: { borderColor: colors.blueLight, backgroundColor: colors.blueLight },
