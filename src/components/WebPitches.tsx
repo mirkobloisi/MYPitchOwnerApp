@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 18, paddingBottom: 100 },
   desktopContent: { paddingTop: 14, paddingBottom: 28 },
   desktopHeading: { marginBottom: 15, flexShrink: 0, minHeight: 70 },
-  desktopTitle: { fontSize: 32.4, lineHeight: 39.6, fontWeight: '700', letterSpacing: -0.6 },
+  desktopTitle: { fontSize: 32.4, lineHeight: 39.6, fontWeight: '700', letterSpacing: 0 },
   desktopSubtitle: { fontSize: 12, lineHeight: 16, marginTop: 3 },
   desktopWorkspace: { flex: 1, minHeight: 0 },
   desktopNavigator: { width: 280, minHeight: 0 },
