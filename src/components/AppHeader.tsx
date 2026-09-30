@@ -10,6 +10,7 @@ import { useAppTheme } from '../theme/ThemeContext';
 import { radius } from '../theme/layout';
 import AnimatedPressable from './AnimatedPressable';
 import { scaleFont } from '../theme/typography';
+import { useBreakpoint } from '../theme/breakpoints';
 
 type AppHeaderProps = {
   title: string;
@@ -28,6 +29,7 @@ export default function AppHeader({
 }: AppHeaderProps) {
   const router = useRouter();
   const { colors } = useAppTheme();
+  const { isDesktop } = useBreakpoint();
   const { t } = useTranslation();
   const { unread } = useAcademyRealtime();
   const totalUnread = unread.players + unread.parents + unread.messages;
@@ -60,7 +62,7 @@ export default function AppHeader({
           <View style={styles.headerSide} />
         )}
 
-        <Text numberOfLines={1} style={styles.headerTitle}>
+        <Text numberOfLines={1} style={[styles.headerTitle, isDesktop && !showBack && styles.desktopTabTitle]}>
           {title}
         </Text>
 
@@ -135,6 +137,11 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: scaleFont(20),
     fontWeight: '900',
     textAlign: 'center',
+  },
+  desktopTabTitle: {
+    fontSize: 32.4,
+    lineHeight: 39.6,
+    fontWeight: '700',
   },
   subtitle: {
     color: colors.grey,
