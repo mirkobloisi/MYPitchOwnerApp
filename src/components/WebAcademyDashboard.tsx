@@ -32,7 +32,6 @@ import {
   AcademyRow,
   EnrolmentRow,
   SessionRow,
-  ageFromDateOfBirth,
   fetchEnrolments,
   fetchSessions,
 } from '../lib/academyData';
@@ -126,18 +125,6 @@ function mapsLocationLabel(value: string) {
     if (query && !/^[-\d.,\s]+$/.test(query)) return query;
   } catch { /* The submit handler validates the URL before reaching here. */ }
   return 'Google Maps location';
-}
-
-function ageGroupSummary(rows: EnrolmentRow[]) {
-  const groups = new Set<number>();
-  for (const row of rows) {
-    if (row.status !== 'approved' || row.member?.member_kind !== 'player') continue;
-    const age = ageFromDateOfBirth(row.member.date_of_birth);
-    if (age !== null && age > 0 && age < 19) groups.add(Math.floor(age));
-  }
-  if (groups.size === 0) return '—';
-  const ages = [...groups].sort((a, b) => a - b);
-  return `U${ages[0]}–U${ages[ages.length - 1]}`;
 }
 
 export default function WebAcademyDashboard({
@@ -614,7 +601,6 @@ export default function WebAcademyDashboard({
           <View style={[styles.leftColumn, width < 1180 && styles.columnFullWidth]}>
             <AcademyCard
               academy={selectedAcademy}
-              enrolments={enrolments}
               loading={isLoadingAcademy}
               styles={styles}
               colors={colors}
@@ -819,9 +805,8 @@ export default function WebAcademyDashboard({
   );
 }
 
-function AcademyCard({ academy, enrolments, loading, styles, colors, t, onEdit, onUploadCover }: {
+function AcademyCard({ academy, loading, styles, colors, t, onEdit, onUploadCover }: {
   academy: AcademyRow;
-  enrolments: EnrolmentRow[];
   loading: boolean;
   styles: ReturnType<typeof makeStyles>;
   colors: AppColors;
@@ -829,7 +814,6 @@ function AcademyCard({ academy, enrolments, loading, styles, colors, t, onEdit, 
   onEdit: () => void;
   onUploadCover: (image: PickedAvatarImage) => void;
 }) {
-  const ageGroups = ageGroupSummary(enrolments);
   return (
     <View style={styles.academyPanel}>
       <View style={styles.coverWrap}>
@@ -861,7 +845,7 @@ function AcademyCard({ academy, enrolments, loading, styles, colors, t, onEdit, 
         </View>
         <View style={styles.academyMetaRow}>
           <Ionicons name="people-outline" size={16} color={colors.greySoft} />
-          <Text style={styles.academyMetaText} numberOfLines={1}>{loading ? t('common.loading') : academy.age_group?.trim() ? t('academy.dashboardAgeGroupValue', { ageGroup: academy.age_group.trim() }) : `${t('academy.dashboardAgeGroups', { count: new Set(enrolments.filter((row) => row.member?.member_kind === 'player').map((row) => ageFromDateOfBirth(row.member?.date_of_birth ?? null)).filter((age): age is number => age !== null)).size })} (${ageGroups})`}</Text>
+          <Text style={styles.academyMetaText} numberOfLines={1}>{loading ? t('common.loading') : academy.age_group?.trim() ? t('academy.dashboardAgeGroupValue', { ageGroup: academy.age_group.trim() }) : t('academy.dashboardNoAgeGroups')}</Text>
         </View>
         <View style={styles.academyFooter}>
           <View style={styles.sportTag}><Ionicons name="football-outline" size={14} color={colors.blueLight} /><Text style={styles.sportTagText}>{t('academy.dashboardSportAcademy')}</Text></View>
