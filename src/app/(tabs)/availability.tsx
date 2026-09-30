@@ -539,7 +539,7 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
       fontSize: 32.4,
       lineHeight: 39.6,
       fontWeight: '700',
-      letterSpacing: -0.6,
+      letterSpacing: 0,
     },
     desktopSubtitle: {
       color: colors.grey,
