@@ -34,6 +34,7 @@ import {
   SessionRow,
   fetchEnrolments,
   fetchSessions,
+  updateSessionResult,
 } from '../lib/academyData';
 import { fetchNotices, markNoticeRead, AcademyNotice } from '../lib/academyNotices';
 import { useAcademyRealtime } from '../lib/academyRealtime';
@@ -195,6 +196,11 @@ export default function WebAcademyDashboard({
   const [matchMapsUrl, setMatchMapsUrl] = useState('');
   const [matchSelected, setMatchSelected] = useState<Set<string>>(new Set());
   const [matchError, setMatchError] = useState('');
+  const [resultSession, setResultSession] = useState<SessionRow | null>(null);
+  const [homeScoreInput, setHomeScoreInput] = useState('');
+  const [awayScoreInput, setAwayScoreInput] = useState('');
+  const [resultBusy, setResultBusy] = useState(false);
+  const [resultError, setResultError] = useState('');
   const matchStartOptions = useMemo(() => {
     const day = new Date(`${matchDate}T00:00:00`);
     return Array.from({ length: 48 }, (_, i) => i * 30).filter((minutes) =>
@@ -480,6 +486,23 @@ export default function WebAcademyDashboard({
     setMatchBusy(false); setShowMatch(false); await loadAcademyContent(selectedAcademy.id);
   }
 
+  async function saveMatchResult() {
+    if (!resultSession || !selectedAcademy || resultBusy) return;
+    const home = Number(homeScoreInput);
+    const away = Number(awayScoreInput);
+    if (!/^\d{1,2}$/.test(homeScoreInput.trim()) || !/^\d{1,2}$/.test(awayScoreInput.trim())) {
+      setResultError(t('academy.dashboardResultValidation'));
+      return;
+    }
+    setResultBusy(true);
+    setResultError('');
+    const { error } = await updateSessionResult(resultSession.id, home, away);
+    setResultBusy(false);
+    if (error) { setResultError(error.message || t('academy.dashboardResultSaveError')); return; }
+    setResultSession(null);
+    await loadAcademyContent(selectedAcademy.id);
+  }
+
   return (
     <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} contentStyle={styles.screenContent}>
       <View style={[styles.topHeader, width < 1280 && styles.topHeaderCompact]}>
@@ -662,6 +685,7 @@ export default function WebAcademyDashboard({
               loading={isLoadingAcademy}
               onViewAll={() => goToAcademyDetails('matches')}
               onSession={() => goToAcademyDetails('matches')}
+              onEnterResult={(session) => { setResultSession(session); setHomeScoreInput(session.home_score == null ? '' : String(session.home_score)); setAwayScoreInput(session.away_score == null ? '' : String(session.away_score)); setResultError(''); }}
             />
           </View>
 
@@ -806,6 +830,27 @@ export default function WebAcademyDashboard({
         const start = options.includes(17 * 60) ? 17 * 60 : options[0] ?? null;
         setMatchStartMinutes(start); setMatchEndMinutes(start !== null ? start + 90 <= 1440 ? start + 90 : null : null);
       }} />
+      <Modal transparent visible={!!resultSession} animationType="fade" onRequestClose={() => setResultSession(null)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setResultSession(null)} />
+          <View style={[styles.composeModal, styles.resultModal]}>
+            <View style={styles.composeHeader}>
+              <View><Text style={styles.panelTitle}>{t('academy.dashboardEnterResult')}</Text><Text style={styles.panelHint}>{resultSession?.title || selectedAcademy?.name} · {resultSession?.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
+              <Pressable onPress={() => setResultSession(null)} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable>
+            </View>
+            <View style={styles.scoreInputRow}>
+              <View style={styles.scoreInputColumn}><Text style={styles.formLabel} numberOfLines={1}>{resultSession?.title || selectedAcademy?.name || t('academy.title')}</Text><TextInput value={homeScoreInput} onChangeText={(value) => setHomeScoreInput(value.replace(/\D/g, '').slice(0, 2))} style={styles.scoreInput} keyboardType="number-pad" maxLength={2} selectTextOnFocus /></View>
+              <Text style={styles.scoreSeparator}>:</Text>
+              <View style={styles.scoreInputColumn}><Text style={styles.formLabel} numberOfLines={1}>{resultSession?.opponent || t('academy.dashboardOpponentToConfirm')}</Text><TextInput value={awayScoreInput} onChangeText={(value) => setAwayScoreInput(value.replace(/\D/g, '').slice(0, 2))} style={styles.scoreInput} keyboardType="number-pad" maxLength={2} selectTextOnFocus /></View>
+            </View>
+            {resultError ? <Text style={styles.errorText}>{resultError}</Text> : null}
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => setResultSession(null)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable>
+              <Pressable disabled={resultBusy || !homeScoreInput || !awayScoreInput} onPress={saveMatchResult} style={[styles.primaryButton, (resultBusy || !homeScoreInput || !awayScoreInput) && styles.disabledButton]}>{resultBusy ? <ActivityIndicator size="small" color={colors.blackText} /> : null}<Text style={styles.primaryButtonText}>{t('common.save')}</Text></Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <AvatarCropModal
         visible={!!cropImage}
         imageUri={cropImage?.uri ?? null}
@@ -975,10 +1020,10 @@ function LinksPanel({ styles, colors, t, onParent, onCoach }: {
   );
 }
 
-function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText, showStatus, styles, colors, t, loading, onCreate, onViewAll, onSession }: {
+function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText, showStatus, styles, colors, t, loading, onCreate, onViewAll, onSession, onEnterResult }: {
   title: string; sessions: SessionRow[]; academyName: string; academyLogoUrl: string | null; emptyText: string; showStatus: boolean;
   styles: ReturnType<typeof makeStyles>; colors: AppColors; t: (key: string) => string; loading: boolean;
-  onCreate?: () => void; onViewAll: () => void; onSession: (session: SessionRow) => void;
+  onCreate?: () => void; onViewAll: () => void; onSession: (session: SessionRow) => void; onEnterResult?: (session: SessionRow) => void;
 }) {
   return (
     <Panel styles={styles} colors={colors} style={styles.matchPanel}>
@@ -994,19 +1039,22 @@ function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText,
       ) : sessions.map((session) => {
         const parts = matchDateParts(session.starts_at);
         return (
-          <Pressable key={session.id} onPress={() => onSession(session)} style={({ hovered, pressed }: any) => [styles.matchRow, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
+          <View key={session.id} style={styles.matchRow}>
+            <Pressable onPress={() => onSession(session)} style={({ hovered, pressed }: any) => [styles.matchRowMain, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
             <View style={styles.matchDateBlock}><Text style={styles.matchDay}>{parts.day}</Text><Text style={styles.matchDate}>{parts.date}</Text><Text style={styles.matchTime}>{parts.time}</Text></View>
             <View style={styles.matchDivider} />
             <View style={styles.matchMain}>
               <View style={styles.matchTeams}>
-                <View style={styles.teamNameWrap}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="cover" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
-                <Text style={styles.versus}>{t('academy.dashboardVs')}</Text>
-                <View style={styles.teamNameWrap}><View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View><Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
+                <View style={[styles.teamNameWrap, styles.homeTeamWrap]}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="cover" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
+                {showStatus || session.home_score == null || session.away_score == null ? <Text style={styles.versus}>{t('academy.dashboardVs')}</Text> : <Text style={styles.matchScore}>{session.home_score} : {session.away_score}</Text>}
+                <View style={[styles.teamNameWrap, styles.awayTeamWrap]}><View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View><Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
               </View>
             </View>
             {showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>}
             <Ionicons name="chevron-forward" size={17} color={colors.grey} />
-          </Pressable>
+            </Pressable>
+            {!showStatus && (session.home_score == null || session.away_score == null) && onEnterResult ? <Pressable onPress={() => onEnterResult(session)} style={styles.enterResultButton}><Text style={styles.enterResultText}>{t('academy.dashboardEnterResult')}</Text></Pressable> : null}
+          </View>
         );
       })}
     </Panel>
@@ -1225,6 +1273,7 @@ function makeStyles(colors: AppColors) {
     smallPrimaryText: { color: colors.blackText, fontSize: 10, fontWeight: '700' },
     matchPanel: { minHeight: 0 },
     matchRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    matchRowMain: { flex: 1, minWidth: 0, minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 8 },
     matchRowHovered: { backgroundColor: colors.surfaceMuted },
     matchDateBlock: { width: 58, alignItems: 'flex-start', gap: 2 },
     matchDay: { color: colors.grey, fontSize: 9, fontWeight: '600' },
@@ -1232,13 +1281,18 @@ function makeStyles(colors: AppColors) {
     matchTime: { color: colors.grey, fontSize: 10 },
     matchDivider: { width: 1, height: 52, backgroundColor: colors.border, marginRight: 1 },
     matchMain: { flex: 1, minWidth: 0 },
-    matchTeams: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-    teamNameWrap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+    matchTeams: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    teamNameWrap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7 },
+    homeTeamWrap: { justifyContent: 'flex-start' },
+    awayTeamWrap: { justifyContent: 'flex-end' },
     teamCrest: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderRadius: 5, backgroundColor: colors.blueSoft },
     teamCrestImage: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
     opponentCrest: { backgroundColor: colors.orangeSoft },
     teamName: { flexShrink: 1, color: colors.white, fontSize: 11, fontWeight: '600' },
     versus: { color: colors.grey, fontSize: 9, fontWeight: '500' },
+    matchScore: { minWidth: 46, textAlign: 'center', color: colors.white, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
+    enterResultButton: { minHeight: 30, justifyContent: 'center', paddingHorizontal: 9, borderRadius: 6, borderWidth: 1, borderColor: colors.borderBlue, backgroundColor: colors.blueSoft },
+    enterResultText: { color: colors.blueLight, fontSize: 10, fontWeight: '700' },
     matchStatus: { minWidth: 49, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: colors.borderBlue, backgroundColor: colors.blueSoft, alignItems: 'center' },
     matchStatusText: { color: colors.blueLight, fontSize: 9, fontWeight: '600' },
     completedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 5, backgroundColor: colors.greenSoft },
@@ -1279,6 +1333,11 @@ function makeStyles(colors: AppColors) {
     selectedChoice: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     matchRosterBlock: { borderWidth: 1, borderColor: colors.border, borderRadius: 7, padding: 9, marginBottom: 12, maxHeight: 180, overflow: 'scroll' as any },
     matchModal: { width: 'min(650px, 92%)' as any, maxWidth: 650, maxHeight: '92%', padding: 20 },
+    resultModal: { width: 'min(440px, 92%)' as any, maxWidth: 440 },
+    scoreInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+    scoreInputColumn: { flex: 1, minWidth: 0, gap: 7 },
+    scoreInput: { height: 48, borderRadius: 8, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, color: colors.white, textAlign: 'center', fontSize: 22, fontWeight: '700', outlineStyle: 'none' as any },
+    scoreSeparator: { color: colors.grey, fontSize: 20, fontWeight: '600', paddingBottom: 11 },
     matchFormScroll: { flexShrink: 1 },
     matchFormContent: { gap: 16, paddingBottom: 8 },
     matchFieldRow: { flexDirection: 'row', gap: 12 },

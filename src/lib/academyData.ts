@@ -314,10 +314,12 @@ export type SessionRow = {
   recurrence_until: string | null;
   /** Set when held on one of the owner's pitches, which makes it block bookings. */
   pitch_id: string | null;
+  home_score: number | null;
+  away_score: number | null;
 };
 
 const SESSION_COLUMNS =
-  'id, academy_id, kind, title, starts_at, ends_at, location_name, maps_url, opponent, opponent_academy_id, notes, is_cancelled, recurrence, recurrence_until, pitch_id';
+  'id, academy_id, kind, title, starts_at, ends_at, location_name, maps_url, opponent, opponent_academy_id, notes, is_cancelled, recurrence, recurrence_until, pitch_id, home_score, away_score';
 
 export async function fetchSessions(
   academyId: string,
@@ -397,6 +399,13 @@ export async function cancelSession(sessionId: string, cancelled: boolean) {
   return academy()
     .from('sessions')
     .update({ is_cancelled: cancelled, updated_at: new Date().toISOString() })
+    .eq('id', sessionId);
+}
+
+export async function updateSessionResult(sessionId: string, homeScore: number, awayScore: number) {
+  return academy()
+    .from('sessions')
+    .update({ home_score: homeScore, away_score: awayScore, updated_at: new Date().toISOString() })
     .eq('id', sessionId);
 }
 
