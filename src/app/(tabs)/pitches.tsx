@@ -4,6 +4,7 @@ import { Image, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import BookingSettingsModal from '../../components/BookingSettingsModal';
+import PlayerBookingPauseControl from '../../components/PlayerBookingPauseControl';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
 import StatusBadge from '../../components/StatusBadge';
@@ -154,6 +155,7 @@ function NativePitchesScreen() {
                   <Ionicons name="options-outline" size={12} color={colors.greenLight} />
                   <Text style={styles.smallLinkText}>{t('pitches.manageBookingSettings')}</Text>
                 </AnimatedPressable>
+                <PlayerBookingPauseControl pitch={pitch} />
               </View>
 
               {pitch.description ? (

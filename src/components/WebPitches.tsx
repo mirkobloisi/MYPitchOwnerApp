@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import BookingSettingsModal from './BookingSettingsModal';
+import PlayerBookingPauseControl from './PlayerBookingPauseControl';
 import Screen from './Screen';
 import { useTranslation } from '../i18n/LanguageContext';
 import { PitchRecord, useAuth } from '../lib/auth';
@@ -162,7 +163,7 @@ function DesktopPitchDetails({ pitch }: { pitch: PitchRecord }) {
   const photos = (pitch.image_urls ?? []).filter(Boolean);
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
   return <View style={styles.desktopDetailCard}>
-    <View style={styles.desktopDetailTop}><View style={styles.desktopDetailTitleRow}><Text style={styles.desktopDetailTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View><Pressable style={styles.desktopOutlineButton} onPress={() => pitch.maps_url && Linking.openURL(pitch.maps_url)}><Ionicons name="open-outline" size={16} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.openInMaps')}</Text></Pressable></View>
+    <View style={styles.desktopDetailTop}><View style={styles.desktopDetailTitleRow}><Text style={styles.desktopDetailTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View><View style={styles.desktopDetailActions}><PlayerBookingPauseControl pitch={pitch} />{pitch.maps_url ? <Pressable style={styles.desktopOutlineButton} onPress={() => Linking.openURL(pitch.maps_url!)}><Ionicons name="open-outline" size={16} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.openInMaps')}</Text></Pressable> : null}</View></View>
     <View style={styles.desktopDetailBody}><View style={styles.desktopDetailImage}><PitchPhoto uri={photos[0]} label={pitch.name} large /></View><View style={styles.desktopDescriptionColumn}>{pitch.description ? <Text style={styles.desktopDescription}>{pitch.description}</Text> : null}<Text style={styles.desktopFacilitiesTitle}>{t('pitches.facilitiesLabel')}</Text><View style={styles.desktopDetailFacilities}>{(pitch.facilities ?? []).map((facility, index) => <View key={`${facility}-${index}`} style={styles.desktopDetailFacility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={21} color={colors.blueLight} /><Text style={styles.desktopCellMuted}>{facility}</Text></View>)}</View></View><View style={styles.desktopDetailStats}><SpecLine label={t('pitches.formatLabel')} value={pitch.format} /><SpecLine label={t('pitches.typeLabel')} value={pitch.pitch_type || 'Outdoor'} /><SpecLine label={t('pitches.priceLabel')} value={`€${Number(pitch.price_per_hour).toFixed(0)}`} /><SpecLine label={t('pitches.matchDurationLabel')} value={durations.map((minutes) => `${minutes} min`).join(' / ')} /><SpecLine label={t('pitches.locationLabel')} value={pitch.city || pitch.area || ''} /></View></View>
     <View style={styles.desktopDetailNote}><Ionicons name="information-circle-outline" size={18} color={colors.grey} /><Text style={styles.supportText}>{t('pitches.noteText')}</Text></View>
   </View>;
@@ -235,6 +236,7 @@ function PitchDetails({ pitch, desktop, onManageSettings }: { pitch: PitchRecord
         <Pressable style={styles.primaryButton} accessibilityRole="button" onPress={onManageSettings ?? (() => router.push({ pathname: '/booking-settings', params: { pitchId: pitch.id } }))}>
           <Ionicons name="options-outline" size={15} color={colors.blackText} /><Text style={styles.primaryText}>{t('pitches.manageBookingSettings')}</Text>
         </Pressable>
+        <PlayerBookingPauseControl pitch={pitch} />
       </View>
       <View style={[styles.supportNote, desktop && styles.desktopSupportNote]}>
         <Ionicons name="information-circle-outline" size={15} color={colors.greyDark} />
@@ -307,6 +309,7 @@ const styles = StyleSheet.create({
   desktopPrimaryText: { color: colors.blackText, fontSize: 13, fontWeight: '600' },
   desktopDetailCard: { flexShrink: 0, padding: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft },
   desktopDetailTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 12 },
+  desktopDetailActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 },
   desktopDetailTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
   desktopDetailTitle: { color: colors.white, fontSize: 18, fontWeight: '600' },
   desktopDetailDivider: { width: 1, height: 22, backgroundColor: colors.border, marginHorizontal: 3 },

@@ -244,6 +244,24 @@ export async function updatePitchBookingSettings(input: {
   if (error) throw error;
 }
 
+export async function setPitchPlayerBookingPaused(input: {
+  pitchId: string;
+  paused: boolean;
+  reason: string | null;
+}) {
+  const { error } = await withAbortableTimeout(
+    supabase.rpc('set_pitch_player_booking_pause', {
+      pitch_id_input: input.pitchId,
+      pause_input: input.paused,
+      reason_input: input.reason,
+    }),
+    REQUEST_TIMEOUT_MS,
+    'setPitchPlayerBookingPaused'
+  );
+
+  if (error) throw error;
+}
+
 export async function createPitchBlock(input: {
   pitchId: string;
   startTime: Date;

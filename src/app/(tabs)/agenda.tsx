@@ -548,7 +548,7 @@ export default function AgendaScreen() {
   }
 
   function openBlockSlot() {
-    if (!activePitch || selectedDayIsPast) return;
+    if (!activePitch || selectedDayIsPast || activePitch.player_booking_paused) return;
     if (Platform.OS === 'web') { setWebBookingKind('blocked'); return; }
     router.push({
       pathname: '/block-slot',
@@ -894,9 +894,9 @@ export default function AgendaScreen() {
           <Pressable style={[styles.nativeAction, styles.nativeExternalAction, selectedDayIsPast && styles.actionDisabled]} onPress={openAddExternalBooking} disabled={selectedDayIsPast}>
             <Ionicons name="calendar-outline" size={22} color={colors.blueLight} /><Text style={[styles.nativeActionText, { color: colors.blueLight }]} numberOfLines={1}>{t('agenda.externalShort')}</Text>
           </Pressable>
-          <Pressable style={[styles.nativeAction, styles.nativeBlockAction, selectedDayIsPast && styles.actionDisabled]} onPress={openBlockSlot} disabled={selectedDayIsPast}>
+          {!activePitch?.player_booking_paused ? <Pressable style={[styles.nativeAction, styles.nativeBlockAction, selectedDayIsPast && styles.actionDisabled]} onPress={openBlockSlot} disabled={selectedDayIsPast}>
             <Ionicons name="ban-outline" size={22} color={colors.grey} /><Text style={[styles.nativeActionText, { color: colors.grey }]}>{t('agenda.blockShort')}</Text>
-          </Pressable>
+          </Pressable> : null}
           <Pressable style={[styles.nativeAction, styles.nativePartyAction, selectedDayIsPast && styles.actionDisabled]} onPress={openAddParty} disabled={selectedDayIsPast}>
             <Ionicons name="people-outline" size={22} color={colors.pink} /><Text style={[styles.nativeActionText, { color: colors.pink }]}>{t('agenda.partyShort')}</Text>
           </Pressable>
@@ -925,14 +925,14 @@ export default function AgendaScreen() {
         )}
 
       <View style={[styles.actionsRow, isDesktopAgenda && styles.weeklineActions]}>
-        <Pressable
+        {!activePitch?.player_booking_paused ? <Pressable
           style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
           onPress={openBlockSlot}
           disabled={selectedDayIsPast}
         >
           {!isDesktopAgenda && <Ionicons name="lock-closed-outline" size={16} color={colors.white} />}
           <Text style={[styles.actionButtonOutlineText, isDesktopAgenda && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.blockSlot')}</Text>
-        </Pressable>
+        </Pressable> : null}
 
         {/* A party takes the pitch for an evening rather than a playing
             slot, so it gets its own button and its own time selection. */}

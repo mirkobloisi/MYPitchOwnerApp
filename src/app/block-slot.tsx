@@ -478,5 +478,13 @@ const makeStyles = (colors: AppColors) =>
 
 export default function BlockSlotScreen() {
   const params = useLocalSearchParams<{ pitchId: string; date: string }>();
+  const { pitches } = useAuth();
+  const { t } = useTranslation();
+  const selectedPitch = pitches.find((pitch) => pitch.id === params.pitchId);
+
+  if (selectedPitch?.player_booking_paused) {
+    return <Screen><AppHeader title={t('agenda.blockSlot')} /><Text style={{ color: '#A8B0A8', fontSize: 13, lineHeight: 19 }}>{t('pitches.blockSlotPaused')}</Text></Screen>;
+  }
+
   return Platform.OS === 'web' ? <LegacyBlockSlotScreen /> : <NativeAgendaBookingForm kind="blocked" initialPitchId={params.pitchId} initialDate={params.date} />;
 }

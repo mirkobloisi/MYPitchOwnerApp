@@ -45,6 +45,9 @@ export type PitchRecord = {
   description: string | null;
   facilities: string[];
   status: 'active' | 'paused' | 'archived';
+  player_booking_paused: boolean;
+  player_booking_pause_reason: string | null;
+  player_booking_paused_at: string | null;
   image_urls: string[];
 };
 
@@ -140,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supabase
             .from('pitches')
             .select(
-              'id, pitch_owner_id, name, city, area, address, maps_url, pitch_type, format, duration_minutes, allow_half_hour_start, allowed_durations_minutes, price_per_hour, platform_fee_percent, description, facilities, status, image_urls'
+              'id, pitch_owner_id, name, city, area, address, maps_url, pitch_type, format, duration_minutes, allow_half_hour_start, allowed_durations_minutes, price_per_hour, platform_fee_percent, description, facilities, status, player_booking_paused, player_booking_pause_reason, player_booking_paused_at, image_urls'
             )
             .eq('pitch_owner_id', owner.id)
             .order('created_at', { ascending: true }),
