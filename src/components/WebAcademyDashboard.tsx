@@ -1026,7 +1026,7 @@ function LinksPanel({ styles, colors, t, onParent, onCoach }: {
     { title: t('academy.dashboardRegisterCoach'), hint: t('academy.dashboardRegisterCoachHint'), icon: 'person-add-outline' as const, onPress: onCoach },
   ];
   return (
-    <Panel styles={styles} colors={colors}>
+    <Panel styles={styles} colors={colors} style={styles.linkPanel}>
       <Text style={styles.linkPanelTitle}>{t('academy.dashboardParentCoachLinks')}</Text>
       <View style={styles.linkDivider} />
       {links.map((item) => (
@@ -1285,6 +1285,7 @@ function makeStyles(colors: AppColors) {
     rosterValue: { color: colors.white, fontSize: 16.8, lineHeight: 20.4, fontWeight: '700' },
     rosterLabel: { color: colors.greySoft, fontSize: 12, marginTop: 1.2 },
     linkDivider: { height: 1.2, backgroundColor: colors.borderSoft, marginHorizontal: 16.8, marginTop: 2.4 },
+    linkPanel: { paddingBottom: 10.8 },
     linkPanelTitle: { color: colors.white, fontSize: 16.8, lineHeight: 22.8, fontWeight: '700', paddingHorizontal: 16.8, paddingTop: 10.8, paddingBottom: 4.8 },
     linkAction: { minHeight: 49, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 15.6, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     linkActionHovered: { backgroundColor: colors.surfaceMuted },
