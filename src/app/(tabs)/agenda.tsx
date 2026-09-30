@@ -1984,7 +1984,7 @@ const makeStyles = (colors: AppColors) =>
       fontSize: 32.4,
       lineHeight: 39.6,
       fontWeight: '700',
-      letterSpacing: -0.6,
+      letterSpacing: 0,
     },
     weeklinePageSubtitle: {
       color: colors.grey,
