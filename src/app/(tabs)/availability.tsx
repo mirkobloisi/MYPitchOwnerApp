@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AppHeader from '../../components/AppHeader';
@@ -108,6 +108,8 @@ export default function AvailabilityScreen() {
   const { colors: appColors } = useAppTheme();
   const { activePitch, pitchOwner } = useAuth();
   const { isDesktop } = useBreakpoint();
+  const { height: viewportHeight } = useWindowDimensions();
+  const desktopDayMinHeight = Math.max(178, Math.round((viewportHeight - 232) / 3));
   const { t, tList } = useTranslation();
   const isDesktopWeb = Platform.OS === 'web' && isDesktop;
   const colors = isDesktopWeb ? weeklineColors : appColors;
@@ -393,7 +395,7 @@ export default function AvailabilityScreen() {
 
           <View style={isDesktopWeb ? styles.desktopDayGrid : undefined}>
           {drafts.map((draft) => (
-            <View key={draft.dayOfWeek} style={styles.dayCard}>
+            <View key={draft.dayOfWeek} style={[styles.dayCard, isDesktopWeb && { minHeight: desktopDayMinHeight }]}>
               <View style={styles.dayTopRow}>
                 <Text style={styles.dayLabel}>{DAY_LABELS[draft.dayOfWeek]}</Text>
                 <Switch
