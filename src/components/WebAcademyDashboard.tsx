@@ -471,6 +471,7 @@ export default function WebAcademyDashboard({
               title={t('academy.dashboardNextMatches')}
               sessions={upcoming}
               academyName={selectedAcademy.name}
+              academyLogoUrl={selectedAcademy.logo_url}
               emptyText={normalizedSearch ? t('academy.dashboardNoSearchMatches') : t('academy.noMatches')}
               showStatus
               styles={styles}
@@ -485,6 +486,7 @@ export default function WebAcademyDashboard({
               title={t('academy.dashboardPastResults')}
               sessions={played}
               academyName={selectedAcademy.name}
+              academyLogoUrl={selectedAcademy.logo_url}
               emptyText={normalizedSearch ? t('academy.dashboardNoSearchMatches') : t('academy.dashboardNoPastMatches')}
               showStatus={false}
               styles={styles}
@@ -657,8 +659,8 @@ function LinksPanel({ styles, colors, t, onParent, onCoach }: {
   );
 }
 
-function MatchesPanel({ title, sessions, academyName, emptyText, showStatus, styles, colors, t, loading, onCreate, onViewAll, onSession }: {
-  title: string; sessions: SessionRow[]; academyName: string; emptyText: string; showStatus: boolean;
+function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText, showStatus, styles, colors, t, loading, onCreate, onViewAll, onSession }: {
+  title: string; sessions: SessionRow[]; academyName: string; academyLogoUrl: string | null; emptyText: string; showStatus: boolean;
   styles: ReturnType<typeof makeStyles>; colors: AppColors; t: (key: string) => string; loading: boolean;
   onCreate?: () => void; onViewAll: () => void; onSession: (session: SessionRow) => void;
 }) {
@@ -682,7 +684,7 @@ function MatchesPanel({ title, sessions, academyName, emptyText, showStatus, sty
             <View style={styles.matchDivider} />
             <View style={styles.matchMain}>
               <View style={styles.matchTeams}>
-                <View style={styles.teamNameWrap}><View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View><Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
+                <View style={styles.teamNameWrap}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="cover" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
                 <Text style={styles.versus}>{t('academy.dashboardVs')}</Text>
                 <View style={styles.teamNameWrap}><View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View><Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
               </View>
@@ -883,6 +885,7 @@ function makeStyles(colors: AppColors) {
     matchTeams: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     teamNameWrap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
     teamCrest: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderRadius: 5, backgroundColor: colors.blueSoft },
+    teamCrestImage: { width: 22, height: 22, borderRadius: 5, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
     opponentCrest: { backgroundColor: colors.orangeSoft },
     teamName: { flexShrink: 1, color: colors.white, fontSize: 11, fontWeight: '600' },
     versus: { color: colors.grey, fontSize: 9, fontWeight: '500' },
