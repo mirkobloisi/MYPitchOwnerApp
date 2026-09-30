@@ -113,6 +113,7 @@ export default function WebAcademyDashboard({
   const { colors: appColors } = useAppTheme();
   const colors = Platform.OS === 'web' ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [currentSeasonYear, setCurrentSeasonYear] = useState(startOfCurrentSeason);
   const sortedAcademies = useMemo(
     () => [...academies].sort((a, b) => Number(b.is_main) - Number(a.is_main)),
     [academies]
@@ -124,6 +125,17 @@ export default function WebAcademyDashboard({
   const [search, setSearch] = useState('');
   const [seasonStartYear, setSeasonStartYear] = useState(startOfCurrentSeason());
   const section: AcademyArea = 'overview';
+
+  useEffect(() => {
+    const seasonCheck = setInterval(() => {
+      setCurrentSeasonYear(startOfCurrentSeason());
+    }, 60 * 60 * 1000);
+    return () => clearInterval(seasonCheck);
+  }, []);
+
+  useEffect(() => {
+    setSeasonStartYear((selectedYear) => selectedYear === currentSeasonYear - 1 ? currentSeasonYear : selectedYear);
+  }, [currentSeasonYear]);
   const [enrolments, setEnrolments] = useState<EnrolmentRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -311,7 +323,7 @@ export default function WebAcademyDashboard({
 
   const coachesCount = 0;
   const coachRows: never[] = [];
-  const yearOptions = [startOfCurrentSeason(), startOfCurrentSeason() - 1, startOfCurrentSeason() - 2];
+  const yearOptions = [currentSeasonYear, currentSeasonYear - 1, currentSeasonYear - 2];
 
   function showNavDestination(area: AcademyArea) {
     if (area === 'overview') return;
