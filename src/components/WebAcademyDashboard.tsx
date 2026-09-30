@@ -59,10 +59,11 @@ type Props = {
   createForm: CreateAcademyForm;
 };
 
-type AcademyArea = 'overview' | 'players' | 'parents' | 'coaches' | 'matches' | 'messages';
+type AcademyArea = 'overview' | 'academies' | 'players' | 'parents' | 'coaches' | 'matches' | 'messages';
 
 const AREAS: { key: AcademyArea; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { key: 'overview', icon: 'aperture-outline', label: 'academy.dashboardOverview' },
+  { key: 'academies', icon: 'school-outline', label: 'academy.dashboardAcademies' },
   { key: 'players', icon: 'people-outline', label: 'academy.tabPlayers' },
   { key: 'parents', icon: 'people-circle-outline', label: 'academy.tabParents' },
   { key: 'coaches', icon: 'person-outline', label: 'academy.rosterCoaches' },
@@ -124,7 +125,7 @@ export default function WebAcademyDashboard({
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState('');
   const [seasonStartYear, setSeasonStartYear] = useState(startOfCurrentSeason());
-  const section: AcademyArea = 'overview';
+  const [section, setSection] = useState<AcademyArea>('overview');
 
   useEffect(() => {
     const seasonCheck = setInterval(() => {
@@ -326,7 +327,11 @@ export default function WebAcademyDashboard({
   const yearOptions = [currentSeasonYear, currentSeasonYear - 1, currentSeasonYear - 2];
 
   function showNavDestination(area: AcademyArea) {
-    if (area === 'overview') return;
+    if (area === 'overview' || area === 'academies') {
+      setSection(area);
+      setShowAcademies(false);
+      return;
+    }
     if (area === 'messages') {
       router.push('/inbox' as any);
       return;
@@ -439,7 +444,16 @@ export default function WebAcademyDashboard({
         ))}
       </View>
 
-      {!selectedAcademy && !loading ? (
+      {section === 'academies' ? (
+        <AcademiesList
+          academies={sortedAcademies}
+          counts={counts}
+          styles={styles}
+          colors={colors}
+          t={t}
+          onManage={(academyId) => router.push({ pathname: '/academy-details', params: { academyId } } as any)}
+        />
+      ) : !selectedAcademy && !loading ? (
         <View style={styles.emptyDashboard}>
           <View style={styles.emptyIcon}><Ionicons name="school-outline" size={26} color={colors.blueLight} /></View>
           <Text style={styles.panelTitle}>{t('academy.noAcademies')}</Text>
@@ -618,6 +632,57 @@ function AcademyCard({ academy, enrolments, loading, styles, colors, t, onEdit }
         </View>
       </View>
     </View>
+  );
+}
+
+function AcademiesList({ academies, counts, styles, colors, t, onManage }: {
+  academies: AcademyRow[];
+  counts: Record<string, AcademyCounts>;
+  styles: ReturnType<typeof makeStyles>;
+  colors: AppColors;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  onManage: (academyId: string) => void;
+}) {
+  return (
+    <Panel styles={styles} colors={colors} style={styles.academiesPanel}>
+      <View style={styles.academiesIntro}>
+        <View>
+          <Text style={styles.panelTitle}>{t('academy.dashboardAcademies')}</Text>
+          <Text style={styles.panelHint}>{t('academy.dashboardManageAcademiesHint')}</Text>
+        </View>
+        <Text style={styles.academiesCount}>{academies.length}</Text>
+      </View>
+      {academies.length ? academies.map((academy) => {
+        const academyCounts = counts[academy.id];
+        return (
+          <Pressable key={academy.id} onPress={() => onManage(academy.id)} style={({ hovered, pressed }: any) => [styles.academyDirectoryRow, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
+            {academy.logo_url ? <Image source={{ uri: academy.logo_url }} style={styles.academyDirectoryLogo} resizeMode="cover" /> : (
+              <View style={[styles.academyDirectoryLogo, styles.academyDirectoryLogoFallback]}><Ionicons name="school-outline" size={21} color={colors.blueLight} /></View>
+            )}
+            <View style={styles.academyDirectoryInfo}>
+              <View style={styles.academyNameLine}>
+                <Text style={styles.academyName} numberOfLines={1}>{academy.name}</Text>
+                {academy.is_main ? <Text style={styles.academyMainBadge}>{t('academy.mainBadge')}</Text> : null}
+                {!academy.is_active ? <Text style={styles.pausedBadge}>{t('academy.dashboardPaused')}</Text> : null}
+              </View>
+              <Text style={styles.academyDirectoryCity} numberOfLines={1}>{academy.city || t('academy.dashboardNoLocation')}</Text>
+              <Text style={styles.academyDirectoryCounts} numberOfLines={1}>
+                {t('academy.playersCount', { count: academyCounts?.players ?? 0 })} · {t('academy.parentsCount', { count: academyCounts?.parents ?? 0 })}{academyCounts?.pending ? ` · ${t('academy.pendingCount', { count: academyCounts.pending })}` : ''}
+              </Text>
+            </View>
+            <View style={styles.academyDirectoryAction}>
+              <Text style={styles.textAction}>{t('academy.dashboardEdit')}</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.blueLight} />
+            </View>
+          </Pressable>
+        );
+      }) : (
+        <View style={styles.academiesEmpty}>
+          <Ionicons name="school-outline" size={24} color={colors.blueLight} />
+          <Text style={styles.emptyMessage}>{t('academy.noAcademies')}</Text>
+        </View>
+      )}
+    </Panel>
   );
 }
 
@@ -842,6 +907,18 @@ function makeStyles(colors: AppColors) {
     middleColumn: { width: '40%', gap: 12 },
     rightColumn: { width: '32%', gap: 12 },
     panel: { borderRadius: 8, borderWidth: 1, backgroundColor: colors.card, overflow: 'hidden' },
+    academiesPanel: { marginTop: 2 },
+    academiesIntro: { minHeight: 66, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 17, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    academiesCount: { minWidth: 30, height: 30, textAlign: 'center', textAlignVertical: 'center', color: colors.blueLight, fontSize: 12, fontWeight: '700', borderRadius: 15, overflow: 'hidden', backgroundColor: colors.blueSoft, paddingTop: 7 },
+    academyDirectoryRow: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 17, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    academyDirectoryLogo: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
+    academyDirectoryLogoFallback: { alignItems: 'center', justifyContent: 'center' },
+    academyDirectoryInfo: { flex: 1, minWidth: 0, gap: 3 },
+    academyDirectoryCity: { color: colors.greySoft, fontSize: 11 },
+    academyDirectoryCounts: { color: colors.grey, fontSize: 10 },
+    academyMainBadge: { color: colors.blueLight, fontSize: 9, fontWeight: '700', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.blueSoft },
+    academyDirectoryAction: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 8 },
+    academiesEmpty: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 20 },
     academyPanel: { borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
     coverWrap: { height: 98, position: 'relative', overflow: 'hidden', backgroundColor: colors.cardSoft },
     coverImage: { width: '100%', height: 98 },
