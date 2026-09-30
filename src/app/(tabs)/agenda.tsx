@@ -2032,7 +2032,7 @@ const makeStyles = (colors: AppColors) =>
       borderColor: colors.border,
     },
     weeklinePitchText: {
-      fontSize: 11,
+      fontSize: 13,
       fontWeight: '600',
     },
     weeklineToggleButton: {
@@ -2079,7 +2079,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineRange: {
       color: colors.white,
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '600',
       marginTop: 4,
     },
@@ -2123,7 +2123,7 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineDayName: {
       color: colors.greyDark,
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '600',
     },
     weeklineDayDate: {
@@ -2146,7 +2146,7 @@ const makeStyles = (colors: AppColors) =>
       width: '14.2857%',
       textAlign: 'center',
       color: colors.greyDark,
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '600',
     },
     weeklineMonthGrid: {
@@ -2188,12 +2188,12 @@ const makeStyles = (colors: AppColors) =>
       marginTop: 4,
     },
     weeklineMonthPreviewTime: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '700',
     },
     weeklineMonthPreviewLabel: {
       color: colors.white,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '500',
     },
     weeklineMonthDots: {
@@ -2249,12 +2249,12 @@ const makeStyles = (colors: AppColors) =>
       overflow: 'hidden',
     },
     weeklineEventTime: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '700',
     },
     weeklineEventLabel: {
       color: colors.white,
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '500',
     },
     weeklineLoading: {
@@ -2317,12 +2317,12 @@ const makeStyles = (colors: AppColors) =>
     },
     weeklineRowLabel: {
       color: colors.grey,
-      fontSize: 12,
+      fontSize: 13,
       marginTop: 3,
     },
     weeklineReference: {
       color: colors.greySoft,
-      fontSize: 12,
+      fontSize: 13,
       marginTop: 3,
     },
     weeklineStatsCard: {
