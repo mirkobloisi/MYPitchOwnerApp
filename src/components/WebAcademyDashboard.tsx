@@ -798,7 +798,7 @@ export default function WebAcademyDashboard({
                       </Pressable>
                     </View>
                     <View style={[styles.matchFieldColumn, styles.matchTimeOptionsColumn]}>
-                      <StartEndTimePicker startLabel="Kick-off" endLabel="End time" startMinutes={matchStartMinutes} endMinutes={matchEndMinutes} startOptions={matchStartOptions} endOptions={matchEndOptions} onChangeStart={(minutes) => { setMatchStartMinutes(minutes); setMatchEndMinutes(null); }} onChangeEnd={setMatchEndMinutes} startPlaceholder="Select time" endPlaceholder="Select time" pickStartTitle="Choose kick-off time" pickEndTitle="Choose end time" emptyText="Choose a kick-off time first." />
+                      <StartEndTimePicker startLabel="Kick-off" endLabel="End time" startMinutes={matchStartMinutes} endMinutes={matchEndMinutes} startOptions={matchStartOptions} endOptions={matchEndOptions} onChangeStart={(minutes) => { setMatchStartMinutes(minutes); setMatchEndMinutes(null); }} onChangeEnd={setMatchEndMinutes} startPlaceholder="Select time" endPlaceholder="Select time" pickStartTitle="Choose kick-off time" pickEndTitle="Choose end time" emptyText="Choose a kick-off time first." variant="weekline" />
                     </View>
                   </View>
                   <View style={styles.matchFieldColumn}>
@@ -1360,7 +1360,7 @@ function makeStyles(colors: AppColors) {
     recipientRowActive: { backgroundColor: colors.blueSoft },
     selectedChoice: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     matchRosterBlock: { borderWidth: 1, borderColor: colors.border, borderRadius: 8.4, padding: 10.8, marginBottom: 14.4, maxHeight: 180, overflow: 'scroll' as any },
-    matchModal: { width: 'min(1180px, 95%)' as any, maxWidth: 1416, maxHeight: '92%', padding: 26.4 },
+    matchModal: { width: 'min(1120px, 92%)' as any, maxWidth: 1344, maxHeight: '86%', padding: 26.4 },
     resultModal: { width: 'min(440px, 92%)' as any, maxWidth: 528 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14.4 },
     scoreInputColumn: { flex: 1, minWidth: 0, gap: 8.4 },
@@ -1368,7 +1368,7 @@ function makeStyles(colors: AppColors) {
     scoreSeparator: { color: colors.grey, fontSize: 24, fontWeight: '600', paddingBottom: 13.2 },
     matchFormScroll: { flexShrink: 1 },
     matchFormContent: { paddingBottom: 9.6 },
-    matchLayout: { flexDirection: 'row', alignItems: 'stretch', minHeight: 672 },
+    matchLayout: { flexDirection: 'row', alignItems: 'stretch', minHeight: 580 },
     matchLayoutStacked: { flexDirection: 'column', minHeight: 0 },
     matchLeftColumn: { width: '38%' as any, paddingRight: 26.4, gap: 20.4 },
     matchRightColumn: { flex: 1, minWidth: 0, paddingLeft: 26.4, gap: 16.8 },
