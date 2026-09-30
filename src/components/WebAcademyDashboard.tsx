@@ -1429,6 +1429,7 @@ function makeStyles(colors: AppColors) {
     matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16.8, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
     matchTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14.4 },
     matchTimeField: { flex: 1, minWidth: 0 },
+    matchFieldColumn: { width: '100%', gap: 8.4 },
     matchTimeOptionsColumn: { flex: 1, minWidth: 0, paddingTop: 0 },
     matchInputIcon: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 9.6, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 15.6 },
     matchInputText: { flex: 1, minWidth: 0, height: 57.6, color: colors.white, fontSize: 16.8, fontWeight: '500', outlineStyle: 'none' as any },
