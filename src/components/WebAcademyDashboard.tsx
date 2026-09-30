@@ -790,7 +790,7 @@ export default function WebAcademyDashboard({
               <View style={[styles.matchLayout, width < 1000 && styles.matchLayoutStacked]}>
                 <View style={[styles.matchLeftColumn, width < 1000 && styles.matchColumnStacked]}>
                   <View style={styles.matchDateField}>
-                    <Text style={styles.formLabel}>Match date</Text>
+                    <Text style={styles.matchFormLabel}>Match date</Text>
                     <View style={styles.matchDateControl}>
                       <Ionicons name="calendar-outline" size={18} color={colors.blueLight} />
                       <Text style={styles.matchNativeValue}>{new Date(matchDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
@@ -817,7 +817,7 @@ export default function WebAcademyDashboard({
                   </View>
                   <View style={styles.matchTimeRow}>
                     <View style={styles.matchTimeField}>
-                      <Text style={styles.formLabel}>Kick-off</Text>
+                      <Text style={styles.matchFormLabel}>Kick-off</Text>
                       <View style={styles.matchNativeField}>
                         <Ionicons name="time-outline" size={20} color={colors.blueLight} style={styles.matchNativeIcon} />
                         <MatchTimeSelect
@@ -835,7 +835,7 @@ export default function WebAcademyDashboard({
                       </View>
                     </View>
                     <View style={styles.matchTimeField}>
-                      <Text style={styles.formLabel}>End time</Text>
+                      <Text style={styles.matchFormLabel}>End time</Text>
                       <View style={styles.matchNativeField}>
                         <Ionicons name="time-outline" size={20} color={colors.blueLight} style={styles.matchNativeIcon} />
                         <MatchTimeSelect
@@ -850,7 +850,7 @@ export default function WebAcademyDashboard({
                     </View>
                   </View>
                   <View style={styles.matchFieldColumn}>
-                    <Text style={styles.formLabel}>Your academy</Text>
+                    <Text style={styles.matchFormLabel}>Your academy</Text>
                     <Pressable onPress={() => setShowMatchAcademies((v) => !v)} style={[styles.matchSelectButton, showMatchAcademies && styles.matchSelectButtonOpen]}>
                       {selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}
                       <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{selectedAcademy?.name || 'Choose an academy'}</Text><Text style={styles.matchSelectHint}>{selectedAcademy?.city || 'Select the team playing this match'}</Text></View>
@@ -859,7 +859,7 @@ export default function WebAcademyDashboard({
                     {showMatchAcademies ? <View style={styles.matchAcademyDropdown}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); setMatchSelected(new Set()); setEnrolments(await fetchEnrolments(a.id)); setShowMatchAcademies(false); }} style={[styles.matchAcademyOption, a.id === selectedAcademy?.id && styles.matchAcademyOptionActive]}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'Location not added'}</Text></View>{a.id === selectedAcademy?.id ? <Ionicons name="checkmark-circle" size={18} color={colors.blueLight} /> : null}</Pressable>)}</View> : null}
                   </View>
                   <View style={styles.matchFieldColumn}>
-                    <Text style={styles.formLabel}>Opponent academy or name</Text>
+                    <Text style={styles.matchFormLabel}>Opponent academy or name</Text>
                     <View style={styles.matchInputIcon}><Ionicons name="search" size={17} color={colors.grey} /><TextInput value={matchOpponent} onChangeText={(value) => { setMatchOpponent(value); setMatchOpponentId(null); }} style={styles.matchInputText} placeholder="Search or enter opponent name" placeholderTextColor={colors.greyDark} /></View>
                     {matchOpponent.trim() && !matchOpponentId ? (() => { const matches = opponentOptions.filter((a) => a.id !== selectedAcademy?.id && `${a.name} ${a.city ?? ''}`.toLowerCase().includes(matchOpponent.toLowerCase())).slice(0, 5); return matches.length ? <View style={styles.matchAcademyDropdown}>{matches.map((a) => <Pressable key={a.id} onPress={() => { setMatchOpponent(a.name); setMatchOpponentId(a.id); }} style={styles.matchAcademyOption}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'MYPitch academy'}</Text></View><Ionicons name="add-circle-outline" size={18} color={colors.blueLight} /></Pressable>)}</View> : <Text style={styles.matchFieldHint}>No academy found. The name will be saved as entered.</Text>; })() : !matchOpponent.trim() ? <Text style={styles.matchFieldHint}>Choose a MYPitch academy from the suggestions, or enter any opponent.</Text> : null}
                   </View>
@@ -881,7 +881,7 @@ export default function WebAcademyDashboard({
                       <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={styles.matchRosterList}>{roster.map((r) => <Pressable key={r.member_id} onPress={() => setMatchSelected((s) => { const n = new Set(s); n.has(r.member_id) ? n.delete(r.member_id) : n.add(r.member_id); return n; })} style={[styles.matchParticipantRow, matchSelected.has(r.member_id) && styles.recipientRowActive]}><View style={[styles.checkbox, matchSelected.has(r.member_id) && styles.checkboxActive]}>{matchSelected.has(r.member_id) ? <Ionicons name="checkmark" size={12} color={colors.blackText} /> : null}</View><View style={styles.matchParticipantAvatar}>{r.member?.avatar_url ? <Image source={{ uri: r.member.avatar_url }} style={styles.matchParticipantImage} /> : <Text style={styles.matchParticipantInitial}>{(r.member?.full_name || '?').slice(0, 1).toUpperCase()}</Text>}</View><Text style={styles.recipientName} numberOfLines={1}>{r.member?.full_name}</Text><Ionicons name={matchSelected.has(r.member_id) ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={matchSelected.has(r.member_id) ? colors.blueLight : colors.greyDark} /></Pressable>)}{!roster.length ? <Text style={styles.panelHint}>{kind === 'player' ? 'No registered players yet.' : 'No coaches are registered yet.'}</Text> : null}</ScrollView>
                     </View>;
                   })}</View> : <Text style={styles.panelHint}>Choose an academy to select players and coaches.</Text>}
-                  <View style={styles.matchFieldColumn}><Text style={styles.formLabel}>Match place</Text><View style={styles.matchInputIcon}><Ionicons name="location-outline" size={17} color={colors.grey} /><TextInput value={matchMapsUrl} onChangeText={setMatchMapsUrl} style={styles.matchInputText} placeholder="Paste a Google Maps share link" placeholderTextColor={colors.greyDark} autoCapitalize="none" autoCorrect={false} keyboardType="url" /></View></View>
+                  <View style={styles.matchFieldColumn}><Text style={styles.matchFormLabel}>Match place</Text><View style={styles.matchInputIcon}><Ionicons name="location-outline" size={17} color={colors.grey} /><TextInput value={matchMapsUrl} onChangeText={setMatchMapsUrl} style={styles.matchInputText} placeholder="Paste a Google Maps share link" placeholderTextColor={colors.greyDark} autoCapitalize="none" autoCorrect={false} keyboardType="url" /></View></View>
                 </View>
               </View>
               {matchError ? <Text style={styles.errorText}>{matchError}</Text> : null}
@@ -1203,6 +1203,7 @@ function makeStyles(colors: AppColors) {
     createInputs: { flexDirection: 'row', alignItems: 'center', gap: 10.8 },
     formInput: { flex: 1, minWidth: 0, height: 55.2, color: colors.white, fontSize: 16.8, fontWeight: '500', borderRadius: 9.6, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 15.6, outlineStyle: 'none' as any },
     formLabel: { color: colors.greySoft, fontSize: 14.4, fontWeight: '600', marginBottom: 8.4 },
+    matchFormLabel: { color: colors.white, fontSize: 15.6, lineHeight: 20, fontWeight: '600', marginBottom: 8.4 },
     editAcademyModal: { width: 'min(440px, 94%)' as any, maxWidth: 528, maxHeight: '90%', padding: 16.8, borderRadius: 9.6 },
     editAcademyHeader: { paddingBottom: 12, marginBottom: 13.2 },
     editModalTitle: { color: colors.white, fontSize: 15.6, lineHeight: 20.4, fontWeight: '700' },
@@ -1384,13 +1385,13 @@ function makeStyles(colors: AppColors) {
     matchColumnStacked: { width: '100%' as any, paddingHorizontal: 0, paddingVertical: 14.4 },
     matchColumnDivider: { width: 1.2, backgroundColor: colors.borderSoft },
     matchColumnDividerStacked: { width: '100%' as any, height: 1.2 },
-    matchNativeValue: { flex: 1, minWidth: 0, color: colors.white, fontSize: 16, fontWeight: '500' },
+    matchNativeValue: { flex: 1, minWidth: 0, color: colors.white, fontSize: 16.8, fontWeight: '500' },
     matchDateField: { width: '100%' },
-    matchDateControl: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#2B4050', borderRadius: 9.6, backgroundColor: colors.cardSoft, position: 'relative' },
+    matchDateControl: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, position: 'relative' },
     matchNativePickerOverlay: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', opacity: 0, zIndex: 2, cursor: 'pointer', colorScheme: 'dark' } as any,
     matchNativeField: { position: 'relative', minWidth: 0, height: 56 },
     matchNativeIcon: { position: 'absolute', left: 14, top: 18, zIndex: 1, pointerEvents: 'none' } as any,
-    matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #2B4050', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
+    matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16.8, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
     matchTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14.4 },
     matchTimeField: { flex: 1, minWidth: 0 },
     matchTimeOptionsColumn: { flex: 1, minWidth: 0, paddingTop: 0 },
