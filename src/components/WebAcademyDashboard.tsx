@@ -637,6 +637,7 @@ export default function WebAcademyDashboard({
               t={t}
               onEdit={() => beginEdit(selectedAcademy)}
               onUploadCover={chooseCoverImage}
+              style={width >= 1180 ? styles.academyPanelGrow : undefined}
             />
             <RosterPanel
               players={visiblePlayerCount}
@@ -648,6 +649,7 @@ export default function WebAcademyDashboard({
               t={t}
               onViewAll={() => goToAcademyDetails('players')}
               onOpen={(area) => goToAcademyDetails(area)}
+              style={width >= 1180 ? styles.rosterPanelGrow : undefined}
             />
             <LinksPanel
               styles={styles}
@@ -655,7 +657,6 @@ export default function WebAcademyDashboard({
               t={t}
               onParent={() => copyJoinLink('parent')}
               onCoach={() => copyJoinLink('coach')}
-              style={width >= 1180 ? styles.linksPanelFill : undefined}
             />
           </View>
 
@@ -885,7 +886,7 @@ export default function WebAcademyDashboard({
   );
 }
 
-function AcademyCard({ academy, loading, styles, colors, t, onEdit, onUploadCover }: {
+function AcademyCard({ academy, loading, styles, colors, t, onEdit, onUploadCover, style }: {
   academy: AcademyRow;
   loading: boolean;
   styles: ReturnType<typeof makeStyles>;
@@ -893,9 +894,10 @@ function AcademyCard({ academy, loading, styles, colors, t, onEdit, onUploadCove
   t: (key: string, params?: Record<string, string | number>) => string;
   onEdit: () => void;
   onUploadCover: (image: PickedAvatarImage) => void;
+  style?: any;
 }) {
   return (
-    <View style={styles.academyPanel}>
+    <View style={[styles.academyPanel, style]}>
       <View style={styles.coverWrap}>
         {academy.cover_url ? <ImageBackground source={{ uri: academy.cover_url }} style={styles.coverImage} resizeMode="cover" /> : (
           <View style={[styles.coverImage, styles.coverFallback]}>
@@ -989,10 +991,10 @@ function AcademiesList({ academies, counts, styles, colors, t, onManage }: {
   );
 }
 
-function RosterPanel({ players, parents, coaches, teams, styles, colors, t, onViewAll, onOpen }: {
+function RosterPanel({ players, parents, coaches, teams, styles, colors, t, onViewAll, onOpen, style }: {
   players: number; parents: number; coaches: number; teams: number | null;
   styles: ReturnType<typeof makeStyles>; colors: AppColors;
-  t: (key: string) => string; onViewAll: () => void; onOpen: (area: AcademyArea) => void;
+  t: (key: string) => string; onViewAll: () => void; onOpen: (area: AcademyArea) => void; style?: any;
 }) {
   const items = [
     { icon: 'people-outline' as const, label: t('academy.tabPlayers'), value: String(players), area: 'players' as const },
@@ -1001,7 +1003,7 @@ function RosterPanel({ players, parents, coaches, teams, styles, colors, t, onVi
     { icon: 'shield-outline' as const, label: t('academy.dashboardTeams'), value: teams == null ? '—' : String(teams), area: 'matches' as const },
   ];
   return (
-    <Panel styles={styles} colors={colors}>
+    <Panel styles={styles} colors={colors} style={style}>
       <PanelHeading styles={styles} title={t('academy.dashboardRoster')} action={t('academy.dashboardViewAll')} onAction={onViewAll} />
       <View style={styles.rosterGrid}>
         {items.map((item) => (
@@ -1016,16 +1018,16 @@ function RosterPanel({ players, parents, coaches, teams, styles, colors, t, onVi
   );
 }
 
-function LinksPanel({ styles, colors, t, onParent, onCoach, style }: {
+function LinksPanel({ styles, colors, t, onParent, onCoach }: {
   styles: ReturnType<typeof makeStyles>; colors: AppColors;
-  t: (key: string) => string; onParent: () => void; onCoach: () => void; style?: any;
+  t: (key: string) => string; onParent: () => void; onCoach: () => void;
 }) {
   const links = [
     { title: t('academy.dashboardRegisterParent'), hint: t('academy.dashboardRegisterParentHint'), icon: 'person-add-outline' as const, onPress: onParent },
     { title: t('academy.dashboardRegisterCoach'), hint: t('academy.dashboardRegisterCoachHint'), icon: 'person-add-outline' as const, onPress: onCoach },
   ];
   return (
-    <Panel styles={styles} colors={colors} style={style}>
+    <Panel styles={styles} colors={colors}>
       <Text style={styles.linkPanelTitle}>{t('academy.dashboardParentCoachLinks')}</Text>
       <View style={styles.linkDivider} />
       {links.map((item) => (
@@ -1231,7 +1233,8 @@ function makeStyles(colors: AppColors) {
     dashboardGridFill: { alignItems: 'stretch' },
     dashboardGridNarrow: { flexDirection: 'column' },
     leftColumnFill: { alignSelf: 'stretch' },
-    linksPanelFill: { marginTop: 'auto' as any },
+    academyPanelGrow: { flexGrow: 1 },
+    rosterPanelGrow: { flexGrow: 1 },
     columnFullWidth: { width: '100%' },
     leftColumn: { width: '26%', gap: 14.4 },
     middleColumn: { width: '40%', gap: 14.4 },
@@ -1255,7 +1258,7 @@ function makeStyles(colors: AppColors) {
     coverFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#152A39' },
     coverFallbackText: { color: colors.grey, fontSize: 13.2, marginTop: 6 },
     cameraButton: { position: 'absolute', top: 10, right: 10, width: 38.4, height: 38.4, alignItems: 'center', justifyContent: 'center', borderRadius: 19.2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(8,17,26,0.78)' },
-    academyCardBody: { paddingHorizontal: 16.8, paddingBottom: 13.2, paddingTop: 0 },
+    academyCardBody: { flexGrow: 1, justifyContent: 'space-between', paddingHorizontal: 16.8, paddingBottom: 13.2, paddingTop: 0 },
     academyTitleRow: { minHeight: 69.6, flexDirection: 'row', alignItems: 'center', gap: 13.2 },
     academyLogo: { width: 69.6, height: 69.6, backgroundColor: 'transparent', marginTop: -18 },
     academyLogoFallback: { alignItems: 'center', justifyContent: 'center' },
@@ -1276,7 +1279,7 @@ function makeStyles(colors: AppColors) {
     panelTitleSmall: { color: colors.white, fontSize: 14.4, fontWeight: '700' },
     panelHint: { color: colors.grey, fontSize: 13.2, marginTop: 4.8 },
     textAction: { color: colors.blueLight, fontSize: 13.2, fontWeight: '600' },
-    rosterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9.6, padding: 13.2 },
+    rosterGrid: { flexGrow: 1, alignContent: 'space-around', flexDirection: 'row', flexWrap: 'wrap', gap: 9.6, padding: 13.2 },
     rosterMetric: { width: '48%', minHeight: 51.6, flexDirection: 'row', alignItems: 'center', gap: 9.6, paddingHorizontal: 10.8, borderRadius: 8.4, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSoft },
     rosterMetricHovered: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     rosterMetricText: { flex: 1, minWidth: 0 },
