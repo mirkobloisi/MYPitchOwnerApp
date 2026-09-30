@@ -885,7 +885,7 @@ function makeStyles(colors: AppColors) {
     matchTeams: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     teamNameWrap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
     teamCrest: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderRadius: 5, backgroundColor: colors.blueSoft },
-    teamCrestImage: { width: 22, height: 22, borderRadius: 5, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
+    teamCrestImage: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
     opponentCrest: { backgroundColor: colors.orangeSoft },
     teamName: { flexShrink: 1, color: colors.white, fontSize: 11, fontWeight: '600' },
     versus: { color: colors.grey, fontSize: 9, fontWeight: '500' },
