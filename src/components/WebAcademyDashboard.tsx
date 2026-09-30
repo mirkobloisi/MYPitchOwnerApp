@@ -977,7 +977,6 @@ function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText,
         <View style={styles.emptyMatch}><View style={styles.emptyIconSmall}><Ionicons name="trophy-outline" size={18} color={colors.blueLight} /></View><Text style={styles.emptyMessage}>{emptyText}</Text>{onCreate ? <Pressable onPress={onCreate}><Text style={styles.emptyAction}>{t('academy.dashboardScheduleFirstMatch')}</Text></Pressable> : null}</View>
       ) : sessions.map((session) => {
         const parts = matchDateParts(session.starts_at);
-        const location = session.location_name || (session.pitch_id ? t('academy.dashboardPitch') : t('academy.dashboardLocationToConfirm'));
         return (
           <Pressable key={session.id} onPress={() => onSession(session)} style={({ hovered, pressed }: any) => [styles.matchRow, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
             <View style={styles.matchDateBlock}><Text style={styles.matchDay}>{parts.day}</Text><Text style={styles.matchDate}>{parts.date}</Text><Text style={styles.matchTime}>{parts.time}</Text></View>
@@ -988,7 +987,6 @@ function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText,
                 <Text style={styles.versus}>{t('academy.dashboardVs')}</Text>
                 <View style={styles.teamNameWrap}><View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View><Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
               </View>
-              <View style={styles.matchLocation}><Ionicons name="location-outline" size={14} color={colors.grey} /><Text style={styles.matchLocationText} numberOfLines={1}>{location}</Text></View>
             </View>
             {showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>}
             <Ionicons name="chevron-forward" size={17} color={colors.grey} />
@@ -1217,7 +1215,7 @@ function makeStyles(colors: AppColors) {
     matchDate: { color: colors.white, fontSize: 12, lineHeight: 15, fontWeight: '700' },
     matchTime: { color: colors.grey, fontSize: 10 },
     matchDivider: { width: 1, height: 52, backgroundColor: colors.border, marginRight: 1 },
-    matchMain: { flex: 1, minWidth: 0, gap: 5 },
+    matchMain: { flex: 1, minWidth: 0 },
     matchTeams: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     teamNameWrap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
     teamCrest: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderRadius: 5, backgroundColor: colors.blueSoft },
@@ -1225,8 +1223,6 @@ function makeStyles(colors: AppColors) {
     opponentCrest: { backgroundColor: colors.orangeSoft },
     teamName: { flexShrink: 1, color: colors.white, fontSize: 11, fontWeight: '600' },
     versus: { color: colors.grey, fontSize: 9, fontWeight: '500' },
-    matchLocation: { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 28 },
-    matchLocationText: { flex: 1, color: colors.grey, fontSize: 10 },
     matchStatus: { minWidth: 49, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: colors.borderBlue, backgroundColor: colors.blueSoft, alignItems: 'center' },
     matchStatusText: { color: colors.blueLight, fontSize: 9, fontWeight: '600' },
     completedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 5, backgroundColor: colors.greenSoft },
