@@ -47,11 +47,11 @@ export default function AppHeader({
 
   return (
     <View>
-      <View style={styles.header}>
+      <View style={[styles.header, isDesktop && !showBack && styles.desktopTabHeader]}>
         {showBack ? (
           <AnimatedPressable
             pressedScale={0.9}
-            style={styles.headerSide}
+            style={[styles.headerSide, isDesktop && !showBack && styles.desktopTabHeaderSide]}
             onPress={handleBack}
           >
             <View style={styles.backButton}>
@@ -59,14 +59,14 @@ export default function AppHeader({
             </View>
           </AnimatedPressable>
         ) : (
-          <View style={styles.headerSide} />
+          <View style={[styles.headerSide, isDesktop && !showBack && styles.desktopTabHeaderSide]} />
         )}
 
         <Text numberOfLines={1} style={[styles.headerTitle, isDesktop && !showBack && styles.desktopTabTitle]}>
           {title}
         </Text>
 
-        <View style={styles.headerSide}>
+        <View style={[styles.headerSide, isDesktop && !showBack && styles.desktopTabHeaderSide]}>
           {showNotificationBell ? (
             <Pressable
               style={[styles.notificationButton, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -81,7 +81,7 @@ export default function AppHeader({
         </View>
       </View>
 
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      {subtitle ? <Text style={[styles.subtitle, isDesktop && !showBack && styles.desktopTabSubtitle]}>{subtitle}</Text> : null}
     </View>
   );
 }
@@ -138,10 +138,21 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
   },
+  desktopTabHeader: { marginTop: 0 },
+  desktopTabHeaderSide: { width: 0, height: 0 },
   desktopTabTitle: {
     fontSize: 32.4,
     lineHeight: 39.6,
     fontWeight: '700',
+    textAlign: 'left',
+  },
+  desktopTabSubtitle: {
+    color: colors.grey,
+    fontSize: 12,
+    fontWeight: '400',
+    textAlign: 'left',
+    marginTop: 3,
+    marginBottom: 12,
   },
   subtitle: {
     color: colors.grey,
