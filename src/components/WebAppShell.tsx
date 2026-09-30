@@ -22,9 +22,9 @@ type IconName = keyof typeof Ionicons.glyphMap;
 
 const NAV_ITEMS: { name: string; href: string; labelKey: string; icon: IconName }[] = [
   { name: 'agenda', href: '/agenda', labelKey: 'nav.agenda', icon: 'calendar-outline' },
-  { name: 'availability', href: '/availability', labelKey: 'nav.availability', icon: 'time-outline' },
   { name: 'pitches', href: '/pitches', labelKey: 'nav.pitches', icon: 'football-outline' },
   { name: 'academy', href: '/academy', labelKey: 'nav.academy', icon: 'school-outline' },
+  { name: 'availability', href: '/availability', labelKey: 'nav.availability', icon: 'time-outline' },
   { name: 'stats', href: '/stats', labelKey: 'nav.stats', icon: 'bar-chart-outline' },
   { name: 'transactions', href: '/transactions', labelKey: 'nav.transactions', icon: 'card-outline' },
   { name: 'profile', href: '/profile', labelKey: 'nav.profile', icon: 'person-circle-outline' },
