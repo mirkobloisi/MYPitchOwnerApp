@@ -334,7 +334,7 @@ export default function WebAcademyDashboard({
   }
 
   return (
-    <Screen scroll={!(Platform.OS === 'web' && width >= 1180)} maxWidth={WIDE_CONTENT_MAX_WIDTH} contentStyle={styles.screenContent}>
+    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} contentStyle={styles.screenContent}>
       <View style={[styles.topHeader, width < 1280 && styles.topHeaderCompact]}>
         <Text style={styles.pageTitle}>{t('academy.title')}</Text>
         <View style={styles.headerPickerWrap}>
@@ -801,7 +801,7 @@ function PanelHeading({ styles, title, action, onAction }: { styles: ReturnType<
 
 function makeStyles(colors: AppColors) {
   return StyleSheet.create({
-    screenContent: { paddingHorizontal: 21, paddingTop: 0, paddingBottom: 0, maxWidth: 1800, alignSelf: 'stretch' },
+    screenContent: { paddingHorizontal: 21, paddingTop: 0, paddingBottom: 24, maxWidth: 1800, alignSelf: 'stretch' },
     topHeader: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 0 },
     topHeaderCompact: { minHeight: 0, flexWrap: 'wrap', justifyContent: 'flex-start', paddingVertical: 10, gap: 8 },
     pageTitle: { color: colors.white, fontSize: 27, lineHeight: 33, fontWeight: '700', marginRight: 8 },
