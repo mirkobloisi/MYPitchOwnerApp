@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -138,6 +139,7 @@ export default function WebAcademyDashboard({
   const { t } = useTranslation();
   const { unread, messagesVersion, enrolmentsVersion } = useAcademyRealtime();
   const { width } = useBreakpoint();
+  const { height: viewportHeight } = useWindowDimensions();
   const { colors: appColors } = useAppTheme();
   const colors = Platform.OS === 'web' ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -625,7 +627,7 @@ export default function WebAcademyDashboard({
           <Pressable style={styles.primaryButton} onPress={createForm.onStartCreate}><Ionicons name="add" size={18} color={colors.blackText} /><Text style={styles.primaryButtonText}>{t('academy.createAction')}</Text></Pressable>
         </View>
       ) : selectedAcademy ? (
-          <View style={[styles.dashboardGrid, width < 1180 && styles.dashboardGridNarrow, width >= 1180 && styles.dashboardGridFill]}>
+          <View style={[styles.dashboardGrid, width < 1180 && styles.dashboardGridNarrow, width >= 1180 && { ...styles.dashboardGridFill, minHeight: Math.max(420, viewportHeight - 144) }]}>
           <View style={[styles.leftColumn, width < 1180 && styles.columnFullWidth, width >= 1180 && styles.leftColumnFill]}>
             <AcademyCard
               academy={selectedAcademy}
@@ -1226,7 +1228,7 @@ function makeStyles(colors: AppColors) {
     sectionTabLabel: { color: colors.grey, fontSize: 14.4, fontWeight: '500' },
     sectionTabLabelActive: { color: colors.white, fontWeight: '600' },
     dashboardGrid: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: 14.4 },
-    dashboardGridFill: { minHeight: 'calc(100vh - 144px)' as any, alignItems: 'stretch' },
+    dashboardGridFill: { alignItems: 'stretch' },
     dashboardGridNarrow: { flexDirection: 'column' },
     leftColumnFill: { alignSelf: 'stretch' },
     linksPanelFill: { flexGrow: 1 },
