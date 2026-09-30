@@ -1423,7 +1423,7 @@ function makeStyles(colors: AppColors) {
     matchNativeValue: { flex: 1, minWidth: 0, color: colors.white, fontSize: 16.8, fontWeight: '500' },
     matchDateField: { width: '100%' },
     matchDateControl: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, position: 'relative' },
-    matchNativePickerOverlay: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', opacity: 0, zIndex: 2, cursor: 'pointer', colorScheme: 'dark' } as any,
+    matchNativePickerOverlay: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', opacity: 0, zIndex: 2, cursor: 'pointer', colorScheme: 'dark' } as any,
     matchNativeField: { position: 'relative', minWidth: 0, height: 56 },
     matchNativeIcon: { position: 'absolute', left: 14, top: 18, zIndex: 1, pointerEvents: 'none' } as any,
     matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16.8, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
