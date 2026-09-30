@@ -784,21 +784,20 @@ export default function WebAcademyDashboard({
       <Modal transparent visible={showMatch} animationType="fade" onRequestClose={() => setShowMatch(false)}>
         <View style={styles.modalBackdrop}><Pressable style={StyleSheet.absoluteFill} onPress={() => setShowMatch(false)} />
           <View style={[styles.composeModal, styles.matchModal]}>
-            <View style={styles.composeHeader}><View><Text style={styles.panelTitle}>{t('academy.dashboardCreateMatch')}</Text><Text style={styles.panelHint}>Schedule a match and invite your squad</Text></View><Pressable onPress={() => setShowMatch(false)} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable></View>
+            <View style={[styles.composeHeader, styles.matchDialogHeader]}><View><Text style={styles.matchDialogTitle}>{t('academy.dashboardCreateMatch')}</Text><Text style={styles.matchDialogSubtitle}>Schedule a match and invite your squad</Text></View><Pressable onPress={() => setShowMatch(false)} style={styles.matchDialogClose}><Ionicons name="close" size={26} color={colors.grey} /></Pressable></View>
             <ScrollView showsVerticalScrollIndicator={false} style={styles.matchFormScroll} contentContainerStyle={styles.matchFormContent}>
               <View style={[styles.matchLayout, width < 1000 && styles.matchLayoutStacked]}>
                 <View style={[styles.matchLeftColumn, width < 1000 && styles.matchColumnStacked]}>
                   <View style={styles.matchDateTimeRow}>
                     <View style={[styles.matchFieldColumn, styles.matchDateColumn]}>
                       <Text style={styles.formLabel}>Match date</Text>
-                      <Pressable onPress={() => setShowMatchCalendar(true)} style={styles.matchSelectButton}>
+                      <Pressable onPress={() => setShowMatchCalendar(true)} style={[styles.matchSelectButton, styles.matchDateSelectButton]}>
                         <Ionicons name="calendar-outline" size={18} color={colors.blueLight} />
-                        <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{new Date(`${matchDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text><Text style={styles.matchSelectHint}>Choose the match day</Text></View>
+                        <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{new Date(`${matchDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text></View>
                         <Ionicons name="chevron-down" size={16} color={colors.grey} />
                       </Pressable>
                     </View>
                     <View style={[styles.matchFieldColumn, styles.matchTimeOptionsColumn]}>
-                      <Text style={styles.formLabel}>Kick-off and end time</Text>
                       <StartEndTimePicker startLabel="Kick-off" endLabel="End time" startMinutes={matchStartMinutes} endMinutes={matchEndMinutes} startOptions={matchStartOptions} endOptions={matchEndOptions} onChangeStart={(minutes) => { setMatchStartMinutes(minutes); setMatchEndMinutes(null); }} onChangeEnd={setMatchEndMinutes} startPlaceholder="Select time" endPlaceholder="Select time" pickStartTitle="Choose kick-off time" pickEndTitle="Choose end time" emptyText="Choose a kick-off time first." />
                     </View>
                   </View>
@@ -1352,6 +1351,10 @@ function makeStyles(colors: AppColors) {
     modalBackdrop: { ...StyleSheet.absoluteFill, zIndex: 80, elevation: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,10,15,0.78)' },
     composeModal: { width: 'min(480px, 92%)' as any, maxHeight: '85%', borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 21.6, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 14.4 } },
     composeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16.8, borderBottomWidth: 1, borderColor: colors.borderSoft, marginBottom: 16.8 },
+    matchDialogHeader: { paddingBottom: 20, marginBottom: 18 },
+    matchDialogTitle: { color: colors.white, fontSize: 36, lineHeight: 43, fontWeight: '700' },
+    matchDialogSubtitle: { color: colors.grey, fontSize: 18, lineHeight: 24, marginTop: 4 },
+    matchDialogClose: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
     recipientRow: { minHeight: 46.8, flexDirection: 'row', alignItems: 'center', gap: 10.8, paddingHorizontal: 9.6, borderRadius: 7.2 },
     recipientRowActive: { backgroundColor: colors.blueSoft },
     selectedChoice: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
@@ -1371,11 +1374,12 @@ function makeStyles(colors: AppColors) {
     matchColumnStacked: { width: '100%' as any, paddingHorizontal: 0, paddingVertical: 14.4 },
     matchColumnDivider: { width: 1.2, backgroundColor: colors.borderSoft },
     matchColumnDividerStacked: { width: '100%' as any, height: 1.2 },
-    matchDateTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14.4 },
+    matchDateTimeRow: { flexDirection: 'column', alignItems: 'stretch', gap: 16.8 },
     matchFieldRow: { flexDirection: 'row', gap: 14.4 },
     matchFieldColumn: { flex: 1, minWidth: 0 },
-    matchDateColumn: { flex: 0, width: '42%' as any },
-    matchTimeOptionsColumn: { flex: 1, minWidth: 0, paddingTop: 1.2 },
+    matchDateColumn: { flex: 0, width: '100%' as any },
+    matchDateSelectButton: { minHeight: 56, height: 56 },
+    matchTimeOptionsColumn: { flex: 1, minWidth: 0, paddingTop: 0 },
     matchInputIcon: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 9.6, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 15.6 },
     matchInputText: { flex: 1, minWidth: 0, height: 57.6, color: colors.white, fontSize: 16.8, fontWeight: '500', outlineStyle: 'none' as any },
     matchSelectButton: { minHeight: 76.8, flexDirection: 'row', alignItems: 'center', gap: 13.2, borderRadius: 9.6, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 14.4 },
