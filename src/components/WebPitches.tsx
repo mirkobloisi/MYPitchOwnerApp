@@ -154,7 +154,7 @@ function DesktopPitchRow({ pitch, selected, onPress, onManageSettings }: { pitch
     <View style={[styles.desktopPitchCell, styles.desktopColPitch]}><View style={styles.desktopRowPhoto}><PitchPhoto uri={pitch.image_urls?.[0]} label={pitch.name} /></View><View style={styles.desktopPitchName}><Text style={styles.desktopCellStrong} numberOfLines={1}>{pitch.name}</Text><Text style={styles.desktopCellMuted}><Ionicons name="location" size={14} color={colors.blueLight} /> {pitch.city || pitch.area}</Text></View></View>
     <View style={styles.desktopColFormat}><Text style={styles.desktopCellStrong}>{pitch.format}</Text></View><View style={styles.desktopColType}><Text style={styles.desktopCellMuted} numberOfLines={2}>{pitch.pitch_type || 'Outdoor'}</Text></View><View style={styles.desktopColPrice}><Text style={styles.desktopCellStrong}>€{Number(pitch.price_per_hour).toFixed(0)}</Text></View><View style={styles.desktopColDuration}><Text style={styles.desktopCellMuted}>{durations.map((minutes) => `${minutes} min`).join(' / ')}</Text></View>
     <View style={styles.desktopColStatus}><PitchStatus status={pitch.status} /><Text style={styles.desktopCellMuted}>{pitch.id === activePitch?.id ? 'Selected in Agenda' : 'Not in Agenda'}</Text></View>
-    <View style={[styles.desktopRowActions, styles.desktopColActions]}><Pressable style={styles.desktopOutlineButton} onPress={onManageSettings}><Ionicons name="settings-outline" size={15} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.manageBookingSettings')}</Text></Pressable><Pressable style={styles.desktopPrimaryButton} onPress={() => setActivePitchId(pitch.id)}><Ionicons name="calendar-outline" size={15} color={colors.blackText} /><Text style={styles.desktopPrimaryText}>Use in Agenda</Text></Pressable></View>
+    <View style={[styles.desktopRowActions, styles.desktopColActions]}><Pressable style={styles.desktopOutlineButton} onPress={onManageSettings}><Ionicons name="settings-outline" size={15} color={colors.blueLight} /><Text style={styles.desktopButtonText} numberOfLines={1}>{t('pitches.manageBookingSettings')}</Text></Pressable><Pressable style={styles.desktopPrimaryButton} onPress={() => setActivePitchId(pitch.id)}><Ionicons name="calendar-outline" size={15} color={colors.blackText} /><Text style={styles.desktopPrimaryText} numberOfLines={1}>Use in Agenda</Text></Pressable></View>
   </Pressable>;
 }
 
@@ -294,13 +294,13 @@ const styles = StyleSheet.create({
   desktopTableHeader: { flexDirection: 'row', alignItems: 'center', minHeight: 50, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.backgroundSoft },
   desktopPitchRows: { flexGrow: 1, minHeight: 0, maxHeight: 414 },
   desktopColumnLabel: { color: colors.grey, fontSize: 12, fontWeight: '600', textTransform: 'uppercase' },
-  desktopColPitch: { flex: 2.1, minWidth: 0 },
-  desktopColFormat: { flex: 0.7, minWidth: 50 },
-  desktopColType: { flex: 1, minWidth: 65 },
-  desktopColPrice: { flex: 0.8, minWidth: 60 },
-  desktopColDuration: { flex: 0.9, minWidth: 68 },
-  desktopColStatus: { flex: 1.2, minWidth: 110 },
-  desktopColActions: { flex: 2.6, minWidth: 300 },
+  desktopColPitch: { flex: 1.8, minWidth: 0 },
+  desktopColFormat: { flex: 0.6, minWidth: 50 },
+  desktopColType: { flex: 0.85, minWidth: 65 },
+  desktopColPrice: { flex: 0.7, minWidth: 60 },
+  desktopColDuration: { flex: 0.75, minWidth: 68 },
+  desktopColStatus: { flex: 1.25, minWidth: 130 },
+  desktopColActions: { flex: 3.2, minWidth: 390 },
   desktopPitchRow: { flexDirection: 'row', alignItems: 'center', minHeight: 108, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 12 },
   desktopPitchRowSelected: { backgroundColor: colors.blueSoft, borderLeftWidth: 3, borderLeftColor: colors.blueLight },
   desktopPitchCell: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -308,9 +308,9 @@ const styles = StyleSheet.create({
   desktopPitchName: { flex: 1, minWidth: 0, gap: 7 },
   desktopCellStrong: { color: colors.white, fontSize: 16, fontWeight: '600' },
   desktopCellMuted: { color: colors.grey, fontSize: 15, lineHeight: 22, flex: 1 },
-  desktopRowActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 9 },
-  desktopOutlineButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: colors.borderBlue, borderRadius: 7 },
-  desktopPrimaryButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 7, backgroundColor: colors.blueLight },
+  desktopRowActions: { flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'flex-end', gap: 9 },
+  desktopOutlineButton: { minHeight: 40, flexDirection: 'row', flexShrink: 0, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: colors.borderBlue, borderRadius: 7 },
+  desktopPrimaryButton: { minHeight: 40, flexDirection: 'row', flexShrink: 0, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 7, backgroundColor: colors.blueLight },
   desktopButtonText: { color: colors.blueLight, fontSize: 14, fontWeight: '600' },
   desktopPrimaryText: { color: colors.blackText, fontSize: 14, fontWeight: '600' },
   desktopDetailCard: { flexGrow: 1, flexShrink: 0, minHeight: 382, flexDirection: 'column', justifyContent: 'space-between', padding: 22, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft },
