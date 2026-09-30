@@ -334,7 +334,7 @@ export default function WebAcademyDashboard({
   }
 
   return (
-    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} contentStyle={styles.screenContent}>
+    <Screen scroll={!(Platform.OS === 'web' && width >= 1180)} maxWidth={WIDE_CONTENT_MAX_WIDTH} contentStyle={styles.screenContent}>
       <View style={[styles.topHeader, width < 1280 && styles.topHeaderCompact]}>
         <Text style={styles.pageTitle}>{t('academy.title')}</Text>
         <View style={styles.headerPickerWrap}>
@@ -482,10 +482,8 @@ export default function WebAcademyDashboard({
               styles={styles}
               colors={colors}
               t={t}
-              onPlayer={() => goToAcademyDetails('players')}
               onParent={() => goToAcademyDetails('parents')}
               onCoach={() => goToAcademyDetails('coaches')}
-              onInfo={() => goToAcademyDetails()}
             />
           </View>
 
@@ -657,15 +655,13 @@ function RosterPanel({ players, parents, coaches, teams, styles, colors, t, onVi
   );
 }
 
-function LinksPanel({ styles, colors, t, onPlayer, onParent, onCoach, onInfo }: {
+function LinksPanel({ styles, colors, t, onParent, onCoach }: {
   styles: ReturnType<typeof makeStyles>; colors: AppColors;
-  t: (key: string) => string; onPlayer: () => void; onParent: () => void; onCoach: () => void; onInfo: () => void;
+  t: (key: string) => string; onParent: () => void; onCoach: () => void;
 }) {
   const links = [
-    { title: t('academy.dashboardRegisterPlayer'), hint: t('academy.dashboardRegisterPlayerHint'), icon: 'add-circle-outline' as const, onPress: onPlayer },
-    { title: t('academy.dashboardInviteParent'), hint: t('academy.dashboardInviteParentHint'), icon: 'person-add-outline' as const, onPress: onParent },
-    { title: t('academy.dashboardPlayerDocuments'), hint: t('academy.dashboardDocumentsHint'), icon: 'document-text-outline' as const, onPress: onCoach },
-    { title: t('academy.dashboardAcademyInformation'), hint: t('academy.dashboardInformationHint'), icon: 'information-circle-outline' as const, onPress: onInfo },
+    { title: t('academy.dashboardRegisterParent'), hint: t('academy.dashboardRegisterParentHint'), icon: 'person-add-outline' as const, onPress: onParent },
+    { title: t('academy.dashboardRegisterCoach'), hint: t('academy.dashboardRegisterCoachHint'), icon: 'person-add-outline' as const, onPress: onCoach },
   ];
   return (
     <Panel styles={styles} colors={colors}>
@@ -805,8 +801,8 @@ function PanelHeading({ styles, title, action, onAction }: { styles: ReturnType<
 
 function makeStyles(colors: AppColors) {
   return StyleSheet.create({
-    screenContent: { paddingHorizontal: 21, paddingTop: 0, paddingBottom: 24, maxWidth: 1800, alignSelf: 'stretch' },
-    topHeader: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 0 },
+    screenContent: { paddingHorizontal: 21, paddingTop: 0, paddingBottom: 0, maxWidth: 1800, alignSelf: 'stretch' },
+    topHeader: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 0 },
     topHeaderCompact: { minHeight: 0, flexWrap: 'wrap', justifyContent: 'flex-start', paddingVertical: 10, gap: 8 },
     pageTitle: { color: colors.white, fontSize: 27, lineHeight: 33, fontWeight: '700', marginRight: 8 },
     headerPickerWrap: { position: 'relative', zIndex: 30 },
@@ -847,55 +843,55 @@ function makeStyles(colors: AppColors) {
     disabledButton: { opacity: 0.5 },
     outlineButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
     outlineButtonText: { color: colors.greySoft, fontSize: 11, fontWeight: '600' },
-    sectionNav: { minHeight: 53, flexDirection: 'row', alignItems: 'stretch', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 21 },
+    sectionNav: { minHeight: 44, flexDirection: 'row', alignItems: 'stretch', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 12 },
     sectionTab: { minWidth: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
     sectionTabActive: { borderBottomColor: colors.blueLight },
     sectionTabHovered: { backgroundColor: colors.surfaceMuted },
     sectionTabLabel: { color: colors.grey, fontSize: 12, fontWeight: '500' },
     sectionTabLabelActive: { color: colors.white, fontWeight: '600' },
-    dashboardGrid: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+    dashboardGrid: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     dashboardGridNarrow: { flexDirection: 'column' },
     columnFullWidth: { width: '100%' },
-    leftColumn: { width: '26%', gap: 17 },
-    middleColumn: { width: '40%', gap: 17 },
-    rightColumn: { width: '32%', gap: 17 },
+    leftColumn: { width: '26%', gap: 12 },
+    middleColumn: { width: '40%', gap: 12 },
+    rightColumn: { width: '32%', gap: 12 },
     panel: { borderRadius: 8, borderWidth: 1, backgroundColor: colors.card, overflow: 'hidden' },
     academyPanel: { borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
-    coverWrap: { height: 130, position: 'relative', overflow: 'hidden', backgroundColor: colors.cardSoft },
-    coverImage: { width: '100%', height: 130 },
+    coverWrap: { height: 98, position: 'relative', overflow: 'hidden', backgroundColor: colors.cardSoft },
+    coverImage: { width: '100%', height: 98 },
     coverFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#152A39' },
     coverFallbackText: { color: colors.grey, fontSize: 11, marginTop: 5 },
     cameraButton: { position: 'absolute', top: 10, right: 10, width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(8,17,26,0.78)' },
     academyCardBody: { paddingHorizontal: 14, paddingBottom: 11, paddingTop: 0 },
-    academyTitleRow: { minHeight: 65, flexDirection: 'row', alignItems: 'center', gap: 11 },
-    academyLogo: { width: 54, height: 54, borderRadius: 9, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, marginTop: -18 },
+    academyTitleRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 11 },
+    academyLogo: { width: 54, height: 54, borderRadius: 27, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, marginTop: -18 },
     academyLogoFallback: { alignItems: 'center', justifyContent: 'center' },
     academyTitleBlock: { flex: 1, minWidth: 0, paddingTop: 3 },
     academyNameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     academyName: { flexShrink: 1, color: colors.white, fontSize: 16, lineHeight: 21, fontWeight: '700' },
     pausedBadge: { color: colors.orange, fontSize: 9, fontWeight: '700' },
     academyDescription: { color: colors.grey, fontSize: 10, lineHeight: 14, marginTop: 3 },
-    academyMetaRow: { minHeight: 25, flexDirection: 'row', alignItems: 'center', gap: 8 },
+    academyMetaRow: { minHeight: 22, flexDirection: 'row', alignItems: 'center', gap: 8 },
     academyMetaText: { flex: 1, color: colors.greySoft, fontSize: 11 },
-    academyFooter: { minHeight: 38, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 9, marginTop: 4 },
+    academyFooter: { minHeight: 34, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 9, marginTop: 3 },
     sportTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
     sportTagText: { color: colors.greySoft, fontSize: 10, fontWeight: '600' },
     editAcademyButton: { minHeight: 31, paddingHorizontal: 9 },
-    panelHeading: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    panelHeading: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, paddingHorizontal: 14, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     panelHeadingActions: { flexDirection: 'row', alignItems: 'center', gap: 13 },
     panelTitle: { color: colors.white, fontSize: 14, lineHeight: 19, fontWeight: '700' },
     panelTitleSmall: { color: colors.white, fontSize: 12, fontWeight: '700' },
     panelHint: { color: colors.grey, fontSize: 11, marginTop: 4 },
     textAction: { color: colors.blueLight, fontSize: 11, fontWeight: '600' },
     rosterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 11 },
-    rosterMetric: { width: '48%', minHeight: 51, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 9, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSoft },
+    rosterMetric: { width: '48%', minHeight: 43, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 9, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSoft },
     rosterMetricHovered: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     rosterMetricText: { flex: 1, minWidth: 0 },
     rosterValue: { color: colors.white, fontSize: 14, lineHeight: 17, fontWeight: '700' },
     rosterLabel: { color: colors.greySoft, fontSize: 10, marginTop: 1 },
     linkDivider: { height: 1, backgroundColor: colors.borderSoft, marginHorizontal: 14, marginTop: 2 },
-    linkPanelTitle: { color: colors.white, fontSize: 14, lineHeight: 19, fontWeight: '700', paddingHorizontal: 14, paddingTop: 13, paddingBottom: 5 },
-    linkAction: { minHeight: 57, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 13, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    linkPanelTitle: { color: colors.white, fontSize: 14, lineHeight: 19, fontWeight: '700', paddingHorizontal: 14, paddingTop: 9, paddingBottom: 4 },
+    linkAction: { minHeight: 49, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 13, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     linkActionHovered: { backgroundColor: colors.surfaceMuted },
     linkIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
     linkTextBlock: { flex: 1, minWidth: 0 },
@@ -903,15 +899,15 @@ function makeStyles(colors: AppColors) {
     linkHint: { color: colors.grey, fontSize: 10, marginTop: 2 },
     smallPrimaryButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 11, borderRadius: 6, borderWidth: 1, borderColor: '#61BAFB', backgroundColor: colors.blueLight },
     smallPrimaryText: { color: colors.blackText, fontSize: 10, fontWeight: '700' },
-    matchPanel: { minHeight: 250 },
-    matchRow: { minHeight: 108, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    matchPanel: { minHeight: 0 },
+    matchRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     matchRowHovered: { backgroundColor: colors.surfaceMuted },
     matchDateBlock: { width: 58, alignItems: 'flex-start', gap: 2 },
     matchDay: { color: colors.grey, fontSize: 9, fontWeight: '600' },
     matchDate: { color: colors.white, fontSize: 12, lineHeight: 15, fontWeight: '700' },
     matchTime: { color: colors.grey, fontSize: 10 },
     matchDivider: { width: 1, height: 52, backgroundColor: colors.border, marginRight: 1 },
-    matchMain: { flex: 1, minWidth: 0, gap: 9 },
+    matchMain: { flex: 1, minWidth: 0, gap: 5 },
     matchTeams: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     teamNameWrap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
     teamCrest: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderRadius: 5, backgroundColor: colors.blueSoft },
@@ -929,15 +925,15 @@ function makeStyles(colors: AppColors) {
     emptyMessage: { color: colors.grey, textAlign: 'center', fontSize: 11, lineHeight: 16 },
     emptyAction: { color: colors.blueLight, fontSize: 11, fontWeight: '600' },
     panelLoading: { paddingVertical: 30 },
-    communicationPanel: { minHeight: 400 },
-    audienceArea: { paddingHorizontal: 14, paddingTop: 11, paddingBottom: 10 },
+    communicationPanel: { minHeight: 0 },
+    audienceArea: { paddingHorizontal: 14, paddingTop: 7, paddingBottom: 6 },
     audienceRow: { flexDirection: 'row', gap: 9 },
-    audienceChip: { flex: 1, minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 8, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSoft },
+    audienceChip: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 8, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSoft },
     audienceChipSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     audienceTitle: { color: colors.white, fontSize: 10, fontWeight: '600' },
     audienceCount: { color: colors.grey, fontSize: 9, marginTop: 3 },
-    activityHeader: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.borderSoft },
-    activityRow: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    activityHeader: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.borderSoft },
+    activityRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     activityIcon: { width: 34, height: 34, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
     activityText: { flex: 1, minWidth: 0, gap: 3 },
     activityTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5 },
@@ -946,10 +942,10 @@ function makeStyles(colors: AppColors) {
     activityMeta: { color: colors.grey, fontSize: 9 },
     activityBody: { color: colors.greySoft, fontSize: 9, lineHeight: 13 },
     unreadDotSmall: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.blueLight },
-    emptyActivity: { minHeight: 115, justifyContent: 'center', alignItems: 'center', gap: 8 },
-    coachesPanel: { minHeight: 150 },
-    dutyRange: { color: colors.grey, fontSize: 10, marginHorizontal: 14, marginTop: 11, marginBottom: 6 },
-    coachEmpty: { minHeight: 65, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 },
+    emptyActivity: { minHeight: 80, justifyContent: 'center', alignItems: 'center', gap: 8 },
+    coachesPanel: { minHeight: 0 },
+    dutyRange: { color: colors.grey, fontSize: 10, marginHorizontal: 14, marginTop: 7, marginBottom: 4 },
+    coachEmpty: { minHeight: 48, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 },
     emptyDashboard: { minHeight: 330, justifyContent: 'center', alignItems: 'center', gap: 12 },
     emptyIcon: { width: 54, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 27, backgroundColor: colors.blueSoft },
     modalBackdrop: { ...StyleSheet.absoluteFill, zIndex: 80, elevation: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,10,15,0.78)' },
