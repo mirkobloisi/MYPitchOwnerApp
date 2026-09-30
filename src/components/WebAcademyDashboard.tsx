@@ -789,65 +789,63 @@ export default function WebAcademyDashboard({
             <ScrollView showsVerticalScrollIndicator={false} style={styles.matchFormScroll} contentContainerStyle={styles.matchFormContent}>
               <View style={[styles.matchLayout, width < 1000 && styles.matchLayoutStacked]}>
                 <View style={[styles.matchLeftColumn, width < 1000 && styles.matchColumnStacked]}>
-                  <View style={styles.matchDateTimeRow}>
-                    <View style={[styles.matchFieldColumn, styles.matchDateColumn]}>
-                      <Text style={styles.formLabel}>Match date</Text>
+                  <View style={styles.matchDateField}>
+                    <Text style={styles.formLabel}>Match date</Text>
+                    <View style={styles.matchDateControl}>
+                      <Ionicons name="calendar-outline" size={18} color={colors.blueLight} />
+                      <Text style={styles.matchNativeValue}>{new Date(matchDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                      <Ionicons name="chevron-down" size={16} color={colors.grey} />
+                      <MatchDateInput
+                        type="date"
+                        value={matchDate}
+                        min={localDateIso(new Date())}
+                        onChange={(event: any) => {
+                          const date = event.target.value;
+                          if (!date) return;
+                          setMatchDate(date);
+                          const day = new Date(date + 'T00:00:00');
+                          const available = Array.from({ length: 48 }, (_, index) => index * 30).filter((minutes) =>
+                            new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(minutes / 60), minutes % 60).getTime() >= Date.now()
+                          );
+                          const startTime = available.includes(17 * 60) ? 17 * 60 : available[0] ?? null;
+                          setMatchStartMinutes(startTime);
+                          setMatchEndMinutes(startTime !== null && startTime + 90 <= 1440 ? startTime + 90 : null);
+                        }}
+                        style={styles.matchNativePickerOverlay}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.matchTimeRow}>
+                    <View style={styles.matchTimeField}>
+                      <Text style={styles.formLabel}>Kick-off</Text>
                       <View style={styles.matchNativeField}>
-                        <Ionicons name="calendar-outline" size={18} color={colors.blueLight} style={styles.matchNativeIcon} />
-                        <MatchDateInput
-                          type="date"
-                          value={matchDate}
-                          min={localDateIso(new Date())}
+                        <Ionicons name="time-outline" size={20} color={colors.blueLight} style={styles.matchNativeIcon} />
+                        <MatchTimeSelect
+                          value={matchStartMinutes === null ? '' : String(matchStartMinutes)}
                           onChange={(event: any) => {
-                            const date = event.target.value;
-                            if (!date) return;
-                            setMatchDate(date);
-                            const day = new Date(date + 'T00:00:00');
-                            const available = Array.from({ length: 48 }, (_, index) => index * 30).filter((minutes) =>
-                              new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(minutes / 60), minutes % 60).getTime() >= Date.now()
-                            );
-                            const startTime = available.includes(17 * 60) ? 17 * 60 : available[0] ?? null;
-                            setMatchStartMinutes(startTime);
-                            setMatchEndMinutes(startTime !== null && startTime + 90 <= 1440 ? startTime + 90 : null);
+                            const minutes = Number(event.target.value);
+                            setMatchStartMinutes(Number.isFinite(minutes) ? minutes : null);
+                            setMatchEndMinutes(null);
                           }}
-                          style={styles.matchNativeInput}
-                        />
+                          style={styles.matchNativeInputWithIcon}
+                        >
+                          <MatchTimeOption value="">Select time</MatchTimeOption>
+                          {matchStartOptions.map((minutes) => <MatchTimeOption key={minutes} value={String(minutes)}>{String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0')}</MatchTimeOption>)}
+                        </MatchTimeSelect>
                       </View>
                     </View>
-                    <View style={[styles.matchFieldColumn, styles.matchTimeOptionsColumn]}>
-                      <View style={styles.matchTimeRow}>
-                        <View style={styles.matchTimeField}>
-                          <Text style={styles.formLabel}>Kick-off</Text>
-                          <View style={styles.matchNativeField}>
-                            <Ionicons name="time-outline" size={20} color={colors.blueLight} style={styles.matchNativeIcon} />
-                            <MatchTimeSelect
-                              value={matchStartMinutes === null ? '' : String(matchStartMinutes)}
-                              onChange={(event: any) => {
-                                const minutes = Number(event.target.value);
-                                setMatchStartMinutes(Number.isFinite(minutes) ? minutes : null);
-                                setMatchEndMinutes(null);
-                              }}
-                              style={styles.matchNativeInputWithIcon}
-                            >
-                              <MatchTimeOption value="">Select time</MatchTimeOption>
-                              {matchStartOptions.map((minutes) => <MatchTimeOption key={minutes} value={String(minutes)}>{String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0')}</MatchTimeOption>)}
-                            </MatchTimeSelect>
-                          </View>
-                        </View>
-                        <View style={styles.matchTimeField}>
-                          <Text style={styles.formLabel}>End time</Text>
-                          <View style={styles.matchNativeField}>
-                            <Ionicons name="time-outline" size={20} color={colors.blueLight} style={styles.matchNativeIcon} />
-                            <MatchTimeSelect
-                              value={matchEndMinutes === null ? '' : String(matchEndMinutes)}
-                              onChange={(event: any) => setMatchEndMinutes(event.target.value ? Number(event.target.value) : null)}
-                              style={styles.matchNativeInputWithIcon}
-                            >
-                              <MatchTimeOption value="">Select time</MatchTimeOption>
-                              {matchEndOptions.map((minutes) => <MatchTimeOption key={minutes} value={String(minutes)}>{String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0')}</MatchTimeOption>)}
-                            </MatchTimeSelect>
-                          </View>
-                        </View>
+                    <View style={styles.matchTimeField}>
+                      <Text style={styles.formLabel}>End time</Text>
+                      <View style={styles.matchNativeField}>
+                        <Ionicons name="time-outline" size={20} color={colors.blueLight} style={styles.matchNativeIcon} />
+                        <MatchTimeSelect
+                          value={matchEndMinutes === null ? '' : String(matchEndMinutes)}
+                          onChange={(event: any) => setMatchEndMinutes(event.target.value ? Number(event.target.value) : null)}
+                          style={styles.matchNativeInputWithIcon}
+                        >
+                          <MatchTimeOption value="">Select time</MatchTimeOption>
+                          {matchEndOptions.map((minutes) => <MatchTimeOption key={minutes} value={String(minutes)}>{String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0')}</MatchTimeOption>)}
+                        </MatchTimeSelect>
                       </View>
                     </View>
                   </View>
@@ -1381,18 +1379,17 @@ function makeStyles(colors: AppColors) {
     matchFormContent: { paddingBottom: 9.6 },
     matchLayout: { flexDirection: 'row', alignItems: 'stretch', minHeight: 580 },
     matchLayoutStacked: { flexDirection: 'column', minHeight: 0 },
-    matchLeftColumn: { width: '38%' as any, paddingRight: 26.4, gap: 20.4 },
+    matchLeftColumn: { width: '38%' as any, paddingRight: 26.4, gap: 28.8 },
     matchRightColumn: { flex: 1, minWidth: 0, paddingLeft: 26.4, gap: 16.8 },
     matchColumnStacked: { width: '100%' as any, paddingHorizontal: 0, paddingVertical: 14.4 },
     matchColumnDivider: { width: 1.2, backgroundColor: colors.borderSoft },
     matchColumnDividerStacked: { width: '100%' as any, height: 1.2 },
-    matchDateTimeRow: { flexDirection: 'column', alignItems: 'stretch', gap: 16.8 },
-    matchFieldRow: { flexDirection: 'row', gap: 14.4 },
-    matchFieldColumn: { flex: 1, minWidth: 0 },
-    matchDateColumn: { flex: 0, width: '100%' as any },
-    matchNativeField: { position: 'relative', minWidth: 0 },
+    matchNativeValue: { flex: 1, minWidth: 0, color: colors.white, fontSize: 16, fontWeight: '500' },
+    matchDateField: { width: '100%' },
+    matchDateControl: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#2B4050', borderRadius: 9.6, backgroundColor: colors.cardSoft, position: 'relative' },
+    matchNativePickerOverlay: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', opacity: 0, zIndex: 2, cursor: 'pointer', colorScheme: 'dark' } as any,
+    matchNativeField: { position: 'relative', minWidth: 0, height: 56 },
     matchNativeIcon: { position: 'absolute', left: 14, top: 18, zIndex: 1, pointerEvents: 'none' } as any,
-    matchNativeInput: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #2B4050', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
     matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #2B4050', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
     matchTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14.4 },
     matchTimeField: { flex: 1, minWidth: 0 },
