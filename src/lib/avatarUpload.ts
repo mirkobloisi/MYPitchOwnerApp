@@ -102,17 +102,17 @@ export async function cropAndUploadAcademyLogo(
       { crop: { originX: crop.originX, originY: crop.originY, width: crop.size, height: crop.size } },
       { resize: { width: 512, height: 512 } },
     ],
-    { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+    { format: ImageManipulator.SaveFormat.PNG }
   );
 
   const response = await fetch(manipulated.uri);
   const arrayBuffer = await response.arrayBuffer();
 
-  const path = `${academyId}/logo-${Date.now()}.jpg`;
+  const path = `${academyId}/logo-${Date.now()}.png`;
 
   const { error: uploadError } = await supabase.storage
     .from('academy-images')
-    .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: false });
+    .upload(path, arrayBuffer, { contentType: 'image/png', upsert: false });
 
   if (uploadError) throw uploadError;
 

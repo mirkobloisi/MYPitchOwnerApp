@@ -515,7 +515,7 @@ export default function WebAcademyDashboard({
             accessibilityLabel={t('academy.dashboardSelectAcademy')}
           >
             {selectedAcademy?.logo_url ? (
-              <Image source={{ uri: selectedAcademy.logo_url }} style={styles.headerCrest} />
+              <Image source={{ uri: selectedAcademy.logo_url }} style={styles.headerCrest} resizeMode="contain" />
             ) : (
               <View style={styles.headerCrestPlaceholder}><Ionicons name="shield-outline" size={17} color={colors.blueLight} /></View>
             )}
@@ -754,7 +754,7 @@ export default function WebAcademyDashboard({
                 <View style={styles.editLogoColumn}>
                   <Text style={styles.editLabel}>Academy logo</Text>
                   <AvatarPickerTrigger onPicked={chooseLogoImage} onError={(error) => setMatchError(String(error))} style={styles.editLogoPicker}>
-                    {editLogo ? <Image source={{ uri: editLogo }} style={styles.editLogoImage} /> : <View style={[styles.headerCrestPlaceholder, styles.editLogoImage]}><Ionicons name="shield-outline" size={25} color={colors.blueLight} /></View>}
+                    {editLogo ? <Image source={{ uri: editLogo }} style={styles.editLogoImage} resizeMode="contain" /> : <View style={[styles.headerCrestPlaceholder, styles.editLogoImage]}><Ionicons name="shield-outline" size={25} color={colors.blueLight} /></View>}
                     <View style={styles.editLogoChange}><Ionicons name="camera-outline" size={12} color={colors.blueLight} /><Text style={styles.editLogoChangeText}>Change</Text></View>
                   </AvatarPickerTrigger>
                 </View>
@@ -782,41 +782,57 @@ export default function WebAcademyDashboard({
           <View style={[styles.composeModal, styles.matchModal]}>
             <View style={styles.composeHeader}><View><Text style={styles.panelTitle}>{t('academy.dashboardCreateMatch')}</Text><Text style={styles.panelHint}>Schedule a match and invite your squad</Text></View><Pressable onPress={() => setShowMatch(false)} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable></View>
             <ScrollView showsVerticalScrollIndicator={false} style={styles.matchFormScroll} contentContainerStyle={styles.matchFormContent}>
-              <View style={styles.matchFieldRow}>
-                <View style={[styles.matchFieldColumn, styles.matchDateColumn]}>
-                  <Text style={styles.formLabel}>Match date</Text>
-                  <Pressable onPress={() => setShowMatchCalendar(true)} style={styles.matchSelectButton}>
-                    <Ionicons name="calendar-outline" size={17} color={colors.blueLight} />
-                    <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{new Date(`${matchDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text><Text style={styles.matchSelectHint}>Tap to choose a date</Text></View>
-                    <Ionicons name="chevron-down" size={16} color={colors.grey} />
-                  </Pressable>
+              <View style={[styles.matchLayout, width < 1000 && styles.matchLayoutStacked]}>
+                <View style={[styles.matchLeftColumn, width < 1000 && styles.matchColumnStacked]}>
+                  <View style={styles.matchDateTimeRow}>
+                    <View style={[styles.matchFieldColumn, styles.matchDateColumn]}>
+                      <Text style={styles.formLabel}>Match date</Text>
+                      <Pressable onPress={() => setShowMatchCalendar(true)} style={styles.matchSelectButton}>
+                        <Ionicons name="calendar-outline" size={18} color={colors.blueLight} />
+                        <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{new Date(`${matchDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text><Text style={styles.matchSelectHint}>Choose the match day</Text></View>
+                        <Ionicons name="chevron-down" size={16} color={colors.grey} />
+                      </Pressable>
+                    </View>
+                    <View style={[styles.matchFieldColumn, styles.matchTimeOptionsColumn]}>
+                      <Text style={styles.formLabel}>Kick-off and end time</Text>
+                      <StartEndTimePicker startLabel="Kick-off" endLabel="End time" startMinutes={matchStartMinutes} endMinutes={matchEndMinutes} startOptions={matchStartOptions} endOptions={matchEndOptions} onChangeStart={(minutes) => { setMatchStartMinutes(minutes); setMatchEndMinutes(null); }} onChangeEnd={setMatchEndMinutes} startPlaceholder="Select time" endPlaceholder="Select time" pickStartTitle="Choose kick-off time" pickEndTitle="Choose end time" emptyText="Choose a kick-off time first." />
+                    </View>
+                  </View>
+                  <View style={styles.matchFieldColumn}>
+                    <Text style={styles.formLabel}>Your academy</Text>
+                    <Pressable onPress={() => setShowMatchAcademies((v) => !v)} style={[styles.matchSelectButton, showMatchAcademies && styles.matchSelectButtonOpen]}>
+                      {selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}
+                      <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{selectedAcademy?.name || 'Choose an academy'}</Text><Text style={styles.matchSelectHint}>{selectedAcademy?.city || 'Select the team playing this match'}</Text></View>
+                      <Ionicons name={showMatchAcademies ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
+                    </Pressable>
+                    {showMatchAcademies ? <View style={styles.matchAcademyDropdown}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); setMatchSelected(new Set()); setEnrolments(await fetchEnrolments(a.id)); setShowMatchAcademies(false); }} style={[styles.matchAcademyOption, a.id === selectedAcademy?.id && styles.matchAcademyOptionActive]}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'Location not added'}</Text></View>{a.id === selectedAcademy?.id ? <Ionicons name="checkmark-circle" size={18} color={colors.blueLight} /> : null}</Pressable>)}</View> : null}
+                  </View>
+                  <View style={styles.matchFieldColumn}>
+                    <Text style={styles.formLabel}>Opponent academy or name</Text>
+                    <View style={styles.matchInputIcon}><Ionicons name="search" size={17} color={colors.grey} /><TextInput value={matchOpponent} onChangeText={(value) => { setMatchOpponent(value); setMatchOpponentId(null); }} style={styles.matchInputText} placeholder="Search or enter opponent name" placeholderTextColor={colors.greyDark} /></View>
+                    {matchOpponent.trim() && !matchOpponentId ? (() => { const matches = opponentOptions.filter((a) => a.id !== selectedAcademy?.id && `${a.name} ${a.city ?? ''}`.toLowerCase().includes(matchOpponent.toLowerCase())).slice(0, 5); return matches.length ? <View style={styles.matchAcademyDropdown}>{matches.map((a) => <Pressable key={a.id} onPress={() => { setMatchOpponent(a.name); setMatchOpponentId(a.id); }} style={styles.matchAcademyOption}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'MYPitch academy'}</Text></View><Ionicons name="add-circle-outline" size={18} color={colors.blueLight} /></Pressable>)}</View> : <Text style={styles.matchFieldHint}>No academy found. The name will be saved as entered.</Text>; })() : !matchOpponent.trim() ? <Text style={styles.matchFieldHint}>Choose a MYPitch academy from the suggestions, or enter any opponent.</Text> : null}
+                  </View>
                 </View>
-                <View style={styles.matchTimeOptionsColumn}>
-                  <StartEndTimePicker startLabel="Kick-off" endLabel="End time" startMinutes={matchStartMinutes} endMinutes={matchEndMinutes} startOptions={matchStartOptions} endOptions={matchEndOptions} onChangeStart={(minutes) => { setMatchStartMinutes(minutes); setMatchEndMinutes(null); }} onChangeEnd={setMatchEndMinutes} startPlaceholder="Select time" endPlaceholder="Select time" pickStartTitle="Choose kick-off time" pickEndTitle="Choose end time" emptyText="Choose a kick-off time first." />
+                <View style={[styles.matchColumnDivider, width < 1000 && styles.matchColumnDividerStacked]} />
+                <View style={[styles.matchRightColumn, width < 1000 && styles.matchColumnStacked]}>
+                  <View style={styles.matchupPreview}>
+                    <View style={styles.matchupTeam}>{selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.matchTeamCrest} resizeMode="contain" /> : <View style={styles.matchTeamCrestFallback}><Ionicons name="shield-outline" size={30} color={colors.blueLight} /></View>}<Text style={styles.matchupTeamName} numberOfLines={2}>{selectedAcademy?.name || 'Your academy'}</Text></View>
+                    <Text style={styles.matchupVs}>VS</Text>
+                    <View style={styles.matchupTeam}>{opponentOptions.find((academy) => academy.id === matchOpponentId)?.logo_url ? <Image source={{ uri: opponentOptions.find((academy) => academy.id === matchOpponentId)?.logo_url! }} style={styles.matchTeamCrest} resizeMode="contain" /> : <View style={styles.matchTeamCrestFallback}><Ionicons name="shield-outline" size={30} color={colors.blueLight} /></View>}<Text style={styles.matchupTeamName} numberOfLines={2}>{matchOpponent.trim() || 'Opponent'}</Text></View>
+                  </View>
+                  <Text style={styles.matchSquadTitle}>Squad</Text>
+                  {selectedAcademy ? <View style={styles.matchSquadColumns}>{(['player', 'staff'] as const).map((kind) => {
+                    const label = kind === 'player' ? 'Players' : 'Coaches';
+                    const roster = enrolments.filter((r) => r.status === 'approved' && r.member?.member_kind === kind);
+                    const allSelected = roster.length > 0 && roster.every((r) => matchSelected.has(r.member_id));
+                    return <View key={kind} style={styles.matchRosterPanel}>
+                      <View style={styles.rosterSelectHeader}><Text style={styles.matchRosterTitle}>{label} <Text style={styles.matchRosterCount}>{roster.length}</Text></Text><Pressable onPress={() => setMatchSelected((s) => { const n = new Set(s); roster.forEach((r) => allSelected ? n.delete(r.member_id) : n.add(r.member_id)); return n; })}><Text style={styles.textAction}>{allSelected ? 'Clear all' : 'Select all'}</Text></Pressable></View>
+                      <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={styles.matchRosterList}>{roster.map((r) => <Pressable key={r.member_id} onPress={() => setMatchSelected((s) => { const n = new Set(s); n.has(r.member_id) ? n.delete(r.member_id) : n.add(r.member_id); return n; })} style={[styles.matchParticipantRow, matchSelected.has(r.member_id) && styles.recipientRowActive]}><View style={[styles.checkbox, matchSelected.has(r.member_id) && styles.checkboxActive]}>{matchSelected.has(r.member_id) ? <Ionicons name="checkmark" size={12} color={colors.blackText} /> : null}</View><View style={styles.matchParticipantAvatar}>{r.member?.avatar_url ? <Image source={{ uri: r.member.avatar_url }} style={styles.matchParticipantImage} /> : <Text style={styles.matchParticipantInitial}>{(r.member?.full_name || '?').slice(0, 1).toUpperCase()}</Text>}</View><Text style={styles.recipientName} numberOfLines={1}>{r.member?.full_name}</Text><Ionicons name={matchSelected.has(r.member_id) ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={matchSelected.has(r.member_id) ? colors.blueLight : colors.greyDark} /></Pressable>)}{!roster.length ? <Text style={styles.panelHint}>{kind === 'player' ? 'No registered players yet.' : 'No coaches are registered yet.'}</Text> : null}</ScrollView>
+                    </View>;
+                  })}</View> : <Text style={styles.panelHint}>Choose an academy to select players and coaches.</Text>}
+                  <View style={styles.matchFieldColumn}><Text style={styles.formLabel}>Match place</Text><View style={styles.matchInputIcon}><Ionicons name="location-outline" size={17} color={colors.grey} /><TextInput value={matchMapsUrl} onChangeText={setMatchMapsUrl} style={styles.matchInputText} placeholder="Paste a Google Maps share link" placeholderTextColor={colors.greyDark} autoCapitalize="none" autoCorrect={false} keyboardType="url" /></View></View>
                 </View>
               </View>
-              <View style={styles.matchFieldColumn}>
-                <Text style={styles.formLabel}>Your academy</Text>
-                <Pressable onPress={() => setShowMatchAcademies((v) => !v)} style={[styles.matchSelectButton, showMatchAcademies && styles.matchSelectButtonOpen]}>
-                  {selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.matchAcademyLogo} /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={16} color={colors.blueLight} /></View>}
-                  <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{selectedAcademy?.name || 'Choose an academy'}</Text><Text style={styles.matchSelectHint}>{selectedAcademy?.city || 'Select the team playing this match'}</Text></View>
-                  <Ionicons name={showMatchAcademies ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
-                </Pressable>
-                {showMatchAcademies ? <View style={styles.matchAcademyDropdown}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); setMatchSelected(new Set()); setEnrolments(await fetchEnrolments(a.id)); setShowMatchAcademies(false); }} style={[styles.matchAcademyOption, a.id === selectedAcademy?.id && styles.matchAcademyOptionActive]}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={16} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'Location not added'}</Text></View>{a.id === selectedAcademy?.id ? <Ionicons name="checkmark-circle" size={18} color={colors.blueLight} /> : null}</Pressable>)}</View> : null}
-              </View>
-              {selectedAcademy ? <View style={styles.matchRosterBlock}>
-                {(['player', 'staff'] as const).map((kind) => {
-                  const label = kind === 'player' ? 'Players' : 'Coaches';
-                  const roster = enrolments.filter((r) => r.status === 'approved' && r.member?.member_kind === kind);
-                  return <View key={kind}><View style={styles.rosterSelectHeader}><Text style={styles.formLabel}>{label}</Text><Pressable onPress={() => { const ids = roster.map((r) => r.member_id); setMatchSelected((s) => new Set([...s, ...ids])); }}><Text style={styles.textAction}>Select all</Text></Pressable></View>{roster.map((r) => <Pressable key={r.member_id} onPress={() => setMatchSelected((s) => { const n = new Set(s); n.has(r.member_id) ? n.delete(r.member_id) : n.add(r.member_id); return n; })} style={[styles.recipientRow, matchSelected.has(r.member_id) && styles.recipientRowActive]}><View style={[styles.checkbox, matchSelected.has(r.member_id) && styles.checkboxActive]}>{matchSelected.has(r.member_id) ? <Ionicons name="checkmark" size={12} color={colors.blackText} /> : null}</View><Text style={styles.recipientName}>{r.member?.full_name}</Text></Pressable>)}{!roster.length ? <Text style={styles.panelHint}>{kind === 'player' ? 'No registered players yet.' : 'No coaches are registered yet.'}</Text> : null}</View>;
-                })}
-              </View> : null}
-              <View style={styles.matchFieldColumn}>
-                <Text style={styles.formLabel}>Opponent academy or name</Text>
-                <View style={styles.matchInputIcon}><Ionicons name="search" size={16} color={colors.grey} /><TextInput value={matchOpponent} onChangeText={(value) => { setMatchOpponent(value); setMatchOpponentId(null); }} style={styles.matchInputText} placeholder="Search or enter opponent name" placeholderTextColor={colors.greyDark} /></View>
-                {matchOpponent.trim() && !matchOpponentId ? (() => { const matches = opponentOptions.filter((a) => a.id !== selectedAcademy?.id && `${a.name} ${a.city ?? ''}`.toLowerCase().includes(matchOpponent.toLowerCase())).slice(0, 5); return matches.length ? <View style={styles.matchAcademyDropdown}>{matches.map((a) => <Pressable key={a.id} onPress={() => { setMatchOpponent(a.name); setMatchOpponentId(a.id); }} style={styles.matchAcademyOption}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={16} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'MYPitch academy'}</Text></View><Ionicons name="add-circle-outline" size={18} color={colors.blueLight} /></Pressable>)}</View> : <Text style={styles.matchFieldHint}>No academy found. The name will be saved as entered.</Text>; })() : !matchOpponent.trim() ? <Text style={styles.matchFieldHint}>Choose a MYPitch academy from the suggestions, or enter any opponent.</Text> : null}
-              </View>
-              <View style={styles.matchFieldColumn}><Text style={styles.formLabel}>Match place</Text><Text style={styles.matchFieldHint}>Paste a Google Maps share link for the venue.</Text><View style={styles.matchInputIcon}><Ionicons name="link-outline" size={16} color={colors.grey} /><TextInput value={matchMapsUrl} onChangeText={setMatchMapsUrl} style={styles.matchInputText} placeholder="https://maps.google.com/..." placeholderTextColor={colors.greyDark} autoCapitalize="none" autoCorrect={false} keyboardType="url" /></View></View>
               {matchError ? <Text style={styles.errorText}>{matchError}</Text> : null}
             </ScrollView>
             <View style={styles.modalActions}><Pressable onPress={() => setShowMatch(false)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable><Pressable disabled={!matchOpponent.trim() || !matchDate || matchStartMinutes === null || matchEndMinutes === null || matchBusy} onPress={saveMatch} style={[styles.primaryButton, (!matchOpponent.trim() || !matchDate || matchStartMinutes === null || matchEndMinutes === null || matchBusy) && styles.disabledButton]}>{matchBusy ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name="calendar" size={16} color={colors.blackText} />}<Text style={styles.primaryButtonText}>Create match</Text></Pressable></View>
@@ -856,7 +872,7 @@ export default function WebAcademyDashboard({
         imageUri={cropImage?.uri ?? null}
         imageWidth={cropImage?.width ?? 0}
         imageHeight={cropImage?.height ?? 0}
-        cropShape={cropTarget === 'logo' ? 'circle' : 'rectangle'}
+        cropShape="rectangle"
         cropAspectRatio={cropTarget === 'logo' ? 1 : 4}
         cropWidth={cropTarget === 'logo' ? 280 : 560}
         onCancel={() => setCropImage(null)}
@@ -888,7 +904,7 @@ function AcademyCard({ academy, loading, styles, colors, t, onEdit, onUploadCove
       </View>
       <View style={styles.academyCardBody}>
         <View style={styles.academyTitleRow}>
-          {academy.logo_url ? <Image source={{ uri: academy.logo_url }} style={styles.academyLogo} /> : (
+          {academy.logo_url ? <Image source={{ uri: academy.logo_url }} style={styles.academyLogo} resizeMode="contain" /> : (
             <View style={[styles.academyLogo, styles.academyLogoFallback]}><Ionicons name="shield-outline" size={24} color={colors.blueLight} /></View>
           )}
           <View style={styles.academyTitleBlock}>
@@ -940,7 +956,7 @@ function AcademiesList({ academies, counts, styles, colors, t, onManage }: {
         const academyCounts = counts[academy.id];
         return (
           <Pressable key={academy.id} onPress={() => onManage(academy.id)} style={({ hovered, pressed }: any) => [styles.academyDirectoryRow, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
-            {academy.logo_url ? <Image source={{ uri: academy.logo_url }} style={styles.academyDirectoryLogo} resizeMode="cover" /> : (
+            {academy.logo_url ? <Image source={{ uri: academy.logo_url }} style={styles.academyDirectoryLogo} resizeMode="contain" /> : (
               <View style={[styles.academyDirectoryLogo, styles.academyDirectoryLogoFallback]}><Ionicons name="school-outline" size={21} color={colors.blueLight} /></View>
             )}
             <View style={styles.academyDirectoryInfo}>
@@ -1045,7 +1061,7 @@ function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText,
             <View style={styles.matchDivider} />
             <View style={styles.matchMain}>
               <View style={styles.matchTeams}>
-                <View style={[styles.teamNameWrap, styles.homeTeamWrap]}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="cover" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
+                <View style={[styles.teamNameWrap, styles.homeTeamWrap]}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="contain" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
                 {showStatus ? <Text style={styles.versus}>{t('academy.dashboardVs')}</Text> : session.home_score != null && session.away_score != null ? <Text style={styles.matchScore}>{session.home_score} : {session.away_score}</Text> : onEnterResult ? <Pressable onPress={(event) => { event.stopPropagation(); onEnterResult(session); }} style={styles.enterResultButton}><Text style={styles.enterResultText}>{t('academy.dashboardEnterResult')}</Text></Pressable> : <Text style={styles.versus}>—</Text>}
                 <View style={[styles.teamNameWrap, styles.awayTeamWrap]}><View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View><Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
               </View>
@@ -1150,7 +1166,7 @@ function makeStyles(colors: AppColors) {
     headerPickerWrap: { position: 'relative', zIndex: 30 },
     headerPicker: { minHeight: 40, width: 286, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
     headerPickerCompact: { width: 220 },
-    headerCrest: { width: 22, height: 22, borderRadius: 5 },
+    headerCrest: { width: 30, height: 30, backgroundColor: 'transparent' },
     headerCrestPlaceholder: { width: 22, height: 22, borderRadius: 5, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
     headerPickerText: { flex: 1, minWidth: 0, color: colors.white, fontSize: 13, fontWeight: '600' },
     seasonPicker: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
@@ -1185,7 +1201,7 @@ function makeStyles(colors: AppColors) {
     editLogoColumn: { width: 84, alignItems: 'flex-start', paddingLeft: 7 },
     editLabel: { color: colors.greySoft, fontSize: 10, fontWeight: '600', marginBottom: 5 },
     editLogoPicker: { alignItems: 'center', gap: 5, paddingTop: 1 },
-    editLogoImage: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
+    editLogoImage: { width: 74, height: 74, borderRadius: 0, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
     editLogoChange: { flexDirection: 'row', alignItems: 'center', gap: 3 },
     editLogoChangeText: { color: colors.blueLight, fontSize: 10, fontWeight: '600' },
     editFieldsColumn: { flex: 1, minWidth: 0, gap: 3 },
@@ -1219,7 +1235,7 @@ function makeStyles(colors: AppColors) {
     academiesIntro: { minHeight: 66, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 17, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     academiesCount: { minWidth: 30, height: 30, textAlign: 'center', textAlignVertical: 'center', color: colors.blueLight, fontSize: 12, fontWeight: '700', borderRadius: 15, overflow: 'hidden', backgroundColor: colors.blueSoft, paddingTop: 7 },
     academyDirectoryRow: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 17, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
-    academyDirectoryLogo: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
+    academyDirectoryLogo: { width: 48, height: 48, backgroundColor: 'transparent' },
     academyDirectoryLogoFallback: { alignItems: 'center', justifyContent: 'center' },
     academyDirectoryInfo: { flex: 1, minWidth: 0, gap: 3 },
     academyDirectoryCity: { color: colors.greySoft, fontSize: 11 },
@@ -1235,7 +1251,7 @@ function makeStyles(colors: AppColors) {
     cameraButton: { position: 'absolute', top: 10, right: 10, width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(8,17,26,0.78)' },
     academyCardBody: { paddingHorizontal: 14, paddingBottom: 11, paddingTop: 0 },
     academyTitleRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 11 },
-    academyLogo: { width: 54, height: 54, borderRadius: 27, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, marginTop: -18 },
+    academyLogo: { width: 58, height: 58, backgroundColor: 'transparent', marginTop: -18 },
     academyLogoFallback: { alignItems: 'center', justifyContent: 'center' },
     academyTitleBlock: { flex: 1, minWidth: 0, paddingTop: 3 },
     academyNameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -1285,7 +1301,7 @@ function makeStyles(colors: AppColors) {
     homeTeamWrap: { justifyContent: 'flex-start' },
     awayTeamWrap: { justifyContent: 'flex-end' },
     teamCrest: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderRadius: 5, backgroundColor: colors.blueSoft },
-    teamCrestImage: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
+    teamCrestImage: { width: 28, height: 28, backgroundColor: 'transparent' },
     opponentCrest: { backgroundColor: colors.orangeSoft },
     teamName: { flexShrink: 1, color: colors.white, fontSize: 11, fontWeight: '600' },
     versus: { color: colors.grey, fontSize: 9, fontWeight: '500' },
@@ -1331,17 +1347,25 @@ function makeStyles(colors: AppColors) {
     recipientRowActive: { backgroundColor: colors.blueSoft },
     selectedChoice: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     matchRosterBlock: { borderWidth: 1, borderColor: colors.border, borderRadius: 7, padding: 9, marginBottom: 12, maxHeight: 180, overflow: 'scroll' as any },
-    matchModal: { width: 'min(650px, 92%)' as any, maxWidth: 650, maxHeight: '92%', padding: 20 },
+    matchModal: { width: 'min(1180px, 95%)' as any, maxWidth: 1180, maxHeight: '92%', padding: 22 },
     resultModal: { width: 'min(440px, 92%)' as any, maxWidth: 440 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
     scoreInputColumn: { flex: 1, minWidth: 0, gap: 7 },
     scoreInput: { height: 48, borderRadius: 8, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, color: colors.white, textAlign: 'center', fontSize: 22, fontWeight: '700', outlineStyle: 'none' as any },
     scoreSeparator: { color: colors.grey, fontSize: 20, fontWeight: '600', paddingBottom: 11 },
     matchFormScroll: { flexShrink: 1 },
-    matchFormContent: { gap: 16, paddingBottom: 8 },
+    matchFormContent: { paddingBottom: 8 },
+    matchLayout: { flexDirection: 'row', alignItems: 'stretch', minHeight: 560 },
+    matchLayoutStacked: { flexDirection: 'column', minHeight: 0 },
+    matchLeftColumn: { width: '38%' as any, paddingRight: 22, gap: 17 },
+    matchRightColumn: { flex: 1, minWidth: 0, paddingLeft: 22, gap: 14 },
+    matchColumnStacked: { width: '100%' as any, paddingHorizontal: 0, paddingVertical: 12 },
+    matchColumnDivider: { width: 1, backgroundColor: colors.borderSoft },
+    matchColumnDividerStacked: { width: '100%' as any, height: 1 },
+    matchDateTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     matchFieldRow: { flexDirection: 'row', gap: 12 },
     matchFieldColumn: { flex: 1, minWidth: 0 },
-    matchDateColumn: { flex: 0, width: '38%' as any },
+    matchDateColumn: { flex: 0, width: '42%' as any },
     matchTimeOptionsColumn: { flex: 1, minWidth: 0, paddingTop: 1 },
     matchInputIcon: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 13 },
     matchInputText: { flex: 1, minWidth: 0, height: 48, color: colors.white, fontSize: 14, fontWeight: '500', outlineStyle: 'none' as any },
@@ -1350,13 +1374,29 @@ function makeStyles(colors: AppColors) {
     matchSelectText: { flex: 1, minWidth: 0, gap: 3 },
     matchSelectTitle: { color: colors.white, fontSize: 13, fontWeight: '600' },
     matchSelectHint: { color: colors.grey, fontSize: 11 },
-    matchAcademyLogo: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
+    matchAcademyLogo: { width: 42, height: 42, borderRadius: 0, backgroundColor: 'transparent' },
     matchAcademyLogoFallback: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
     matchAcademyDropdown: { marginTop: 5, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
     matchAcademyOption: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 11, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     matchAcademyOptionActive: { backgroundColor: colors.blueSoft },
+    matchupPreview: { minHeight: 148, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.cardSoft, paddingHorizontal: 24, paddingVertical: 18 },
+    matchupTeam: { flex: 1, minWidth: 0, alignItems: 'center', gap: 9 },
+    matchTeamCrest: { width: 72, height: 76, backgroundColor: 'transparent' },
+    matchTeamCrestFallback: { width: 72, height: 76, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+    matchupTeamName: { color: colors.white, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+    matchupVs: { color: colors.grey, fontSize: 12, fontWeight: '700', letterSpacing: 1.5 },
+    matchSquadTitle: { color: colors.white, fontSize: 15, fontWeight: '700', marginTop: 3 },
+    matchSquadColumns: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
+    matchRosterPanel: { flex: 1, minWidth: 0, minHeight: 208, borderWidth: 1, borderColor: colors.border, borderRadius: 9, backgroundColor: colors.cardSoft, padding: 11 },
+    matchRosterTitle: { color: colors.white, fontSize: 13, fontWeight: '600' },
+    matchRosterCount: { color: colors.grey, fontWeight: '500' },
+    matchRosterList: { maxHeight: 180, marginTop: 8 },
+    matchParticipantRow: { minHeight: 41, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 5, borderRadius: 6 },
+    matchParticipantAvatar: { width: 27, height: 27, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: colors.blueSoft, overflow: 'hidden' },
+    matchParticipantImage: { width: 27, height: 27, borderRadius: 14 },
+    matchParticipantInitial: { color: colors.blueLight, fontSize: 11, fontWeight: '700' },
     matchFieldHint: { color: colors.grey, fontSize: 11, lineHeight: 16, marginTop: 5 },
-    rosterSelectHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
+    rosterSelectHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
     checkbox: { width: 17, height: 17, alignItems: 'center', justifyContent: 'center', borderRadius: 4, borderWidth: 1, borderColor: colors.border },
     checkboxActive: { borderColor: colors.blueLight, backgroundColor: colors.blueLight },
     recipientName: { flex: 1, color: colors.white, fontSize: 11 },
