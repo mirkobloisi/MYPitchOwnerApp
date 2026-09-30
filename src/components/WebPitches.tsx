@@ -120,7 +120,7 @@ function DesktopPitches({
   const filtered = pitches.filter((pitch) => statusFilter === 'all' || pitch.status === statusFilter);
   const displayedPitch = filtered.find((pitch) => pitch.id === selectedPitch?.id) ?? filtered[0];
   return (
-    <Screen scroll={false} maxWidth={WIDE_CONTENT_MAX_WIDTH} ambientGlows={false} style={styles.canvas} contentStyle={styles.desktopContent}>
+    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} ambientGlows={false} style={styles.canvas} contentStyle={styles.desktopContent}>
       <View style={[styles.heading, styles.desktopHeading]}>
         <View style={styles.headingText}><Text accessibilityRole="header" style={[styles.title, styles.desktopTitle]}>{t('pitches.title')}</Text><Text style={[styles.subtitle, styles.desktopSubtitle]}>{t('pitches.subtitle')}</Text></View>
         <View style={styles.desktopPitchBadge}><Ionicons name="business-outline" size={15} color={colors.blueLight} /><Text style={styles.centerName} numberOfLines={1}>{pitchOwner?.business_name?.trim() || t('availability.sportsCenter')}</Text></View>
@@ -253,7 +253,7 @@ function Spec({ icon, label, value }: { icon: IconName; label: string; value: st
 const styles = StyleSheet.create({
   canvas: { backgroundColor: '#08111A' },
   content: { paddingTop: 18, paddingBottom: 100 },
-  desktopContent: { flex: 1, minHeight: 0, paddingTop: 14, paddingBottom: 12 },
+  desktopContent: { paddingTop: 14, paddingBottom: 28 },
   desktopHeading: { marginBottom: 15, flexShrink: 0, minHeight: 70 },
   desktopTitle: { fontSize: 32.4, lineHeight: 39.6, fontWeight: '700', letterSpacing: -0.6 },
   desktopSubtitle: { fontSize: 16, lineHeight: 21, marginTop: 5 },
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   desktopFacilities: { gap: 12 },
   desktopActions: { marginTop: 16, paddingTop: 12, flexShrink: 0 },
   desktopSupportNote: { marginTop: 12, justifyContent: 'flex-start', flexShrink: 0 },
-  desktopMain: { flex: 1, minHeight: 0, gap: 22 },
+  desktopMain: { gap: 22 },
   desktopPitchBadge: { maxWidth: 250, minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
   // Let the pitch list take only the room its rows need, then cap it so a
   // sports center with many pitches scrolls inside this card instead of
