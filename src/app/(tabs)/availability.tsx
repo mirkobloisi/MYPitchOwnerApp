@@ -534,9 +534,9 @@ const makeStyles = (colors: AppColors, desktop: boolean) =>
     },
     desktopTitle: {
       color: colors.white,
-      fontSize: 24,
-      lineHeight: 30,
-      fontWeight: '600',
+      fontSize: 32.4,
+      lineHeight: 39.6,
+      fontWeight: '700',
       letterSpacing: -0.6,
     },
     desktopSubtitle: {
