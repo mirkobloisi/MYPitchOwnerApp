@@ -34,7 +34,6 @@ import {
 } from '../lib/academyData';
 import { fetchNotices, markNoticeRead, AcademyNotice } from '../lib/academyNotices';
 import { useAcademyRealtime } from '../lib/academyRealtime';
-import { useAuth } from '../lib/auth';
 import { WIDE_CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
 import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -101,15 +100,6 @@ function ageGroupSummary(rows: EnrolmentRow[]) {
   return `U${ages[0]}–U${ages[ages.length - 1]}`;
 }
 
-function avatarInitials(value: string | null | undefined) {
-  return (value ?? 'MYPitch')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('');
-}
-
 export default function WebAcademyDashboard({
   academies,
   counts,
@@ -118,7 +108,6 @@ export default function WebAcademyDashboard({
 }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { pitchOwner, profile } = useAuth();
   const { unread, messagesVersion, enrolmentsVersion } = useAcademyRealtime();
   const { width } = useBreakpoint();
   const { colors: appColors } = useAppTheme();
@@ -400,16 +389,6 @@ export default function WebAcademyDashboard({
         <Pressable style={styles.iconButton} onPress={() => setShowSearch((value) => !value)} accessibilityRole="button" accessibilityLabel={t('academy.dashboardSearch')}>
           <Ionicons name={showSearch ? 'close' : 'search'} size={19} color={colors.greySoft} />
         </Pressable>
-        <Pressable style={styles.iconButton} onPress={() => router.push('/inbox' as any)} accessibilityRole="button" accessibilityLabel={t('inbox.notifications')}>
-          <Ionicons name="notifications-outline" size={19} color={colors.greySoft} />
-          {unread.players + unread.parents + unread.messages > 0 ? <View style={styles.notificationDot} /> : null}
-        </Pressable>
-        <View style={styles.userAvatar}><Text style={styles.userInitials}>{avatarInitials(profile?.full_name || pitchOwner?.contact_name)}</Text></View>
-        <View style={[styles.userLabel, width < 1280 && styles.userLabelCompact]}>
-          <Text style={styles.userName} numberOfLines={1}>{profile?.full_name || pitchOwner?.contact_name || t('nav.ownerWorkspace')}</Text>
-          <Text style={styles.userRole}>{t('nav.ownerWorkspace')}</Text>
-        </View>
-        <Ionicons name="chevron-down" size={15} color={colors.grey} />
       </View>
 
       {showSearch ? (
@@ -818,13 +797,6 @@ function makeStyles(colors: AppColors) {
     primaryHovered: { backgroundColor: '#82C9FB', borderColor: '#82C9FB' },
     headerSpacer: { flex: 1 },
     iconButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 7 },
-    userAvatar: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft, alignItems: 'center', justifyContent: 'center' },
-    userInitials: { color: colors.greySoft, fontSize: 12, fontWeight: '700' },
-    userLabel: { minWidth: 72, maxWidth: 144 },
-    userLabelCompact: { display: 'none' },
-    userName: { color: colors.white, fontSize: 12, fontWeight: '600' },
-    userRole: { color: colors.grey, fontSize: 10, marginTop: 2 },
-    notificationDot: { position: 'absolute', width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange, top: 7, right: 7, borderWidth: 1, borderColor: colors.card },
     dropdown: { position: 'absolute', top: 45, left: 0, minWidth: 260, maxWidth: 320, zIndex: 100, elevation: 24, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0B1722', padding: 5, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
     dropdownRow: { minHeight: 48, justifyContent: 'center', gap: 2, paddingHorizontal: 10, borderRadius: 6 },
     dropdownRowActive: { backgroundColor: colors.blueSoft },
