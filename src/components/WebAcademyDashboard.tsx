@@ -1046,14 +1046,13 @@ function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText,
             <View style={styles.matchMain}>
               <View style={styles.matchTeams}>
                 <View style={[styles.teamNameWrap, styles.homeTeamWrap]}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="cover" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
-                {showStatus || session.home_score == null || session.away_score == null ? <Text style={styles.versus}>{t('academy.dashboardVs')}</Text> : <Text style={styles.matchScore}>{session.home_score} : {session.away_score}</Text>}
+                {showStatus ? <Text style={styles.versus}>{t('academy.dashboardVs')}</Text> : session.home_score != null && session.away_score != null ? <Text style={styles.matchScore}>{session.home_score} : {session.away_score}</Text> : onEnterResult ? <Pressable onPress={(event) => { event.stopPropagation(); onEnterResult(session); }} style={styles.enterResultButton}><Text style={styles.enterResultText}>{t('academy.dashboardEnterResult')}</Text></Pressable> : <Text style={styles.versus}>—</Text>}
                 <View style={[styles.teamNameWrap, styles.awayTeamWrap]}><View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View><Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
               </View>
             </View>
             {showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>}
             <Ionicons name="chevron-forward" size={17} color={colors.grey} />
             </Pressable>
-            {!showStatus && (session.home_score == null || session.away_score == null) && onEnterResult ? <Pressable onPress={() => onEnterResult(session)} style={styles.enterResultButton}><Text style={styles.enterResultText}>{t('academy.dashboardEnterResult')}</Text></Pressable> : null}
           </View>
         );
       })}
