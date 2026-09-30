@@ -274,7 +274,10 @@ const styles = StyleSheet.create({
   desktopSupportNote: { marginTop: 12, justifyContent: 'flex-start', flexShrink: 0 },
   desktopMain: { flex: 1, minHeight: 0, gap: 12 },
   desktopPitchBadge: { maxWidth: 250, minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  desktopTableCard: { flex: 1, minHeight: 180, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft, overflow: 'hidden' },
+  // Let the pitch list take only the room its rows need, then cap it so a
+  // sports center with many pitches scrolls inside this card instead of
+  // pushing the selected-pitch preview down the page.
+  desktopTableCard: { flex: 0, minHeight: 180, maxHeight: 380, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft, overflow: 'hidden' },
   desktopTableToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   desktopTableTitle: { color: colors.white, fontSize: 16, fontWeight: '600' },
   desktopTableCount: { color: colors.grey, fontSize: 12, marginTop: 3 },
@@ -286,7 +289,7 @@ const styles = StyleSheet.create({
   desktopFilterText: { color: colors.greySoft, fontSize: 13, fontWeight: '600' },
   desktopFilterTextSelected: { color: colors.blueLight, fontWeight: '600' },
   desktopTableHeader: { flexDirection: 'row', alignItems: 'center', minHeight: 32, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.backgroundSoft },
-  desktopPitchRows: { flex: 1, minHeight: 0 },
+  desktopPitchRows: { flex: 0, minHeight: 0, maxHeight: 280 },
   desktopColumnLabel: { color: colors.grey, fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
   desktopColPitch: { flex: 2.2, minWidth: 0 },
   desktopColFormat: { flex: 0.7, minWidth: 50 },
@@ -314,8 +317,8 @@ const styles = StyleSheet.create({
   desktopDetailTitle: { color: colors.white, fontSize: 18, fontWeight: '600' },
   desktopDetailDivider: { width: 1, height: 22, backgroundColor: colors.border, marginHorizontal: 3 },
   desktopSelectedText: { color: colors.blueLight, fontSize: 13 },
-  desktopDetailBody: { flexDirection: 'row', gap: 16, minHeight: 150, maxHeight: 175 },
-  desktopDetailImage: { flex: 1.1, height: 160, borderRadius: 5, overflow: 'hidden' },
+  desktopDetailBody: { flexDirection: 'row', alignItems: 'stretch', gap: 18, minHeight: 184, maxHeight: 200 },
+  desktopDetailImage: { width: 184, height: 184, flexGrow: 0, flexShrink: 0, borderRadius: 5, overflow: 'hidden' },
   desktopDescriptionColumn: { flex: 1.5, paddingVertical: 3, borderRightWidth: 1, borderRightColor: colors.border, paddingRight: 16 },
   desktopFacilitiesTitle: { color: colors.white, fontSize: 13, fontWeight: '600', marginTop: 14, marginBottom: 8 },
   desktopDetailFacilities: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
