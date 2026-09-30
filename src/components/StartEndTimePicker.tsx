@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -24,6 +25,7 @@ type StartEndTimePickerProps = {
   pickStartTitle: string;
   pickEndTitle: string;
   emptyText?: string;
+  variant?: 'default' | 'weekline';
 };
 
 /**
@@ -46,6 +48,7 @@ export default function StartEndTimePicker({
   pickStartTitle,
   pickEndTitle,
   emptyText,
+  variant = 'default',
 }: StartEndTimePickerProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -67,20 +70,42 @@ export default function StartEndTimePicker({
 
   return (
     <>
-      <View style={styles.row}>
-        <AnimatedPressable style={styles.field} onPress={() => setOpenPicker('start')}>
-          <Text style={styles.fieldLabel}>{startLabel}</Text>
-          <Text style={styles.fieldValue}>
-            {startMinutes !== null ? minutesToLabel(startMinutes) : startPlaceholder}
-          </Text>
-        </AnimatedPressable>
+      <View style={[styles.row, variant === 'weekline' && styles.weeklineRow]}>
+        <View style={styles.column}>
+          {variant === 'weekline' ? <Text style={styles.weeklineLabel}>{startLabel}</Text> : null}
+          <AnimatedPressable style={[styles.field, variant === 'weekline' && styles.weeklineField]} onPress={() => setOpenPicker('start')}>
+            {variant === 'weekline' ? (
+              <>
+                <Ionicons name="time-outline" size={20} color={colors.blueLight} />
+                <Text style={styles.weeklineValue}>{startMinutes !== null ? minutesToLabel(startMinutes) : startPlaceholder}</Text>
+                <Ionicons name="chevron-down" size={16} color={colors.grey} />
+              </>
+            ) : (
+              <>
+                <Text style={styles.fieldLabel}>{startLabel}</Text>
+                <Text style={styles.fieldValue}>{startMinutes !== null ? minutesToLabel(startMinutes) : startPlaceholder}</Text>
+              </>
+            )}
+          </AnimatedPressable>
+        </View>
 
-        <AnimatedPressable style={styles.field} onPress={() => setOpenPicker('end')}>
-          <Text style={styles.fieldLabel}>{endLabel}</Text>
-          <Text style={styles.fieldValue}>
-            {endMinutes !== null ? minutesToLabel(endMinutes) : endPlaceholder}
-          </Text>
-        </AnimatedPressable>
+        <View style={styles.column}>
+          {variant === 'weekline' ? <Text style={styles.weeklineLabel}>{endLabel}</Text> : null}
+          <AnimatedPressable style={[styles.field, variant === 'weekline' && styles.weeklineField]} onPress={() => setOpenPicker('end')}>
+            {variant === 'weekline' ? (
+              <>
+                <Ionicons name="time-outline" size={20} color={colors.blueLight} />
+                <Text style={styles.weeklineValue}>{endMinutes !== null ? minutesToLabel(endMinutes) : endPlaceholder}</Text>
+                <Ionicons name="chevron-down" size={16} color={colors.grey} />
+              </>
+            ) : (
+              <>
+                <Text style={styles.fieldLabel}>{endLabel}</Text>
+                <Text style={styles.fieldValue}>{endMinutes !== null ? minutesToLabel(endMinutes) : endPlaceholder}</Text>
+              </>
+            )}
+          </AnimatedPressable>
+        </View>
       </View>
 
       <OptionsModal
@@ -106,6 +131,11 @@ const makeStyles = (colors: AppColors) =>
       flexDirection: 'row',
       gap: spacing.sm,
     },
+    column: { flex: 1, minWidth: 0 },
+    weeklineRow: { gap: 20 },
+    weeklineLabel: { color: colors.white, fontSize: 15, fontWeight: '600', marginBottom: 8 },
+    weeklineField: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 11, borderColor: '#3B5367', borderRadius: 8, backgroundColor: colors.cardSoft, paddingHorizontal: 14, paddingVertical: 0 },
+    weeklineValue: { flex: 1, minWidth: 0, color: colors.white, fontSize: 16, fontWeight: '500' },
     field: {
       flex: 1,
       backgroundColor: colors.card,
