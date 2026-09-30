@@ -191,9 +191,9 @@ export async function setMainAcademy(academyId: string) {
   return academy().rpc('set_main_academy', { target_academy_id: academyId });
 }
 
-export async function fetchPublicAcademiesForMatches(): Promise<Pick<AcademyRow, 'id' | 'name' | 'logo_url' | 'city'>[]> {
-  const { data } = await academy().from('academies').select('id, name, logo_url, city').eq('is_active', true).order('name').limit(100);
-  return (data ?? []) as Pick<AcademyRow, 'id' | 'name' | 'logo_url' | 'city'>[];
+export async function fetchPublicAcademiesForMatches(): Promise<Pick<AcademyRow, 'id' | 'name' | 'logo_url' | 'city' | 'age_group'>[]> {
+  const { data } = await academy().from('academies').select('id, name, logo_url, city, age_group').eq('is_active', true).order('name').limit(100);
+  return (data ?? []) as Pick<AcademyRow, 'id' | 'name' | 'logo_url' | 'city' | 'age_group'>[];
 }
 
 export async function addSessionAttendees(sessionId: string, memberIds: string[]) {
