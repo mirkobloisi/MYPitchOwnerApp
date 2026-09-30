@@ -217,7 +217,7 @@ export default function AcademyDetailsScreen() {
   const guardianEnrolments = approved.filter((row) => row.member?.member_kind === 'guardian');
 
   function toRosterMember(row: EnrolmentRow): RosterMember | null {
-    if (!row.member) return null;
+    if (!row.member || row.member.member_kind === 'staff') return null;
     return {
       id: row.member.id,
       full_name: row.member.full_name,

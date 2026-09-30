@@ -9,6 +9,7 @@ export type AcademyRow = {
   pitch_owner_id: string;
   name: string;
   description: string | null;
+  age_group: string | null;
   city: string | null;
   logo_url: string | null;
   cover_url: string | null;
@@ -30,11 +31,11 @@ export type AcademyMember = {
   email: string | null;
   phone: string | null;
   /** guardian = a parent; player = a child or a self-managing 14+ teenager. */
-  member_kind: 'guardian' | 'player';
+  member_kind: 'guardian' | 'player' | 'staff';
 };
 
 const ACADEMY_COLUMNS =
-  'id, pitch_owner_id, name, description, city, logo_url, cover_url, is_active, created_at, is_main, invite_token';
+  'id, pitch_owner_id, name, description, age_group, city, logo_url, cover_url, is_active, created_at, is_main, invite_token';
 
 const MEMBER_COLUMNS =
   'id, full_name, date_of_birth, avatar_url, guardian_id, guardian_id_2, email, phone, member_kind';
@@ -77,7 +78,7 @@ export async function createAcademy(input: {
 export async function updateAcademy(
   academyId: string,
   fields: Partial<
-    Pick<AcademyRow, 'name' | 'city' | 'description' | 'is_active' | 'logo_url' | 'cover_url'>
+    Pick<AcademyRow, 'name' | 'city' | 'description' | 'age_group' | 'is_active' | 'logo_url' | 'cover_url'>
   >
 ) {
   return academy()
@@ -188,6 +189,16 @@ export async function fetchAcademy(academyId: string): Promise<AcademyRow | null
 
 export async function setMainAcademy(academyId: string) {
   return academy().rpc('set_main_academy', { target_academy_id: academyId });
+}
+
+export async function fetchPublicAcademiesForMatches(): Promise<Pick<AcademyRow, 'id' | 'name' | 'logo_url' | 'city'>[]> {
+  const { data } = await academy().from('academies').select('id, name, logo_url, city').eq('is_active', true).order('name').limit(100);
+  return (data ?? []) as Pick<AcademyRow, 'id' | 'name' | 'logo_url' | 'city'>[];
+}
+
+export async function addSessionAttendees(sessionId: string, memberIds: string[]) {
+  if (!memberIds.length) return { error: null };
+  return academy().from('session_attendees').insert(memberIds.map((member_id) => ({ session_id: sessionId, member_id, response: 'invited' })));
 }
 
 export async function regenerateInviteToken(academyId: string): Promise<string | null> {

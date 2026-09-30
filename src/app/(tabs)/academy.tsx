@@ -87,6 +87,7 @@ export default function AcademyScreen() {
         academies={sortedAcademies}
         counts={academyCounts}
         loading={isLoading}
+        onRefresh={load}
         createForm={{
           visible: showCreate,
           name: newName,
