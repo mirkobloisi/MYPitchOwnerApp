@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   desktopPrimaryButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 7, backgroundColor: colors.blueLight },
   desktopButtonText: { color: colors.blueLight, fontSize: 14, fontWeight: '600' },
   desktopPrimaryText: { color: colors.blackText, fontSize: 14, fontWeight: '600' },
-  desktopDetailCard: { flexShrink: 0, padding: 22, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft },
+  desktopDetailCard: { flexGrow: 1, flexShrink: 0, minHeight: 382, padding: 22, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft },
   desktopDetailTop: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16 },
   desktopDetailActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 },
   desktopDetailTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
