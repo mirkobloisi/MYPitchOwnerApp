@@ -813,7 +813,7 @@ export default function WebAcademyDashboard({
         imageHeight={cropImage?.height ?? 0}
         cropShape={cropTarget === 'logo' ? 'circle' : 'rectangle'}
         cropAspectRatio={cropTarget === 'logo' ? 1 : 4}
-        cropWidth={cropTarget === 'logo' ? 280 : 320}
+        cropWidth={cropTarget === 'logo' ? 280 : 560}
         onCancel={() => setCropImage(null)}
         onConfirm={uploadCroppedAcademyImage}
       />

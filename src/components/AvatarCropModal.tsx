@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import {
   Gesture,
   GestureDetector,
@@ -8,10 +8,9 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { useTranslation } from '../i18n/LanguageContext';
-import { AppColors } from '../theme/palettes';
+import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
 import { spacing } from '../theme/layout';
-import AppButton from './AppButton';
 
 const CROP_SIZE = 280;
 const MAX_GESTURE_SCALE = 4;
@@ -49,10 +48,12 @@ export default function AvatarCropModal({
 }: AvatarCropModalProps) {
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { width: viewportWidth } = useWindowDimensions();
+  const palette = Platform.OS === 'web' ? weeklineColors : colors;
+  const styles = useMemo(() => makeStyles(palette), [palette]);
 
-  const frameWidth = cropWidth;
-  const frameHeight = cropWidth / Math.max(0.25, cropAspectRatio);
+  const frameWidth = Math.min(cropWidth, Math.max(180, viewportWidth - 96));
+  const frameHeight = frameWidth / Math.max(0.25, cropAspectRatio);
   const baseScale = imageWidth > 0 && imageHeight > 0
     ? Math.max(frameWidth / imageWidth, frameHeight / imageHeight)
     : 1;
@@ -128,6 +129,15 @@ export default function AvatarCropModal({
     savedTranslateY.value = clamped.y;
   }
 
+  function resetCrop() {
+    scale.value = 1;
+    savedScale.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    savedTranslateX.value = 0;
+    savedTranslateY.value = 0;
+  }
+
   const imageAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
@@ -168,56 +178,67 @@ export default function AvatarCropModal({
   if (!imageUri) return null;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={onCancel}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onCancel}>
       <GestureHandlerRootView style={styles.root}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('avatarCrop.title')}</Text>
-          <Text style={styles.subtitle}>{t('avatarCrop.subtitle')}</Text>
-        </View>
-
-        <View style={styles.stage}>
-          <GestureDetector gesture={composedGesture}>
-            <View style={[styles.cropFrame, {
-              width: frameWidth,
-              height: frameHeight,
-              borderRadius: cropShape === 'circle' ? frameWidth / 2 : 10,
-            }]}>
-              <Animated.Image
-                source={{ uri: imageUri }}
-                style={[
-                  {
-                    width: imageWidth * baseScale,
-                    height: imageHeight * baseScale,
-                    left: (frameWidth - imageWidth * baseScale) / 2,
-                    top: (frameHeight - imageHeight * baseScale) / 2,
-                    position: 'absolute',
-                  },
-                  imageAnimatedStyle,
-                ]}
-              />
+        <Pressable style={styles.backdrop} onPress={onCancel} accessibilityLabel={t('common.cancel')} />
+        <View style={styles.dialog}>
+          <View style={styles.header}>
+            <View style={styles.headerText}>
+              <Text style={styles.title}>{t('avatarCrop.title')}</Text>
+              <Text style={styles.subtitle}>{t('avatarCrop.subtitle')}</Text>
             </View>
-          </GestureDetector>
-          <View pointerEvents="none" style={[styles.cropFrameRing, {
-            width: frameWidth + 4,
-            height: frameHeight + 4,
-            borderRadius: cropShape === 'circle' ? (frameWidth + 4) / 2 : 12,
-            top: '50%' as any,
-            left: '50%' as any,
-            marginTop: -(frameHeight + 4) / 2,
-            marginLeft: -(frameWidth + 4) / 2,
-          }]} />
-          <View style={styles.zoomControls}>
-            <Pressable onPress={() => zoomBy(1 / 1.2)} style={styles.zoomButton} accessibilityLabel="Zoom out"><Text style={styles.zoomText}>−</Text></Pressable>
-            <Pressable onPress={() => zoomBy(1.2)} style={styles.zoomButton} accessibilityLabel="Zoom in"><Text style={styles.zoomText}>+</Text></Pressable>
+            <Pressable onPress={onCancel} style={styles.closeButton} accessibilityRole="button" accessibilityLabel={t('common.cancel')}>
+              <Text style={styles.closeText}>×</Text>
+            </Pressable>
           </View>
-        </View>
 
-        <View style={styles.actions}>
-          <View style={styles.actionHalf}>
-            <AppButton title={t('common.cancel')} variant="outline" onPress={onCancel} />
+          <View style={styles.stage}>
+            <View style={styles.cropArea}>
+              <GestureDetector gesture={composedGesture}>
+                <View style={[styles.cropFrame, {
+                  width: frameWidth,
+                  height: frameHeight,
+                  borderRadius: cropShape === 'circle' ? frameWidth / 2 : 8,
+                }]}>
+                  <Animated.Image
+                    source={{ uri: imageUri }}
+                    style={[
+                      {
+                        width: imageWidth * baseScale,
+                        height: imageHeight * baseScale,
+                        left: (frameWidth - imageWidth * baseScale) / 2,
+                        top: (frameHeight - imageHeight * baseScale) / 2,
+                        position: 'absolute',
+                      },
+                      imageAnimatedStyle,
+                    ]}
+                  />
+                </View>
+              </GestureDetector>
+              <View pointerEvents="none" style={[styles.cropFrameRing, {
+                width: frameWidth + 4,
+                height: frameHeight + 4,
+                borderRadius: cropShape === 'circle' ? (frameWidth + 4) / 2 : 10,
+                top: '50%' as any,
+                left: '50%' as any,
+                marginTop: -(frameHeight + 4) / 2,
+                marginLeft: -(frameWidth + 4) / 2,
+              }]} />
+            </View>
+            <View style={styles.zoomControls}>
+              <Pressable onPress={() => zoomBy(1 / 1.2)} style={styles.zoomButton} accessibilityRole="button" accessibilityLabel="Zoom out"><Text style={styles.zoomText}>−</Text></Pressable>
+              <Pressable onPress={resetCrop} style={[styles.zoomButton, styles.fitButton]} accessibilityRole="button" accessibilityLabel="Reset crop"><Text style={styles.fitText}>Fit</Text></Pressable>
+              <Pressable onPress={() => zoomBy(1.2)} style={styles.zoomButton} accessibilityRole="button" accessibilityLabel="Zoom in"><Text style={styles.zoomText}>+</Text></Pressable>
+            </View>
           </View>
-          <View style={styles.actionHalf}>
-            <AppButton title={t('avatarCrop.usePhoto')} onPress={handleConfirm} />
+
+          <View style={styles.actions}>
+            <Pressable onPress={onCancel} style={styles.cancelButton} accessibilityRole="button">
+              <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+            </Pressable>
+            <Pressable onPress={handleConfirm} style={styles.confirmButton} accessibilityRole="button">
+              <Text style={styles.confirmText}>{t('avatarCrop.usePhoto')}</Text>
+            </Pressable>
           </View>
         </View>
       </GestureHandlerRootView>
@@ -229,51 +250,72 @@ const makeStyles = (colors: AppColors) =>
   StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: colors.background,
-      paddingHorizontal: spacing.lg,
-      paddingTop: 64,
-      paddingBottom: spacing.xl,
-    },
-    header: {
       alignItems: 'center',
-      marginBottom: spacing.xl,
+      justifyContent: 'center',
+      padding: spacing.lg,
     },
+    backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3, 9, 15, 0.78)' },
+    dialog: { width: 'min(760px, 96%)' as any, maxWidth: 760, maxHeight: '92%', borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, paddingHorizontal: 20, paddingTop: 17, paddingBottom: 14, shadowColor: '#000', shadowOpacity: 0.38, shadowRadius: 28, shadowOffset: { width: 0, height: 14 }, elevation: 24 },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      paddingBottom: 13,
+      borderBottomWidth: 1,
+      borderColor: colors.borderSoft,
+    },
+    headerText: { flex: 1, gap: 3 },
     title: {
       color: colors.white,
-      fontSize: 22,
-      fontWeight: '900',
+      fontSize: 17,
+      fontWeight: '700',
     },
     subtitle: {
       color: colors.grey,
-      fontSize: 13,
-      fontWeight: '600',
-      marginTop: spacing.xs,
-      textAlign: 'center',
+      fontSize: 11,
+      lineHeight: 15,
     },
     stage: {
-      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: spacing.md,
+      paddingVertical: 18,
+      gap: 14,
+    },
+    cropArea: {
+      maxWidth: '100%' as any,
+      minHeight: 84,
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
     },
     cropFrame: {
       overflow: 'hidden',
       backgroundColor: colors.cardDark,
+      cursor: 'grab' as any,
     },
     cropFrameRing: {
       position: 'absolute',
       borderWidth: 2,
-      borderColor: colors.greenLight,
+      borderColor: colors.blueLight,
     },
-    zoomControls: { flexDirection: 'row', gap: spacing.sm },
-    zoomButton: { width: 38, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, cursor: 'pointer' as any },
-    zoomText: { color: colors.white, fontSize: 20, lineHeight: 24, fontWeight: '600' },
+    closeButton: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 7, backgroundColor: colors.cardSoft, cursor: 'pointer' as any },
+    closeText: { color: colors.greySoft, fontSize: 21, lineHeight: 24 },
+    zoomControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    zoomButton: { width: 36, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft, cursor: 'pointer' as any },
+    fitButton: { width: 46 },
+    zoomText: { color: colors.white, fontSize: 19, lineHeight: 22, fontWeight: '600' },
+    fitText: { color: colors.greySoft, fontSize: 11, fontWeight: '600' },
     actions: {
       flexDirection: 'row',
-      gap: spacing.md,
-      marginTop: spacing.xl,
+      justifyContent: 'flex-end',
+      gap: 8,
+      paddingTop: 13,
+      borderTopWidth: 1,
+      borderColor: colors.borderSoft,
     },
-    actionHalf: {
-      flex: 1,
-    },
+    cancelButton: { minWidth: 84, minHeight: 36, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 13, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft, cursor: 'pointer' as any },
+    cancelText: { color: colors.greySoft, fontSize: 12, fontWeight: '600' },
+    confirmButton: { minWidth: 104, minHeight: 36, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 15, borderRadius: 7, borderWidth: 1, borderColor: colors.blueLight, backgroundColor: colors.blueLight, cursor: 'pointer' as any },
+    confirmText: { color: colors.blackText, fontSize: 12, fontWeight: '700' },
   });
