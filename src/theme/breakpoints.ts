@@ -6,7 +6,7 @@ export const DESKTOP_MIN_WIDTH = 1024;
 export const TABLET_MIN_WIDTH = 768;
 
 /** How wide the desktop side navigation is. */
-export const SIDEBAR_WIDTH = 236;
+export const SIDEBAR_WIDTH = 254;
 /** Height reserved for the bottom bar on narrow screens. */
 export const BOTTOM_BAR_HEIGHT = 64;
 
