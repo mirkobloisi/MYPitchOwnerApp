@@ -289,7 +289,7 @@ function NavItem({
       ]}
     >
       <View>
-        <Ionicons name={icon} size={isDesktop ? (weekline ? 17 : 18) : 20} color={tint} />
+        <Ionicons name={icon} size={isDesktop ? (weekline ? 19 : 18) : 20} color={tint} />
 
         {waiting > 0 ? (
           <View style={themed.bell}>
@@ -324,44 +324,44 @@ const styles = StyleSheet.create({
   },
   weeklineSidebar: {
     backgroundColor: weeklineColors.backgroundSoft,
-    paddingHorizontal: 11,
-    paddingTop: 20,
+    paddingHorizontal: 13,
+    paddingTop: 22,
   },
   weeklineBrandRow: {
-    height: 65,
+    height: 70,
     justifyContent: 'center',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#30495B',
-    marginBottom: 16,
+    marginBottom: 18,
     paddingHorizontal: 2,
   },
   weeklineBrandLogo: {
-    width: 168,
+    width: 180,
     aspectRatio: 2048 / 688,
   },
   weeklineNavHeading: {
     color: '#84A5BC',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    paddingHorizontal: 10,
-    paddingBottom: 9,
+    paddingHorizontal: 11,
+    paddingBottom: 10,
   },
   weeklineNavItem: {
     borderWidth: 0,
     borderRadius: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    gap: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 11,
+    gap: 11,
   },
   weeklineNavItemActive: {
     backgroundColor: '#1C4563',
     borderWidth: 0,
   },
   weeklineNavText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
   },
   weeklineNavTextActive: {
@@ -369,13 +369,13 @@ const styles = StyleSheet.create({
     color: weeklineColors.white,
   },
   weeklineInboxButton: {
-    marginTop: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    marginTop: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 11,
     borderRadius: 5,
   },
   weeklineInboxLabel: {
-    fontSize: 14,
+    fontSize: 15,
   },
   moreAnchor: {
     position: 'relative',
