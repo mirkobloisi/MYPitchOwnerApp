@@ -391,7 +391,7 @@ export default function WebAcademyDashboard({
     setEditBusy(true);
     const { error } = await updateAcademy(editAcademy.id, {
       name: editName.trim(), description: editDescription.trim() || null,
-      age_group: editAgeGroup || null, logo_url: editLogo,
+      age_group: editAgeGroup.trim() || null, logo_url: editLogo,
     });
     if (!error && makeMain && !editAcademy.is_main) await setMainAcademy(editAcademy.id);
     setEditBusy(false);
@@ -696,20 +696,28 @@ export default function WebAcademyDashboard({
       <Modal transparent visible={!!editAcademy} animationType="fade" onRequestClose={() => setEditAcademy(null)}>
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setEditAcademy(null)} />
-          <View style={[styles.composeModal, { maxWidth: 560, maxHeight: '90%' }]}>
+          <View style={[styles.composeModal, styles.editAcademyModal, { maxWidth: 560, maxHeight: '90%' }]}>
             <View style={styles.composeHeader}><View><Text style={styles.panelTitle}>{t('academy.dashboardEdit')}</Text><Text style={styles.panelHint}>{editAcademy?.name}</Text></View><Pressable onPress={() => setEditAcademy(null)} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable></View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.formLabel}>Academy profile picture</Text>
-              <AvatarPickerTrigger onPicked={uploadLogo} onError={(error) => setMatchError(String(error))} style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
-                {editLogo ? <Image source={{ uri: editLogo }} style={{ width: 76, height: 76, borderRadius: 40 }} /> : <View style={[styles.headerCrestPlaceholder, { width: 76, height: 76, borderRadius: 40 }]}><Ionicons name="shield-outline" size={28} color={colors.blueLight} /></View>}
-                <Text style={[styles.textAction, { marginTop: 6 }]}>Change logo</Text>
-              </AvatarPickerTrigger>
-              <Text style={styles.formLabel}>Academy name</Text><TextInput value={editName} onChangeText={setEditName} style={styles.formInput} placeholder="Academy name" placeholderTextColor={colors.greyDark} />
-              <Text style={styles.formLabel}>Type / age group</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
-                {['', ...Array.from({ length: 16 }, (_, i) => `U${i + 3}`)].map((age) => <Pressable key={age || 'none'} onPress={() => setEditAgeGroup(age)} style={[styles.outlineButton, { paddingVertical: 7, paddingHorizontal: 10 }, editAgeGroup === age && styles.selectedChoice]}><Text style={styles.outlineButtonText}>{age || 'No age group'}</Text></Pressable>)}
+              <View style={styles.editProfileRow}>
+                <View style={styles.editLogoColumn}>
+                  <Text style={styles.formLabel}>Academy logo</Text>
+                  <AvatarPickerTrigger onPicked={uploadLogo} onError={(error) => setMatchError(String(error))} style={styles.editLogoPicker}>
+                    {editLogo ? <Image source={{ uri: editLogo }} style={styles.editLogoImage} /> : <View style={[styles.headerCrestPlaceholder, styles.editLogoImage]}><Ionicons name="shield-outline" size={27} color={colors.blueLight} /></View>}
+                    <View style={styles.editLogoChange}><Ionicons name="camera-outline" size={13} color={colors.blueLight} /><Text style={styles.textAction}>Change</Text></View>
+                  </AvatarPickerTrigger>
+                </View>
+                <View style={styles.editFieldsColumn}>
+                  <Text style={styles.formLabel}>Academy name</Text>
+                  <TextInput value={editName} onChangeText={setEditName} style={styles.formInput} placeholder="Academy name" placeholderTextColor={colors.greyDark} />
+                  <Text style={styles.formLabel}>Age group <Text style={styles.optionalLabel}>(optional)</Text></Text>
+                  <TextInput value={editAgeGroup} onChangeText={setEditAgeGroup} style={styles.formInput} placeholder="Write the age group (e.g. U3 - U12)" placeholderTextColor={colors.greyDark} maxLength={40} />
+                </View>
               </View>
-              <Text style={styles.formLabel}>Brief description</Text><TextInput value={editDescription} onChangeText={setEditDescription} style={[styles.formInput, { minHeight: 76, textAlignVertical: 'top' }]} multiline placeholder="Play · Develop · Belong" placeholderTextColor={colors.greyDark} />
+              <View style={styles.editDescriptionSection}>
+                <Text style={styles.formLabel}>Brief description</Text>
+                <TextInput value={editDescription} onChangeText={setEditDescription} style={[styles.formInput, styles.editDescriptionInput]} multiline placeholder="Play · Develop · Belong" placeholderTextColor={colors.greyDark} />
+              </View>
               <Pressable disabled={!!editAcademy?.is_main} onPress={() => setMakeMain((v) => !v)} style={[styles.recipientRow, makeMain && styles.recipientRowActive, { marginTop: 12 }]}><View style={[styles.checkbox, makeMain && styles.checkboxActive]}>{makeMain ? <Ionicons name="checkmark" size={12} color={colors.blackText} /> : null}</View><Text style={styles.recipientName}>Assign as main academy</Text><Ionicons name="trophy" size={15} color={colors.yellow} /></Pressable>
               {matchError ? <Text style={styles.errorText}>{matchError}</Text> : null}
               <View style={styles.modalActions}><Pressable onPress={() => setEditAcademy(null)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable><Pressable disabled={!editName.trim() || editBusy} onPress={saveAcademy} style={[styles.primaryButton, (!editName.trim() || editBusy) && styles.disabledButton]}>{editBusy ? <ActivityIndicator size="small" color={colors.blackText} /> : null}<Text style={styles.primaryButtonText}>Save changes</Text></Pressable></View>
@@ -789,7 +797,7 @@ function AcademyCard({ academy, enrolments, loading, styles, colors, t, onEdit, 
         </View>
         <View style={styles.academyMetaRow}>
           <Ionicons name="people-outline" size={16} color={colors.greySoft} />
-          <Text style={styles.academyMetaText} numberOfLines={1}>{loading ? t('common.loading') : t('academy.dashboardAgeGroups', { count: new Set(enrolments.filter((row) => row.member?.member_kind === 'player').map((row) => ageFromDateOfBirth(row.member?.date_of_birth ?? null)).filter((age): age is number => age !== null)).size })} ({ageGroups})</Text>
+          <Text style={styles.academyMetaText} numberOfLines={1}>{loading ? t('common.loading') : academy.age_group?.trim() ? t('academy.dashboardAgeGroupValue', { ageGroup: academy.age_group.trim() }) : `${t('academy.dashboardAgeGroups', { count: new Set(enrolments.filter((row) => row.member?.member_kind === 'player').map((row) => ageFromDateOfBirth(row.member?.date_of_birth ?? null)).filter((age): age is number => age !== null)).size })} (${ageGroups})`}</Text>
         </View>
         <View style={styles.academyFooter}>
           <View style={styles.sportTag}><Ionicons name="football-outline" size={14} color={colors.blueLight} /><Text style={styles.sportTagText}>{t('academy.dashboardSportAcademy')}</Text></View>
@@ -1056,7 +1064,17 @@ function makeStyles(colors: AppColors) {
     createFormHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
     createInputs: { flexDirection: 'row', alignItems: 'center', gap: 9 },
     formInput: { flex: 1, height: 38, color: colors.white, fontSize: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, paddingHorizontal: 11, outlineStyle: 'none' as any },
-    formLabel: { color: colors.greySoft, fontSize: 11, fontWeight: '500', marginBottom: 9 },
+    formLabel: { color: colors.greySoft, fontSize: 11, fontWeight: '500', marginBottom: 6 },
+    editAcademyModal: { padding: 20 },
+    editProfileRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 18 },
+    editLogoColumn: { width: 96, alignItems: 'center' },
+    editLogoPicker: { alignItems: 'center', gap: 7, paddingTop: 3 },
+    editLogoImage: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
+    editLogoChange: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    editFieldsColumn: { flex: 1, gap: 5 },
+    editDescriptionSection: { marginTop: 16 },
+    editDescriptionInput: { flex: 0, height: 88, textAlignVertical: 'top', paddingTop: 10 },
+    optionalLabel: { color: colors.grey, fontWeight: '400' },
     errorText: { color: colors.red, fontSize: 12, marginTop: 9 },
     disabledButton: { opacity: 0.5 },
     outlineButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
