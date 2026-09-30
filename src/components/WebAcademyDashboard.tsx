@@ -802,7 +802,7 @@ function PanelHeading({ styles, title, action, onAction }: { styles: ReturnType<
 function makeStyles(colors: AppColors) {
   return StyleSheet.create({
     screenContent: { paddingHorizontal: 21, paddingTop: 0, paddingBottom: 24, maxWidth: 1800, alignSelf: 'stretch' },
-    topHeader: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 0 },
+    topHeader: { minHeight: 70, position: 'relative', zIndex: 40, overflow: 'visible', flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 0 },
     topHeaderCompact: { minHeight: 0, flexWrap: 'wrap', justifyContent: 'flex-start', paddingVertical: 10, gap: 8 },
     pageTitle: { color: colors.white, fontSize: 27, lineHeight: 33, fontWeight: '700', marginRight: 8 },
     headerPickerWrap: { position: 'relative', zIndex: 30 },
@@ -825,7 +825,7 @@ function makeStyles(colors: AppColors) {
     userName: { color: colors.white, fontSize: 12, fontWeight: '600' },
     userRole: { color: colors.grey, fontSize: 10, marginTop: 2 },
     notificationDot: { position: 'absolute', width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange, top: 7, right: 7, borderWidth: 1, borderColor: colors.card },
-    dropdown: { position: 'absolute', top: 45, left: 0, minWidth: 260, maxWidth: 320, zIndex: 50, elevation: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
+    dropdown: { position: 'absolute', top: 45, left: 0, minWidth: 260, maxWidth: 320, zIndex: 100, elevation: 24, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0B1722', padding: 5, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
     dropdownRow: { minHeight: 48, justifyContent: 'center', gap: 2, paddingHorizontal: 10, borderRadius: 6 },
     dropdownRowActive: { backgroundColor: colors.blueSoft },
     dropdownTitle: { color: colors.white, fontSize: 12, fontWeight: '600' },
@@ -843,7 +843,7 @@ function makeStyles(colors: AppColors) {
     disabledButton: { opacity: 0.5 },
     outlineButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
     outlineButtonText: { color: colors.greySoft, fontSize: 11, fontWeight: '600' },
-    sectionNav: { minHeight: 44, flexDirection: 'row', alignItems: 'stretch', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 12 },
+    sectionNav: { minHeight: 44, position: 'relative', zIndex: 0, flexDirection: 'row', alignItems: 'stretch', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 12 },
     sectionTab: { minWidth: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
     sectionTabActive: { borderBottomColor: colors.blueLight },
     sectionTabHovered: { backgroundColor: colors.surfaceMuted },
