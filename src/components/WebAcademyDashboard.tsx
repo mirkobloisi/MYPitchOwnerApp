@@ -198,6 +198,7 @@ export default function WebAcademyDashboard({
   const [opponentOptions, setOpponentOptions] = useState<Awaited<ReturnType<typeof fetchPublicAcademiesForMatches>>>([]);
   const [matchMapsUrl, setMatchMapsUrl] = useState('');
   const [matchSelected, setMatchSelected] = useState<Set<string>>(new Set());
+  const [matchRosterTab, setMatchRosterTab] = useState<'player' | 'staff'>('player');
   const [matchError, setMatchError] = useState('');
   const [resultSession, setResultSession] = useState<SessionRow | null>(null);
   const [homeScoreInput, setHomeScoreInput] = useState('');
@@ -464,7 +465,7 @@ export default function WebAcademyDashboard({
   }
 
   async function openMatchDialog() {
-    setMatchError(''); setMatchSelected(new Set()); setShowMatchAcademies(false);
+    setMatchError(''); setMatchSelected(new Set()); setMatchRosterTab('player'); setShowMatchAcademies(false);
     setMatchOpponent(''); setMatchOpponentId(null); setMatchMapsUrl(''); setShowMatch(true);
     setOpponentOptions(await fetchPublicAcademiesForMatches());
   }
@@ -867,20 +868,54 @@ export default function WebAcademyDashboard({
                 <View style={[styles.matchColumnDivider, width < 1000 && styles.matchColumnDividerStacked]} />
                 <View style={[styles.matchRightColumn, width < 1000 && styles.matchColumnStacked]}>
                   <View style={styles.matchupPreview}>
-                    <View style={styles.matchupTeam}>{selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.matchTeamCrest} resizeMode="contain" /> : <View style={styles.matchTeamCrestFallback}><Ionicons name="shield-outline" size={30} color={colors.blueLight} /></View>}<Text style={styles.matchupTeamName} numberOfLines={2}>{selectedAcademy?.name || 'Your academy'}</Text></View>
+                    <View style={styles.matchupTeam}>{selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.matchTeamCrest} resizeMode="contain" /> : <View style={styles.matchTeamCrestFallback}><Ionicons name="shield-outline" size={30} color={colors.blueLight} /></View>}<Text style={styles.matchupTeamName} numberOfLines={2}>{selectedAcademy?.name || 'Your academy'}</Text><Text style={styles.matchupTeamSubtitle} numberOfLines={1}>{selectedAcademy?.age_group ? selectedAcademy.age_group + ' Academy' : 'Academy'}</Text></View>
                     <Text style={styles.matchupVs}>VS</Text>
-                    <View style={styles.matchupTeam}>{opponentOptions.find((academy) => academy.id === matchOpponentId)?.logo_url ? <Image source={{ uri: opponentOptions.find((academy) => academy.id === matchOpponentId)?.logo_url! }} style={styles.matchTeamCrest} resizeMode="contain" /> : <View style={styles.matchTeamCrestFallback}><Ionicons name="shield-outline" size={30} color={colors.blueLight} /></View>}<Text style={styles.matchupTeamName} numberOfLines={2}>{matchOpponent.trim() || 'Opponent'}</Text></View>
+                    <View style={styles.matchupTeam}>{opponentOptions.find((academy) => academy.id === matchOpponentId)?.logo_url ? <Image source={{ uri: opponentOptions.find((academy) => academy.id === matchOpponentId)?.logo_url! }} style={styles.matchTeamCrest} resizeMode="contain" /> : <View style={styles.matchTeamCrestFallback}><Ionicons name="shield-outline" size={30} color={colors.blueLight} /></View>}<Text style={styles.matchupTeamName} numberOfLines={2}>{matchOpponent.trim() || 'Opponent'}</Text><Text style={styles.matchupTeamSubtitle} numberOfLines={1}>{opponentOptions.find((academy) => academy.id === matchOpponentId)?.age_group ? opponentOptions.find((academy) => academy.id === matchOpponentId)?.age_group + ' Academy' : matchOpponentId ? 'Academy' : ''}</Text></View>
                   </View>
-                  <Text style={styles.matchSquadTitle}>Squad</Text>
-                  {selectedAcademy ? <View style={styles.matchSquadColumns}>{(['player', 'staff'] as const).map((kind) => {
-                    const label = kind === 'player' ? 'Players' : 'Coaches';
-                    const roster = enrolments.filter((r) => r.status === 'approved' && r.member?.member_kind === kind);
+                  {selectedAcademy ? (() => {
+                    const players = enrolments.filter((r) => r.status === 'approved' && r.member?.member_kind === 'player');
+                    const coaches = enrolments.filter((r) => r.status === 'approved' && r.member?.member_kind === 'staff');
+                    const roster = matchRosterTab === 'player' ? players : coaches;
                     const allSelected = roster.length > 0 && roster.every((r) => matchSelected.has(r.member_id));
-                    return <View key={kind} style={styles.matchRosterPanel}>
-                      <View style={styles.rosterSelectHeader}><Text style={styles.matchRosterTitle}>{label} <Text style={styles.matchRosterCount}>{roster.length}</Text></Text><Pressable onPress={() => setMatchSelected((s) => { const n = new Set(s); roster.forEach((r) => allSelected ? n.delete(r.member_id) : n.add(r.member_id)); return n; })}><Text style={styles.textAction}>{allSelected ? 'Clear all' : 'Select all'}</Text></Pressable></View>
-                      <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={styles.matchRosterList}>{roster.map((r) => <Pressable key={r.member_id} onPress={() => setMatchSelected((s) => { const n = new Set(s); n.has(r.member_id) ? n.delete(r.member_id) : n.add(r.member_id); return n; })} style={[styles.matchParticipantRow, matchSelected.has(r.member_id) && styles.recipientRowActive]}><View style={[styles.checkbox, matchSelected.has(r.member_id) && styles.checkboxActive]}>{matchSelected.has(r.member_id) ? <Ionicons name="checkmark" size={12} color={colors.blackText} /> : null}</View><View style={styles.matchParticipantAvatar}>{r.member?.avatar_url ? <Image source={{ uri: r.member.avatar_url }} style={styles.matchParticipantImage} /> : <Text style={styles.matchParticipantInitial}>{(r.member?.full_name || '?').slice(0, 1).toUpperCase()}</Text>}</View><Text style={styles.recipientName} numberOfLines={1}>{r.member?.full_name}</Text><Ionicons name={matchSelected.has(r.member_id) ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={matchSelected.has(r.member_id) ? colors.blueLight : colors.greyDark} /></Pressable>)}{!roster.length ? <Text style={styles.panelHint}>{kind === 'player' ? 'No registered players yet.' : 'No coaches are registered yet.'}</Text> : null}</ScrollView>
-                    </View>;
-                  })}</View> : <Text style={styles.panelHint}>Choose an academy to select players and coaches.</Text>}
+                    return (
+                      <View style={styles.matchRosterSection}>
+                        <View style={styles.matchRosterTabs}>
+                          <Pressable accessibilityRole="tab" accessibilityState={{ selected: matchRosterTab === 'player' }} onPress={() => setMatchRosterTab('player')} style={styles.matchRosterTabButton}>
+                            <Text style={[styles.matchRosterTabText, matchRosterTab === 'player' && styles.matchRosterTabTextActive]}>Players ({players.length})</Text>
+                            {matchRosterTab === 'player' ? <View style={styles.matchRosterTabIndicator} /> : null}
+                          </Pressable>
+                          <Pressable accessibilityRole="tab" accessibilityState={{ selected: matchRosterTab === 'staff' }} onPress={() => setMatchRosterTab('staff')} style={styles.matchRosterTabButton}>
+                            <Text style={[styles.matchRosterTabText, matchRosterTab === 'staff' && styles.matchRosterTabTextActive]}>Coaches ({coaches.length})</Text>
+                            {matchRosterTab === 'staff' ? <View style={styles.matchRosterTabIndicator} /> : null}
+                          </Pressable>
+                          <Pressable accessibilityRole="button" onPress={() => setMatchSelected((selected) => {
+                            const next = new Set(selected);
+                            roster.forEach((row) => allSelected ? next.delete(row.member_id) : next.add(row.member_id));
+                            return next;
+                          })} style={styles.matchRosterSelectAll}>
+                            <Text style={styles.matchRosterSelectAllText}>{allSelected ? 'Clear all' : 'Select all'}</Text>
+                          </Pressable>
+                        </View>
+                        <ScrollView nestedScrollEnabled showsVerticalScrollIndicator style={styles.matchRosterList}>
+                          {roster.map((row) => {
+                            const checked = matchSelected.has(row.member_id);
+                            return (
+                              <Pressable key={row.member_id} accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => setMatchSelected((selected) => {
+                                const next = new Set(selected);
+                                if (next.has(row.member_id)) next.delete(row.member_id); else next.add(row.member_id);
+                                return next;
+                              })} style={styles.matchParticipantRow}>
+                                <View style={[styles.checkbox, checked && styles.checkboxActive]}>{checked ? <Ionicons name="checkmark" size={12} color={colors.blackText} /> : null}</View>
+                                <View style={styles.matchParticipantAvatar}>{row.member?.avatar_url ? <Image source={{ uri: row.member.avatar_url }} style={styles.matchParticipantImage} /> : <Text style={styles.matchParticipantInitial}>{(row.member?.full_name || '?').slice(0, 1).toUpperCase()}</Text>}</View>
+                                <Text style={styles.recipientName} numberOfLines={1}>{row.member?.full_name || 'Academy member'}</Text>
+                              </Pressable>
+                            );
+                          })}
+                          {!roster.length ? <Text style={styles.matchRosterEmpty}>{matchRosterTab === 'player' ? 'No registered players yet.' : 'No coaches are registered yet.'}</Text> : null}
+                        </ScrollView>
+                      </View>
+                    );
+                  })() : <Text style={styles.panelHint}>Choose an academy to select players and coaches.</Text>}
                   <View style={styles.matchFieldColumn}><Text style={styles.matchFormLabel}>Match place</Text><View style={styles.matchInputIcon}><Ionicons name="location-outline" size={17} color={colors.grey} /><TextInput value={matchMapsUrl} onChangeText={setMatchMapsUrl} style={styles.matchInputText} placeholder="Paste a Google Maps share link" placeholderTextColor={colors.greyDark} autoCapitalize="none" autoCorrect={false} keyboardType="url" /></View></View>
                 </View>
               </View>
@@ -1370,7 +1405,7 @@ function makeStyles(colors: AppColors) {
     recipientRowActive: { backgroundColor: colors.blueSoft },
     selectedChoice: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     matchRosterBlock: { borderWidth: 1, borderColor: colors.border, borderRadius: 8.4, padding: 10.8, marginBottom: 14.4, maxHeight: 180, overflow: 'scroll' as any },
-    matchModal: { width: 'min(1120px, 92%)' as any, maxWidth: 1344, maxHeight: '86%', padding: 26.4 },
+    matchModal: { width: 'min(1120px, 92%)' as any, maxWidth: 1344, maxHeight: '92%', padding: 26.4 },
     resultModal: { width: 'min(440px, 92%)' as any, maxWidth: 528 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14.4 },
     scoreInputColumn: { flex: 1, minWidth: 0, gap: 8.4 },
@@ -1378,9 +1413,9 @@ function makeStyles(colors: AppColors) {
     scoreSeparator: { color: colors.grey, fontSize: 24, fontWeight: '600', paddingBottom: 13.2 },
     matchFormScroll: { flexShrink: 1 },
     matchFormContent: { paddingBottom: 9.6 },
-    matchLayout: { flexDirection: 'row', alignItems: 'stretch', minHeight: 580 },
+    matchLayout: { flexDirection: 'row', alignItems: 'stretch', minHeight: 610 },
     matchLayoutStacked: { flexDirection: 'column', minHeight: 0 },
-    matchLeftColumn: { width: '38%' as any, paddingRight: 26.4, gap: 28.8 },
+    matchLeftColumn: { width: '44%' as any, paddingRight: 26.4, gap: 28.8 },
     matchRightColumn: { flex: 1, minWidth: 0, paddingLeft: 26.4, gap: 16.8 },
     matchColumnStacked: { width: '100%' as any, paddingHorizontal: 0, paddingVertical: 14.4 },
     matchColumnDivider: { width: 1.2, backgroundColor: colors.borderSoft },
@@ -1407,10 +1442,10 @@ function makeStyles(colors: AppColors) {
     matchAcademyDropdown: { marginTop: 6, borderRadius: 9.6, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
     matchAcademyOption: { minHeight: 64.8, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 13.2, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     matchAcademyOptionActive: { backgroundColor: colors.blueSoft },
-    matchupPreview: { minHeight: 177.6, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 19.2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.cardSoft, paddingHorizontal: 28.8, paddingVertical: 21.6 },
+    matchupPreview: { minHeight: 163.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 19.2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.cardSoft, paddingHorizontal: 28.8, paddingVertical: 16.8 },
     matchupTeam: { flex: 1, minWidth: 0, alignItems: 'center', gap: 10.8 },
-    matchTeamCrest: { width: 86.4, height: 91.2, backgroundColor: 'transparent' },
-    matchTeamCrestFallback: { width: 86.4, height: 91.2, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+    matchTeamCrest: { width: 74.4, height: 76.8, backgroundColor: 'transparent' },
+    matchTeamCrestFallback: { width: 74.4, height: 76.8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
     matchupTeamName: { color: colors.white, fontSize: 15.6, fontWeight: '600', textAlign: 'center' },
     matchupVs: { color: colors.grey, fontSize: 14.4, fontWeight: '700', letterSpacing: 1.5 },
     matchSquadTitle: { color: colors.white, fontSize: 18, fontWeight: '700', marginTop: 3.6 },
@@ -1418,8 +1453,18 @@ function makeStyles(colors: AppColors) {
     matchRosterPanel: { flex: 1, minWidth: 0, minHeight: 249.6, borderWidth: 1, borderColor: colors.border, borderRadius: 10.8, backgroundColor: colors.cardSoft, padding: 13.2 },
     matchRosterTitle: { color: colors.white, fontSize: 15.6, fontWeight: '600' },
     matchRosterCount: { color: colors.grey, fontWeight: '500' },
-    matchRosterList: { maxHeight: 180, marginTop: 9.6 },
-    matchParticipantRow: { minHeight: 49.2, flexDirection: 'row', alignItems: 'center', gap: 9.6, paddingHorizontal: 6, borderRadius: 7.2 },
+    matchRosterSection: { minWidth: 0, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    matchRosterTabs: { height: 46.8, flexDirection: 'row', alignItems: 'stretch', borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    matchRosterTabButton: { minWidth: 92.4, position: 'relative', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+    matchRosterTabText: { color: colors.grey, fontSize: 15.6, fontWeight: '600' },
+    matchRosterTabTextActive: { color: colors.blueLight },
+    matchRosterTabIndicator: { position: 'absolute', left: 0, right: 0, bottom: -1, height: 3, backgroundColor: colors.blueLight },
+    matchRosterSelectAll: { marginLeft: 'auto', justifyContent: 'center', paddingHorizontal: 8 },
+    matchRosterSelectAllText: { color: colors.blueLight, fontSize: 13.2, fontWeight: '600' },
+    matchRosterList: { maxHeight: 270 },
+    matchRosterEmpty: { color: colors.grey, fontSize: 13.2, textAlign: 'center', paddingVertical: 28.8 },
+    matchupTeamSubtitle: { color: colors.grey, fontSize: 13.2, textAlign: 'center', marginTop: -6 },
+    matchParticipantRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 13.2, paddingHorizontal: 10.8, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     matchParticipantAvatar: { width: 32.4, height: 32.4, alignItems: 'center', justifyContent: 'center', borderRadius: 16.8, backgroundColor: colors.blueSoft, overflow: 'hidden' },
     matchParticipantImage: { width: 32.4, height: 32.4, borderRadius: 16.8 },
     matchParticipantInitial: { color: colors.blueLight, fontSize: 13.2, fontWeight: '700' },
