@@ -1,0 +1,967 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  ImageBackground,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
+import Screen from './Screen';
+import { useTranslation } from '../i18n/LanguageContext';
+import {
+  Conversation,
+  collapseToOnePerConversation,
+  createGroupChat,
+  ensureStaffMember,
+  fetchConversations,
+  startDirectChat,
+} from '../lib/academyChat';
+import {
+  AcademyCounts,
+  AcademyRow,
+  EnrolmentRow,
+  SessionRow,
+  ageFromDateOfBirth,
+  fetchEnrolments,
+  fetchSessions,
+} from '../lib/academyData';
+import { fetchNotices, markNoticeRead, AcademyNotice } from '../lib/academyNotices';
+import { useAcademyRealtime } from '../lib/academyRealtime';
+import { useAuth } from '../lib/auth';
+import { WIDE_CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
+import { AppColors, weeklineColors } from '../theme/palettes';
+import { useAppTheme } from '../theme/ThemeContext';
+import { radius } from '../theme/layout';
+
+type CreateAcademyForm = {
+  visible: boolean;
+  name: string;
+  city: string;
+  error: string;
+  busy: boolean;
+  onNameChange: (value: string) => void;
+  onCityChange: (value: string) => void;
+  onCreate: () => void;
+  onStartCreate: () => void;
+  onCancel: () => void;
+};
+
+type Props = {
+  academies: AcademyRow[];
+  counts: Record<string, AcademyCounts>;
+  loading: boolean;
+  createForm: CreateAcademyForm;
+};
+
+type AcademyArea = 'overview' | 'players' | 'parents' | 'coaches' | 'matches' | 'messages';
+
+const AREAS: { key: AcademyArea; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  { key: 'overview', icon: 'aperture-outline', label: 'academy.dashboardOverview' },
+  { key: 'players', icon: 'people-outline', label: 'academy.tabPlayers' },
+  { key: 'parents', icon: 'people-circle-outline', label: 'academy.tabParents' },
+  { key: 'coaches', icon: 'person-outline', label: 'academy.rosterCoaches' },
+  { key: 'matches', icon: 'calendar-outline', label: 'academy.tabMatches' },
+  { key: 'messages', icon: 'chatbox-outline', label: 'academy.tabMessages' },
+];
+
+function startOfCurrentSeason(now = new Date()) {
+  const seasonStartYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  return seasonStartYear;
+}
+
+function shortDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+function matchDateParts(iso: string) {
+  const date = new Date(iso);
+  return {
+    day: date.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
+    date: date.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }).toUpperCase(),
+    time: date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }),
+  };
+}
+
+function ageGroupSummary(rows: EnrolmentRow[]) {
+  const groups = new Set<number>();
+  for (const row of rows) {
+    if (row.status !== 'approved' || row.member?.member_kind !== 'player') continue;
+    const age = ageFromDateOfBirth(row.member.date_of_birth);
+    if (age !== null && age > 0 && age < 19) groups.add(Math.floor(age));
+  }
+  if (groups.size === 0) return '—';
+  const ages = [...groups].sort((a, b) => a - b);
+  return `U${ages[0]}–U${ages[ages.length - 1]}`;
+}
+
+function avatarInitials(value: string | null | undefined) {
+  return (value ?? 'MYPitch')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
+export default function WebAcademyDashboard({
+  academies,
+  counts,
+  loading,
+  createForm,
+}: Props) {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const { pitchOwner, profile } = useAuth();
+  const { unread, messagesVersion, enrolmentsVersion } = useAcademyRealtime();
+  const { width } = useBreakpoint();
+  const { colors: appColors } = useAppTheme();
+  const colors = Platform.OS === 'web' ? weeklineColors : appColors;
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const sortedAcademies = useMemo(
+    () => [...academies].sort((a, b) => Number(b.is_main) - Number(a.is_main)),
+    [academies]
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showAcademies, setShowAcademies] = useState(false);
+  const [showSeasons, setShowSeasons] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState('');
+  const [seasonStartYear, setSeasonStartYear] = useState(startOfCurrentSeason());
+  const section: AcademyArea = 'overview';
+  const [enrolments, setEnrolments] = useState<EnrolmentRow[]>([]);
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [notices, setNotices] = useState<AcademyNotice[]>([]);
+  const [isLoadingAcademy, setIsLoadingAcademy] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeAudience, setComposeAudience] = useState<'parents' | 'coaches'>('parents');
+  const [selectedRecipients, setSelectedRecipients] = useState<Set<string>>(new Set());
+  const [isStartingMessage, setIsStartingMessage] = useState(false);
+  const [messageError, setMessageError] = useState('');
+
+  useEffect(() => {
+    if (!sortedAcademies.length) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId((current) =>
+      current && sortedAcademies.some((row) => row.id === current)
+        ? current
+        : sortedAcademies[0].id
+    );
+  }, [sortedAcademies]);
+
+  const selectedAcademy = sortedAcademies.find((academy) => academy.id === selectedId) ?? null;
+  const academyCounts = selectedAcademy ? counts[selectedAcademy.id] : undefined;
+
+  const loadAcademyContent = useCallback(async (academyId: string) => {
+    setIsLoadingAcademy(true);
+    const [enrolmentRows, sessionRows, conversationRows, noticeRows] = await Promise.all([
+      fetchEnrolments(academyId),
+      fetchSessions(academyId, 'match'),
+      fetchConversations(),
+      fetchNotices(),
+    ]);
+    setEnrolments(enrolmentRows);
+    setSessions(sessionRows);
+    setConversations(
+      collapseToOnePerConversation(conversationRows).filter(
+        (row) => row.academy_id === academyId && (row.kind === 'direct' || row.message_count > 0)
+      )
+    );
+    setNotices(noticeRows.filter((row) => row.academy_id === academyId));
+    setIsLoadingAcademy(false);
+  }, []);
+
+  useEffect(() => {
+    if (selectedId) loadAcademyContent(selectedId);
+  }, [selectedId, loadAcademyContent, messagesVersion, enrolmentsVersion, unread]);
+
+  const approvedPlayers = useMemo(
+    () => enrolments.filter((row) => row.status === 'approved' && row.member?.member_kind === 'player'),
+    [enrolments]
+  );
+  const approvedParents = useMemo(
+    () => enrolments.filter((row) => row.status === 'approved' && row.member?.member_kind === 'guardian'),
+    [enrolments]
+  );
+  const visiblePlayerCount = isLoadingAcademy ? academyCounts?.players ?? 0 : approvedPlayers.length;
+  const visibleParentCount = isLoadingAcademy ? academyCounts?.parents ?? 0 : approvedParents.length;
+  const seasonStart = new Date(seasonStartYear, 7, 1).getTime();
+  const seasonEnd = new Date(seasonStartYear + 1, 7, 1).getTime();
+  const seasonSessions = useMemo(
+    () => sessions.filter((row) => {
+      const start = new Date(row.starts_at).getTime();
+      return start >= seasonStart && start < seasonEnd;
+    }),
+    [sessions, seasonStart, seasonEnd]
+  );
+  const now = Date.now();
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const upcoming = useMemo(
+    () => seasonSessions
+      .filter((row) => !row.is_cancelled && new Date(row.starts_at).getTime() >= now)
+      .filter((row) => !normalizedSearch || [row.title, row.opponent, row.location_name]
+        .some((part) => part?.toLocaleLowerCase().includes(normalizedSearch)))
+      .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+      .slice(0, 3),
+    [seasonSessions, now, normalizedSearch]
+  );
+  const played = useMemo(
+    () => seasonSessions
+      .filter((row) => !row.is_cancelled && new Date(row.starts_at).getTime() < now)
+      .filter((row) => !normalizedSearch || [row.title, row.opponent, row.location_name]
+        .some((part) => part?.toLocaleLowerCase().includes(normalizedSearch)))
+      .sort((a, b) => b.starts_at.localeCompare(a.starts_at))
+      .slice(0, 3),
+    [seasonSessions, now, normalizedSearch]
+  );
+  const recentConversations = useMemo(
+    () => conversations
+      .filter((row) => !normalizedSearch || [row.title, row.other_names.join(' '), row.last_body]
+        .some((part) => part?.toLocaleLowerCase().includes(normalizedSearch)))
+      .sort((a, b) => (b.last_at ?? '').localeCompare(a.last_at ?? ''))
+      .slice(0, 3),
+    [conversations, normalizedSearch]
+  );
+  const latestNotices = useMemo(
+    () => notices
+      .filter((row) => row.type === 'session' || row.type === 'message')
+      .filter((row) => !normalizedSearch || [row.title, row.body]
+        .some((part) => part?.toLocaleLowerCase().includes(normalizedSearch)))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 3),
+    [notices, normalizedSearch]
+  );
+  const recentActivity = useMemo(() => {
+    const rows = [
+      ...latestNotices.map((notice) => ({
+        id: `notice:${notice.id}`,
+        title: notice.title,
+        body: notice.body ?? '',
+        meta: notice.type === 'session' ? t('academy.dashboardMatchUpdate') : t('academy.dashboardAcademyMessage'),
+        time: notice.created_at,
+        icon: notice.type === 'session' ? 'calendar-outline' as const : 'megaphone-outline' as const,
+        unread: !notice.read_at,
+      })),
+      ...recentConversations.map((conversation) => ({
+        id: `conversation:${conversation.id}`,
+        title: conversation.kind === 'group'
+          ? conversation.title || t('academyChat.untitledGroup')
+          : conversation.other_names.join(', ') || t('academyChat.unknownPerson'),
+        body: conversation.last_body || t('academyChat.noMessagesYet'),
+        meta: t('academy.dashboardDirectMessage'),
+        time: conversation.last_at ?? '',
+        icon: 'chatbubble-ellipses-outline' as const,
+        unread: conversation.unread_count > 0,
+      })),
+    ];
+    return rows.sort((a, b) => b.time.localeCompare(a.time)).slice(0, 3);
+  }, [latestNotices, recentConversations, t]);
+
+  const goToAcademyDetails = useCallback((targetSection?: AcademyArea) => {
+    if (!selectedAcademy) return;
+    void targetSection;
+    setShowAcademies(false);
+    router.push({ pathname: '/academy-details', params: { academyId: selectedAcademy.id } } as any);
+  }, [router, selectedAcademy]);
+
+  const goToConversation = useCallback((row: Conversation) => {
+    router.push({
+      pathname: '/academy-chat',
+      params: { conversationId: row.id, asMemberId: row.for_member_id },
+    } as any);
+  }, [router]);
+
+  function toggleRecipient(memberId: string) {
+    setSelectedRecipients((current) => {
+      const updated = new Set(current);
+      if (updated.has(memberId)) updated.delete(memberId);
+      else updated.add(memberId);
+      return updated;
+    });
+  }
+
+  function openCompose(audience: 'parents' | 'coaches' = 'parents') {
+    setComposeAudience(audience);
+    setShowCompose(true);
+    setSelectedRecipients(new Set());
+    setMessageError('');
+  }
+
+  async function startMessage() {
+    if (!selectedAcademy || selectedRecipients.size === 0 || isStartingMessage) return;
+    setIsStartingMessage(true);
+    setMessageError('');
+    const staff = await ensureStaffMember(selectedAcademy.id);
+    if (!staff) {
+      setMessageError(t('academyChat.couldNotStart'));
+      setIsStartingMessage(false);
+      return;
+    }
+    const ids = [...selectedRecipients];
+    const result = ids.length === 1
+      ? await startDirectChat(staff, ids[0])
+      : await createGroupChat(staff, `${selectedAcademy.name} · ${t('inbox.customGroup')}`, ids);
+    setIsStartingMessage(false);
+    if (!result.id) {
+      setMessageError(result.error || t('academyChat.couldNotStart'));
+      return;
+    }
+    setShowCompose(false);
+    setSelectedRecipients(new Set());
+    router.push({ pathname: '/academy-chat', params: { conversationId: result.id, asMemberId: staff } } as any);
+  }
+
+  const coachesCount = 0;
+  const coachRows: never[] = [];
+  const yearOptions = [startOfCurrentSeason(), startOfCurrentSeason() - 1, startOfCurrentSeason() - 2];
+
+  function showNavDestination(area: AcademyArea) {
+    if (area === 'overview') return;
+    if (area === 'messages') {
+      router.push('/inbox' as any);
+      return;
+    }
+    goToAcademyDetails(area);
+  }
+
+  return (
+    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} contentStyle={styles.screenContent}>
+      <View style={[styles.topHeader, width < 1280 && styles.topHeaderCompact]}>
+        <Text style={styles.pageTitle}>{t('academy.title')}</Text>
+        <View style={styles.headerPickerWrap}>
+          <Pressable
+            style={({ hovered, pressed }: any) => [styles.headerPicker, width < 1280 && styles.headerPickerCompact, hovered && styles.hovered, pressed && styles.pressed]}
+            onPress={() => { setShowAcademies((value) => !value); setShowSeasons(false); }}
+            accessibilityRole="button"
+            accessibilityLabel={t('academy.dashboardSelectAcademy')}
+          >
+            {selectedAcademy?.logo_url ? (
+              <Image source={{ uri: selectedAcademy.logo_url }} style={styles.headerCrest} />
+            ) : (
+              <View style={styles.headerCrestPlaceholder}><Ionicons name="shield-outline" size={17} color={colors.blueLight} /></View>
+            )}
+            <Text style={styles.headerPickerText} numberOfLines={1}>{selectedAcademy?.name ?? t('academy.dashboardSelectAcademy')}</Text>
+            <Ionicons name="chevron-down" size={16} color={colors.grey} />
+          </Pressable>
+          {showAcademies ? (
+            <View style={styles.dropdown}>
+              {sortedAcademies.map((row) => (
+                <Pressable
+                  key={row.id}
+                  style={({ hovered, pressed }: any) => [styles.dropdownRow, row.id === selectedId && styles.dropdownRowActive, hovered && styles.hovered, pressed && styles.pressed]}
+                  onPress={() => { setSelectedId(row.id); setShowAcademies(false); }}
+                >
+                  <Text style={styles.dropdownTitle} numberOfLines={1}>{row.name}</Text>
+                  <Text style={styles.dropdownMeta} numberOfLines={1}>{row.city || t('academy.dashboardNoLocation')}</Text>
+                </Pressable>
+              ))}
+              {!sortedAcademies.length ? <Text style={styles.dropdownMeta}>{t('academy.noAcademies')}</Text> : null}
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.headerPickerWrap}>
+          <Pressable
+            style={({ hovered, pressed }: any) => [styles.seasonPicker, hovered && styles.hovered, pressed && styles.pressed]}
+            onPress={() => { setShowSeasons((value) => !value); setShowAcademies(false); }}
+            accessibilityRole="button"
+          >
+            <Ionicons name="calendar-outline" size={15} color={colors.grey} />
+            <Text style={styles.seasonText}>{seasonStartYear}/{String(seasonStartYear + 1).slice(-2)} {t('academy.dashboardSeason')}</Text>
+            <Ionicons name="chevron-down" size={15} color={colors.grey} />
+          </Pressable>
+          {showSeasons ? (
+            <View style={styles.dropdown}>
+              {yearOptions.map((year) => (
+                <Pressable key={year} style={({ hovered, pressed }: any) => [styles.dropdownRow, year === seasonStartYear && styles.dropdownRowActive, hovered && styles.hovered, pressed && styles.pressed]} onPress={() => { setSeasonStartYear(year); setShowSeasons(false); }}>
+                  <Text style={styles.dropdownTitle}>{year}/{String(year + 1).slice(-2)} {t('academy.dashboardSeason')}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+        </View>
+        <Pressable
+          style={({ hovered, pressed }: any) => [styles.primaryButton, hovered && styles.primaryHovered, pressed && styles.pressed]}
+          onPress={createForm.onStartCreate}
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={18} color={colors.blackText} />
+          <Text style={styles.primaryButtonText}>{t('academy.createAction')}</Text>
+        </Pressable>
+        <View style={styles.headerSpacer} />
+        <Pressable style={styles.iconButton} onPress={() => setShowSearch((value) => !value)} accessibilityRole="button" accessibilityLabel={t('academy.dashboardSearch')}>
+          <Ionicons name={showSearch ? 'close' : 'search'} size={19} color={colors.greySoft} />
+        </Pressable>
+        <Pressable style={styles.iconButton} onPress={() => router.push('/inbox' as any)} accessibilityRole="button" accessibilityLabel={t('inbox.notifications')}>
+          <Ionicons name="notifications-outline" size={19} color={colors.greySoft} />
+          {unread.players + unread.parents + unread.messages > 0 ? <View style={styles.notificationDot} /> : null}
+        </Pressable>
+        <View style={styles.userAvatar}><Text style={styles.userInitials}>{avatarInitials(profile?.full_name || pitchOwner?.contact_name)}</Text></View>
+        <View style={[styles.userLabel, width < 1280 && styles.userLabelCompact]}>
+          <Text style={styles.userName} numberOfLines={1}>{profile?.full_name || pitchOwner?.contact_name || t('nav.ownerWorkspace')}</Text>
+          <Text style={styles.userRole}>{t('nav.ownerWorkspace')}</Text>
+        </View>
+        <Ionicons name="chevron-down" size={15} color={colors.grey} />
+      </View>
+
+      {showSearch ? (
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={17} color={colors.greyDark} />
+          <TextInput value={search} onChangeText={setSearch} placeholder={t('academy.dashboardSearchPlaceholder')} placeholderTextColor={colors.greyDark} style={styles.searchInput} autoFocus />
+          {search ? <Pressable onPress={() => setSearch('')}><Ionicons name="close-circle" size={17} color={colors.grey} /></Pressable> : null}
+        </View>
+      ) : null}
+
+      {createForm.visible ? (
+        <View style={styles.createForm}>
+          <View style={styles.createFormHeading}>
+            <View><Text style={styles.panelTitle}>{t('academy.createTitle')}</Text><Text style={styles.panelHint}>{t('academy.dashboardCreateHint')}</Text></View>
+            <Pressable onPress={createForm.onCancel} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable>
+          </View>
+          <View style={styles.createInputs}>
+            <TextInput value={createForm.name} onChangeText={createForm.onNameChange} placeholder={t('academy.namePlaceholder')} placeholderTextColor={colors.greyDark} style={styles.formInput} />
+            <TextInput value={createForm.city} onChangeText={createForm.onCityChange} placeholder={t('academy.cityPlaceholder')} placeholderTextColor={colors.greyDark} style={styles.formInput} />
+            <Pressable style={[styles.primaryButton, !createForm.name.trim() && styles.disabledButton]} disabled={!createForm.name.trim() || createForm.busy} onPress={createForm.onCreate}>
+              {createForm.busy ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name="add" size={18} color={colors.blackText} />}
+              <Text style={styles.primaryButtonText}>{t('academy.createAction')}</Text>
+            </Pressable>
+            <Pressable onPress={createForm.onCancel} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable>
+          </View>
+          {createForm.error ? <Text style={styles.errorText}>{createForm.error}</Text> : null}
+        </View>
+      ) : null}
+
+      <View style={styles.sectionNav}>
+        {AREAS.map((area) => (
+          <Pressable key={area.key} onPress={() => showNavDestination(area.key)} style={({ hovered, pressed }: any) => [styles.sectionTab, section === area.key && styles.sectionTabActive, hovered && styles.sectionTabHovered, pressed && styles.pressed]}>
+            <Ionicons name={area.icon} size={17} color={section === area.key ? colors.blueLight : colors.grey} />
+            <Text style={[styles.sectionTabLabel, section === area.key && styles.sectionTabLabelActive]}>{t(area.label)}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {!selectedAcademy && !loading ? (
+        <View style={styles.emptyDashboard}>
+          <View style={styles.emptyIcon}><Ionicons name="school-outline" size={26} color={colors.blueLight} /></View>
+          <Text style={styles.panelTitle}>{t('academy.noAcademies')}</Text>
+          <Text style={styles.panelHint}>{t('academy.dashboardCreateHint')}</Text>
+          <Pressable style={styles.primaryButton} onPress={createForm.onStartCreate}><Ionicons name="add" size={18} color={colors.blackText} /><Text style={styles.primaryButtonText}>{t('academy.createAction')}</Text></Pressable>
+        </View>
+      ) : selectedAcademy ? (
+          <View style={[styles.dashboardGrid, width < 1180 && styles.dashboardGridNarrow]}>
+          <View style={[styles.leftColumn, width < 1180 && styles.columnFullWidth]}>
+            <AcademyCard
+              academy={selectedAcademy}
+              enrolments={enrolments}
+              loading={isLoadingAcademy}
+              styles={styles}
+              colors={colors}
+              t={t}
+              onEdit={() => goToAcademyDetails()}
+            />
+            <RosterPanel
+              players={visiblePlayerCount}
+              parents={visibleParentCount}
+              coaches={coachesCount}
+              teams={null}
+              styles={styles}
+              colors={colors}
+              t={t}
+              onViewAll={() => goToAcademyDetails('players')}
+              onOpen={(area) => goToAcademyDetails(area)}
+            />
+            <LinksPanel
+              styles={styles}
+              colors={colors}
+              t={t}
+              onPlayer={() => goToAcademyDetails('players')}
+              onParent={() => goToAcademyDetails('parents')}
+              onCoach={() => goToAcademyDetails('coaches')}
+              onInfo={() => goToAcademyDetails()}
+            />
+          </View>
+
+          <View style={[styles.middleColumn, width < 1180 && styles.columnFullWidth]}>
+            <MatchesPanel
+              title={t('academy.dashboardNextMatches')}
+              sessions={upcoming}
+              academyName={selectedAcademy.name}
+              emptyText={normalizedSearch ? t('academy.dashboardNoSearchMatches') : t('academy.noMatches')}
+              showStatus
+              styles={styles}
+              colors={colors}
+              t={t}
+              loading={isLoadingAcademy}
+              onCreate={() => goToAcademyDetails('matches')}
+              onViewAll={() => goToAcademyDetails('matches')}
+              onSession={() => goToAcademyDetails('matches')}
+            />
+            <MatchesPanel
+              title={t('academy.dashboardPastResults')}
+              sessions={played}
+              academyName={selectedAcademy.name}
+              emptyText={normalizedSearch ? t('academy.dashboardNoSearchMatches') : t('academy.dashboardNoPastMatches')}
+              showStatus={false}
+              styles={styles}
+              colors={colors}
+              t={t}
+              loading={isLoadingAcademy}
+              onViewAll={() => goToAcademyDetails('matches')}
+              onSession={() => goToAcademyDetails('matches')}
+            />
+          </View>
+
+          <View style={[styles.rightColumn, width < 1180 && styles.columnFullWidth]}>
+            <CommunicationsPanel
+              parents={visibleParentCount}
+              coaches={coachesCount}
+              activity={recentActivity}
+              notices={latestNotices}
+              conversations={conversations}
+              styles={styles}
+              colors={colors}
+              t={t}
+              loading={isLoadingAcademy}
+              onCompose={() => openCompose()}
+              onChooseAudience={openCompose}
+              selectedAudience={composeAudience}
+              onViewAll={() => router.push('/inbox' as any)}
+              onOpenConversation={goToConversation}
+              onOpenNotices={(notice) => { markNoticeRead(notice.id); router.push('/inbox' as any); }}
+            />
+            <CoachesOnDutyPanel coaches={coachRows} styles={styles} colors={colors} t={t} onViewAll={() => goToAcademyDetails('coaches')} />
+          </View>
+        </View>
+      ) : loading ? <ActivityIndicator style={styles.loading} color={colors.blueLight} /> : null}
+
+      {showCompose && selectedAcademy ? (
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowCompose(false)} accessibilityLabel={t('common.cancel')} />
+          <View style={styles.composeModal}>
+            <View style={styles.composeHeader}>
+              <View><Text style={styles.panelTitle}>{t('academy.dashboardNewMessage')}</Text><Text style={styles.panelHint}>{selectedAcademy.name}</Text></View>
+              <Pressable onPress={() => setShowCompose(false)} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable>
+            </View>
+            <Text style={styles.formLabel}>{composeAudience === 'parents' ? t('academy.tabParents') : t('academy.rosterCoaches')} · {t('academy.dashboardRecipients')}</Text>
+            {composeAudience === 'coaches' ? <View style={styles.coachEmpty}><Text style={styles.emptyMessage}>{t('academy.dashboardNoCoachesToMessage')}</Text></View> : approvedParents.length ? approvedParents.slice(0, 6).map((row) => {
+              const person = row.member!;
+              const checked = selectedRecipients.has(person.id);
+              return (
+                <Pressable key={person.id} onPress={() => toggleRecipient(person.id)} style={[styles.recipientRow, checked && styles.recipientRowActive]}>
+                  <View style={[styles.checkbox, checked && styles.checkboxActive]}>{checked ? <Ionicons name="checkmark" size={12} color={colors.blackText} /> : null}</View>
+                  <Text style={styles.recipientName} numberOfLines={1}>{person.full_name}</Text>
+                  <Text style={styles.recipientKind}>{t('academy.tabParents')}</Text>
+                </Pressable>
+              );
+            }) : <View style={styles.coachEmpty}><Text style={styles.emptyMessage}>{t('academy.dashboardNoParentsToMessage')}</Text></View>}
+            {messageError ? <Text style={styles.errorText}>{messageError}</Text> : null}
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => setShowCompose(false)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable>
+              <Pressable disabled={!selectedRecipients.size || isStartingMessage} onPress={startMessage} style={[styles.primaryButton, (!selectedRecipients.size || isStartingMessage) && styles.disabledButton]}>
+                {isStartingMessage ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name="arrow-forward" size={16} color={colors.blackText} />}
+                <Text style={styles.primaryButtonText}>{t('academy.dashboardContinueToMessage')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      ) : null}
+    </Screen>
+  );
+}
+
+function AcademyCard({ academy, enrolments, loading, styles, colors, t, onEdit }: {
+  academy: AcademyRow;
+  enrolments: EnrolmentRow[];
+  loading: boolean;
+  styles: ReturnType<typeof makeStyles>;
+  colors: AppColors;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  onEdit: () => void;
+}) {
+  const ageGroups = ageGroupSummary(enrolments);
+  return (
+    <View style={styles.academyPanel}>
+      <Pressable onPress={onEdit} style={styles.coverWrap} accessibilityRole="button" accessibilityLabel={t('academy.dashboardEdit')}>
+        {academy.cover_url ? <ImageBackground source={{ uri: academy.cover_url }} style={styles.coverImage} resizeMode="cover" /> : (
+          <View style={[styles.coverImage, styles.coverFallback]}>
+            <Ionicons name="football-outline" size={47} color={colors.blueLight} />
+            <Text style={styles.coverFallbackText}>{t('academy.title')}</Text>
+          </View>
+        )}
+        <View style={styles.cameraButton}><Ionicons name="camera-outline" size={17} color={colors.white} /></View>
+      </Pressable>
+      <View style={styles.academyCardBody}>
+        <View style={styles.academyTitleRow}>
+          {academy.logo_url ? <Image source={{ uri: academy.logo_url }} style={styles.academyLogo} /> : (
+            <View style={[styles.academyLogo, styles.academyLogoFallback]}><Ionicons name="shield-outline" size={24} color={colors.blueLight} /></View>
+          )}
+          <View style={styles.academyTitleBlock}>
+            <View style={styles.academyNameLine}>
+              <Text style={styles.academyName} numberOfLines={1}>{academy.name}</Text>
+              {!academy.is_active ? <Text style={styles.pausedBadge}>{t('academy.dashboardPaused')}</Text> : null}
+            </View>
+            <Text style={styles.academyDescription} numberOfLines={2}>{academy.description || t('academy.dashboardTagline')}</Text>
+          </View>
+        </View>
+        <View style={styles.academyMetaRow}>
+          <Ionicons name="location-outline" size={16} color={colors.greySoft} />
+          <Text style={styles.academyMetaText} numberOfLines={1}>{academy.city || t('academy.dashboardNoLocation')}</Text>
+        </View>
+        <View style={styles.academyMetaRow}>
+          <Ionicons name="people-outline" size={16} color={colors.greySoft} />
+          <Text style={styles.academyMetaText} numberOfLines={1}>{loading ? t('common.loading') : t('academy.dashboardAgeGroups', { count: new Set(enrolments.filter((row) => row.member?.member_kind === 'player').map((row) => ageFromDateOfBirth(row.member?.date_of_birth ?? null)).filter((age): age is number => age !== null)).size })} ({ageGroups})</Text>
+        </View>
+        <View style={styles.academyFooter}>
+          <View style={styles.sportTag}><Ionicons name="football-outline" size={14} color={colors.blueLight} /><Text style={styles.sportTagText}>{t('academy.dashboardSportAcademy')}</Text></View>
+          <Pressable style={({ hovered, pressed }: any) => [styles.outlineButton, styles.editAcademyButton, hovered && styles.hovered, pressed && styles.pressed]} onPress={onEdit}>
+            <Ionicons name="create-outline" size={14} color={colors.greySoft} /><Text style={styles.outlineButtonText}>{t('academy.dashboardEdit')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function RosterPanel({ players, parents, coaches, teams, styles, colors, t, onViewAll, onOpen }: {
+  players: number; parents: number; coaches: number; teams: number | null;
+  styles: ReturnType<typeof makeStyles>; colors: AppColors;
+  t: (key: string) => string; onViewAll: () => void; onOpen: (area: AcademyArea) => void;
+}) {
+  const items = [
+    { icon: 'people-outline' as const, label: t('academy.tabPlayers'), value: String(players), area: 'players' as const },
+    { icon: 'people-circle-outline' as const, label: t('academy.tabParents'), value: String(parents), area: 'parents' as const },
+    { icon: 'person-outline' as const, label: t('academy.rosterCoaches'), value: String(coaches), area: 'coaches' as const },
+    { icon: 'shield-outline' as const, label: t('academy.dashboardTeams'), value: teams == null ? '—' : String(teams), area: 'matches' as const },
+  ];
+  return (
+    <Panel styles={styles} colors={colors}>
+      <PanelHeading styles={styles} title={t('academy.dashboardRoster')} action={t('academy.dashboardViewAll')} onAction={onViewAll} />
+      <View style={styles.rosterGrid}>
+        {items.map((item) => (
+          <Pressable key={item.label} onPress={() => onOpen(item.area)} style={({ hovered, pressed }: any) => [styles.rosterMetric, hovered && styles.rosterMetricHovered, pressed && styles.pressed]}>
+            <Ionicons name={item.icon} size={18} color={colors.blueLight} />
+            <View style={styles.rosterMetricText}><Text style={styles.rosterValue}>{item.value}</Text><Text style={styles.rosterLabel}>{item.label}</Text></View>
+            <Ionicons name="chevron-forward" size={14} color={colors.grey} />
+          </Pressable>
+        ))}
+      </View>
+    </Panel>
+  );
+}
+
+function LinksPanel({ styles, colors, t, onPlayer, onParent, onCoach, onInfo }: {
+  styles: ReturnType<typeof makeStyles>; colors: AppColors;
+  t: (key: string) => string; onPlayer: () => void; onParent: () => void; onCoach: () => void; onInfo: () => void;
+}) {
+  const links = [
+    { title: t('academy.dashboardRegisterPlayer'), hint: t('academy.dashboardRegisterPlayerHint'), icon: 'add-circle-outline' as const, onPress: onPlayer },
+    { title: t('academy.dashboardInviteParent'), hint: t('academy.dashboardInviteParentHint'), icon: 'person-add-outline' as const, onPress: onParent },
+    { title: t('academy.dashboardPlayerDocuments'), hint: t('academy.dashboardDocumentsHint'), icon: 'document-text-outline' as const, onPress: onCoach },
+    { title: t('academy.dashboardAcademyInformation'), hint: t('academy.dashboardInformationHint'), icon: 'information-circle-outline' as const, onPress: onInfo },
+  ];
+  return (
+    <Panel styles={styles} colors={colors}>
+      <Text style={styles.linkPanelTitle}>{t('academy.dashboardParentCoachLinks')}</Text>
+      <View style={styles.linkDivider} />
+      {links.map((item) => (
+        <Pressable key={item.title} onPress={item.onPress} style={({ hovered, pressed }: any) => [styles.linkAction, hovered && styles.linkActionHovered, pressed && styles.pressed]}>
+          <View style={styles.linkIcon}><Ionicons name={item.icon} size={17} color={colors.blueLight} /></View>
+          <View style={styles.linkTextBlock}><Text style={styles.linkTitle}>{item.title}</Text><Text style={styles.linkHint} numberOfLines={1}>{item.hint}</Text></View>
+          <Ionicons name="chevron-forward" size={16} color={colors.grey} />
+        </Pressable>
+      ))}
+    </Panel>
+  );
+}
+
+function MatchesPanel({ title, sessions, academyName, emptyText, showStatus, styles, colors, t, loading, onCreate, onViewAll, onSession }: {
+  title: string; sessions: SessionRow[]; academyName: string; emptyText: string; showStatus: boolean;
+  styles: ReturnType<typeof makeStyles>; colors: AppColors; t: (key: string) => string; loading: boolean;
+  onCreate?: () => void; onViewAll: () => void; onSession: (session: SessionRow) => void;
+}) {
+  return (
+    <Panel styles={styles} colors={colors} style={styles.matchPanel}>
+      <View style={styles.panelHeading}>
+        <Text style={styles.panelTitle}>{title}</Text>
+        <View style={styles.panelHeadingActions}>
+          {onCreate ? <Pressable style={styles.smallPrimaryButton} onPress={onCreate}><Ionicons name="add" size={16} color={colors.blackText} /><Text style={styles.smallPrimaryText}>{t('academy.dashboardCreateMatch')}</Text></Pressable> : null}
+          <Pressable onPress={onViewAll} accessibilityRole="button"><Text style={styles.textAction}>{t('academy.dashboardViewAll')}</Text></Pressable>
+        </View>
+      </View>
+      {loading ? <ActivityIndicator color={colors.blueLight} style={styles.panelLoading} /> : sessions.length === 0 ? (
+        <View style={styles.emptyMatch}><View style={styles.emptyIconSmall}><Ionicons name="trophy-outline" size={18} color={colors.blueLight} /></View><Text style={styles.emptyMessage}>{emptyText}</Text>{onCreate ? <Pressable onPress={onCreate}><Text style={styles.emptyAction}>{t('academy.dashboardScheduleFirstMatch')}</Text></Pressable> : null}</View>
+      ) : sessions.map((session) => {
+        const parts = matchDateParts(session.starts_at);
+        const location = session.location_name || (session.pitch_id ? t('academy.dashboardPitch') : t('academy.dashboardLocationToConfirm'));
+        return (
+          <Pressable key={session.id} onPress={() => onSession(session)} style={({ hovered, pressed }: any) => [styles.matchRow, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
+            <View style={styles.matchDateBlock}><Text style={styles.matchDay}>{parts.day}</Text><Text style={styles.matchDate}>{parts.date}</Text><Text style={styles.matchTime}>{parts.time}</Text></View>
+            <View style={styles.matchDivider} />
+            <View style={styles.matchMain}>
+              <View style={styles.matchTeams}>
+                <View style={styles.teamNameWrap}><View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View><Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
+                <Text style={styles.versus}>{t('academy.dashboardVs')}</Text>
+                <View style={styles.teamNameWrap}><View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View><Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
+              </View>
+              <View style={styles.matchLocation}><Ionicons name="location-outline" size={14} color={colors.grey} /><Text style={styles.matchLocationText} numberOfLines={1}>{location}</Text></View>
+            </View>
+            {showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>}
+            <Ionicons name="chevron-forward" size={17} color={colors.grey} />
+          </Pressable>
+        );
+      })}
+    </Panel>
+  );
+}
+
+type ActivityItem = {
+  id: string; title: string; body: string; meta: string; time: string;
+  icon: keyof typeof Ionicons.glyphMap; unread: boolean;
+};
+
+function CommunicationsPanel({ parents, coaches, activity, notices, conversations, styles, colors, t, loading, onCompose, onChooseAudience, selectedAudience, onViewAll, onOpenConversation, onOpenNotices }: {
+  parents: number; coaches: number; activity: ActivityItem[]; notices: AcademyNotice[]; conversations: Conversation[];
+  styles: ReturnType<typeof makeStyles>; colors: AppColors; t: (key: string) => string; loading: boolean;
+  onCompose: () => void; onChooseAudience: (audience: 'parents' | 'coaches') => void;
+  selectedAudience: 'parents' | 'coaches'; onViewAll: () => void; onOpenConversation: (row: Conversation) => void; onOpenNotices: (row: AcademyNotice) => void;
+}) {
+  function openActivity(item: ActivityItem) {
+    if (item.id.startsWith('conversation:')) {
+      const thread = conversations.find((row) => row.id === item.id.slice('conversation:'.length));
+      if (thread) onOpenConversation(thread);
+    } else {
+      const notice = notices.find((row) => row.id === item.id.slice('notice:'.length));
+      if (notice) onOpenNotices(notice);
+    }
+  }
+  return (
+    <Panel styles={styles} colors={colors} style={styles.communicationPanel}>
+      <View style={styles.panelHeading}>
+        <Text style={styles.panelTitle}>{t('academy.dashboardCommunications')}</Text>
+        <Pressable onPress={onCompose} style={styles.smallPrimaryButton}><Ionicons name="add" size={16} color={colors.blackText} /><Text style={styles.smallPrimaryText}>{t('academy.dashboardNewMessage')}</Text></Pressable>
+      </View>
+      <View style={styles.audienceArea}>
+        <Text style={styles.formLabel}>{t('academy.dashboardSendTo')}</Text>
+        <View style={styles.audienceRow}>
+          <Pressable onPress={() => onChooseAudience('parents')} style={[styles.audienceChip, selectedAudience === 'parents' && styles.audienceChipSelected]} accessibilityRole="button">
+            <Ionicons name="people-outline" size={22} color={colors.blueLight} />
+            <View><Text style={styles.audienceTitle}>{t('academy.tabParents')}</Text><Text style={styles.audienceCount}>{parents} {t('academy.dashboardRecipients')}</Text></View>
+          </Pressable>
+          <Pressable onPress={() => onChooseAudience('coaches')} style={[styles.audienceChip, selectedAudience === 'coaches' && styles.audienceChipSelected]} accessibilityRole="button">
+            <Ionicons name="person-outline" size={22} color={colors.grey} />
+            <View><Text style={styles.audienceTitle}>{t('academy.rosterCoaches')}</Text><Text style={styles.audienceCount}>{coaches} {t('academy.dashboardRecipients')}</Text></View>
+          </Pressable>
+        </View>
+      </View>
+      <View style={styles.activityHeader}>
+        <Text style={styles.panelTitleSmall}>{t('academy.dashboardRecentMessages')}</Text>
+        <Pressable onPress={onViewAll}><Text style={styles.textAction}>{t('academy.dashboardViewAll')}</Text></Pressable>
+      </View>
+      {loading ? <ActivityIndicator color={colors.blueLight} style={styles.panelLoading} /> : activity.length === 0 ? (
+        <View style={styles.emptyActivity}><Ionicons name="chatbubbles-outline" size={20} color={colors.greyDark} /><Text style={styles.emptyMessage}>{t('academy.dashboardNoMessages')}</Text></View>
+      ) : activity.map((item) => (
+        <Pressable key={item.id} onPress={() => openActivity(item)} style={({ hovered, pressed }: any) => [styles.activityRow, hovered && styles.linkActionHovered, pressed && styles.pressed]}>
+          <View style={styles.activityIcon}><Ionicons name={item.icon} size={17} color={colors.blueLight} /></View>
+          <View style={styles.activityText}>
+            <View style={styles.activityTitleRow}><Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text><Text style={styles.activityTime}>{item.time ? shortDate(item.time) : ''}</Text></View>
+            <Text style={styles.activityMeta} numberOfLines={1}>{item.meta}</Text>
+            <Text style={styles.activityBody} numberOfLines={2}>{item.body}</Text>
+          </View>
+          {item.unread ? <View style={styles.unreadDotSmall} /> : null}
+          <Ionicons name="chevron-forward" size={15} color={colors.grey} />
+        </Pressable>
+      ))}
+    </Panel>
+  );
+}
+
+function CoachesOnDutyPanel({ coaches, styles, colors, t, onViewAll }: {
+  coaches: never[]; styles: ReturnType<typeof makeStyles>; colors: AppColors; t: (key: string) => string; onViewAll: () => void;
+}) {
+  return (
+    <Panel styles={styles} colors={colors} style={styles.coachesPanel}>
+      <PanelHeading styles={styles} title={t('academy.dashboardCoachesOnDuty')} action={t('academy.dashboardViewAll')} onAction={onViewAll} />
+      <Text style={styles.dutyRange}>{t('academy.dashboardUpcomingWeek')}</Text>
+      {coaches.length ? null : <View style={styles.coachEmpty}><View style={styles.emptyIconSmall}><Ionicons name="person-outline" size={17} color={colors.blueLight} /></View><Text style={styles.emptyMessage}>{t('academy.dashboardNoCoachesOnDuty')}</Text></View>}
+    </Panel>
+  );
+}
+
+function Panel({ styles, colors, style, children }: { styles: ReturnType<typeof makeStyles>; colors: AppColors; style?: any; children: React.ReactNode }) {
+  return <View style={[styles.panel, style, { borderColor: colors.border, backgroundColor: colors.card }]}>{children}</View>;
+}
+
+function PanelHeading({ styles, title, action, onAction }: { styles: ReturnType<typeof makeStyles>; title: string; action: string; onAction: () => void }) {
+  return <View style={styles.panelHeading}><Text style={styles.panelTitle}>{title}</Text><Pressable onPress={onAction}><Text style={styles.textAction}>{action}</Text></Pressable></View>;
+}
+
+function makeStyles(colors: AppColors) {
+  return StyleSheet.create({
+    screenContent: { paddingHorizontal: 21, paddingTop: 0, paddingBottom: 24, maxWidth: 1800, alignSelf: 'stretch' },
+    topHeader: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 0 },
+    topHeaderCompact: { minHeight: 0, flexWrap: 'wrap', justifyContent: 'flex-start', paddingVertical: 10, gap: 8 },
+    pageTitle: { color: colors.white, fontSize: 27, lineHeight: 33, fontWeight: '700', marginRight: 8 },
+    headerPickerWrap: { position: 'relative', zIndex: 30 },
+    headerPicker: { minHeight: 40, width: 286, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+    headerPickerCompact: { width: 220 },
+    headerCrest: { width: 22, height: 22, borderRadius: 5 },
+    headerCrestPlaceholder: { width: 22, height: 22, borderRadius: 5, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+    headerPickerText: { flex: 1, minWidth: 0, color: colors.white, fontSize: 13, fontWeight: '600' },
+    seasonPicker: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+    seasonText: { color: colors.greySoft, fontSize: 12, fontWeight: '600' },
+    primaryButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 14, borderRadius: 7, borderWidth: 1, borderColor: '#61BAFB', backgroundColor: colors.blueLight },
+    primaryButtonText: { color: colors.blackText, fontSize: 12, fontWeight: '700' },
+    primaryHovered: { backgroundColor: '#82C9FB', borderColor: '#82C9FB' },
+    headerSpacer: { flex: 1 },
+    iconButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 7 },
+    userAvatar: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft, alignItems: 'center', justifyContent: 'center' },
+    userInitials: { color: colors.greySoft, fontSize: 12, fontWeight: '700' },
+    userLabel: { minWidth: 72, maxWidth: 144 },
+    userLabelCompact: { display: 'none' },
+    userName: { color: colors.white, fontSize: 12, fontWeight: '600' },
+    userRole: { color: colors.grey, fontSize: 10, marginTop: 2 },
+    notificationDot: { position: 'absolute', width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange, top: 7, right: 7, borderWidth: 1, borderColor: colors.card },
+    dropdown: { position: 'absolute', top: 45, left: 0, minWidth: 260, maxWidth: 320, zIndex: 50, elevation: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 5, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
+    dropdownRow: { minHeight: 48, justifyContent: 'center', gap: 2, paddingHorizontal: 10, borderRadius: 6 },
+    dropdownRowActive: { backgroundColor: colors.blueSoft },
+    dropdownTitle: { color: colors.white, fontSize: 12, fontWeight: '600' },
+    dropdownMeta: { color: colors.grey, fontSize: 11 },
+    hovered: { backgroundColor: colors.blueSoft },
+    pressed: { opacity: 0.75 },
+    searchBar: { minHeight: 40, marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 7, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 11, backgroundColor: colors.card },
+    searchInput: { flex: 1, height: 38, color: colors.white, fontSize: 12, outlineStyle: 'none' as any },
+    createForm: { marginTop: 14, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+    createFormHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+    createInputs: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+    formInput: { flex: 1, height: 38, color: colors.white, fontSize: 12, borderRadius: 6, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, paddingHorizontal: 11, outlineStyle: 'none' as any },
+    formLabel: { color: colors.greySoft, fontSize: 11, fontWeight: '500', marginBottom: 9 },
+    errorText: { color: colors.red, fontSize: 12, marginTop: 9 },
+    disabledButton: { opacity: 0.5 },
+    outlineButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
+    outlineButtonText: { color: colors.greySoft, fontSize: 11, fontWeight: '600' },
+    sectionNav: { minHeight: 53, flexDirection: 'row', alignItems: 'stretch', gap: 14, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 21 },
+    sectionTab: { minWidth: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+    sectionTabActive: { borderBottomColor: colors.blueLight },
+    sectionTabHovered: { backgroundColor: colors.surfaceMuted },
+    sectionTabLabel: { color: colors.grey, fontSize: 12, fontWeight: '500' },
+    sectionTabLabelActive: { color: colors.white, fontWeight: '600' },
+    dashboardGrid: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+    dashboardGridNarrow: { flexDirection: 'column' },
+    columnFullWidth: { width: '100%' },
+    leftColumn: { width: '26%', gap: 17 },
+    middleColumn: { width: '40%', gap: 17 },
+    rightColumn: { width: '32%', gap: 17 },
+    panel: { borderRadius: 8, borderWidth: 1, backgroundColor: colors.card, overflow: 'hidden' },
+    academyPanel: { borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
+    coverWrap: { height: 130, position: 'relative', overflow: 'hidden', backgroundColor: colors.cardSoft },
+    coverImage: { width: '100%', height: 130 },
+    coverFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#152A39' },
+    coverFallbackText: { color: colors.grey, fontSize: 11, marginTop: 5 },
+    cameraButton: { position: 'absolute', top: 10, right: 10, width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(8,17,26,0.78)' },
+    academyCardBody: { paddingHorizontal: 14, paddingBottom: 11, paddingTop: 0 },
+    academyTitleRow: { minHeight: 65, flexDirection: 'row', alignItems: 'center', gap: 11 },
+    academyLogo: { width: 54, height: 54, borderRadius: 9, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, marginTop: -18 },
+    academyLogoFallback: { alignItems: 'center', justifyContent: 'center' },
+    academyTitleBlock: { flex: 1, minWidth: 0, paddingTop: 3 },
+    academyNameLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    academyName: { flexShrink: 1, color: colors.white, fontSize: 16, lineHeight: 21, fontWeight: '700' },
+    pausedBadge: { color: colors.orange, fontSize: 9, fontWeight: '700' },
+    academyDescription: { color: colors.grey, fontSize: 10, lineHeight: 14, marginTop: 3 },
+    academyMetaRow: { minHeight: 25, flexDirection: 'row', alignItems: 'center', gap: 8 },
+    academyMetaText: { flex: 1, color: colors.greySoft, fontSize: 11 },
+    academyFooter: { minHeight: 38, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 9, marginTop: 4 },
+    sportTag: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+    sportTagText: { color: colors.greySoft, fontSize: 10, fontWeight: '600' },
+    editAcademyButton: { minHeight: 31, paddingHorizontal: 9 },
+    panelHeading: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    panelHeadingActions: { flexDirection: 'row', alignItems: 'center', gap: 13 },
+    panelTitle: { color: colors.white, fontSize: 14, lineHeight: 19, fontWeight: '700' },
+    panelTitleSmall: { color: colors.white, fontSize: 12, fontWeight: '700' },
+    panelHint: { color: colors.grey, fontSize: 11, marginTop: 4 },
+    textAction: { color: colors.blueLight, fontSize: 11, fontWeight: '600' },
+    rosterGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 11 },
+    rosterMetric: { width: '48%', minHeight: 51, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 9, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSoft },
+    rosterMetricHovered: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
+    rosterMetricText: { flex: 1, minWidth: 0 },
+    rosterValue: { color: colors.white, fontSize: 14, lineHeight: 17, fontWeight: '700' },
+    rosterLabel: { color: colors.greySoft, fontSize: 10, marginTop: 1 },
+    linkDivider: { height: 1, backgroundColor: colors.borderSoft, marginHorizontal: 14, marginTop: 2 },
+    linkPanelTitle: { color: colors.white, fontSize: 14, lineHeight: 19, fontWeight: '700', paddingHorizontal: 14, paddingTop: 13, paddingBottom: 5 },
+    linkAction: { minHeight: 57, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 13, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    linkActionHovered: { backgroundColor: colors.surfaceMuted },
+    linkIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
+    linkTextBlock: { flex: 1, minWidth: 0 },
+    linkTitle: { color: colors.white, fontSize: 11, lineHeight: 15, fontWeight: '600' },
+    linkHint: { color: colors.grey, fontSize: 10, marginTop: 2 },
+    smallPrimaryButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 11, borderRadius: 6, borderWidth: 1, borderColor: '#61BAFB', backgroundColor: colors.blueLight },
+    smallPrimaryText: { color: colors.blackText, fontSize: 10, fontWeight: '700' },
+    matchPanel: { minHeight: 250 },
+    matchRow: { minHeight: 108, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    matchRowHovered: { backgroundColor: colors.surfaceMuted },
+    matchDateBlock: { width: 58, alignItems: 'flex-start', gap: 2 },
+    matchDay: { color: colors.grey, fontSize: 9, fontWeight: '600' },
+    matchDate: { color: colors.white, fontSize: 12, lineHeight: 15, fontWeight: '700' },
+    matchTime: { color: colors.grey, fontSize: 10 },
+    matchDivider: { width: 1, height: 52, backgroundColor: colors.border, marginRight: 1 },
+    matchMain: { flex: 1, minWidth: 0, gap: 9 },
+    matchTeams: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    teamNameWrap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+    teamCrest: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderRadius: 5, backgroundColor: colors.blueSoft },
+    opponentCrest: { backgroundColor: colors.orangeSoft },
+    teamName: { flexShrink: 1, color: colors.white, fontSize: 11, fontWeight: '600' },
+    versus: { color: colors.grey, fontSize: 9, fontWeight: '500' },
+    matchLocation: { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 28 },
+    matchLocationText: { flex: 1, color: colors.grey, fontSize: 10 },
+    matchStatus: { minWidth: 49, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: colors.borderBlue, backgroundColor: colors.blueSoft, alignItems: 'center' },
+    matchStatusText: { color: colors.blueLight, fontSize: 9, fontWeight: '600' },
+    completedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 5, backgroundColor: colors.greenSoft },
+    completedText: { color: colors.green, fontSize: 9, fontWeight: '600' },
+    emptyMatch: { minHeight: 125, justifyContent: 'center', alignItems: 'center', gap: 7, paddingHorizontal: 18 },
+    emptyIconSmall: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 15, backgroundColor: colors.blueSoft },
+    emptyMessage: { color: colors.grey, textAlign: 'center', fontSize: 11, lineHeight: 16 },
+    emptyAction: { color: colors.blueLight, fontSize: 11, fontWeight: '600' },
+    panelLoading: { paddingVertical: 30 },
+    communicationPanel: { minHeight: 400 },
+    audienceArea: { paddingHorizontal: 14, paddingTop: 11, paddingBottom: 10 },
+    audienceRow: { flexDirection: 'row', gap: 9 },
+    audienceChip: { flex: 1, minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 8, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.backgroundSoft },
+    audienceChipSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
+    audienceTitle: { color: colors.white, fontSize: 10, fontWeight: '600' },
+    audienceCount: { color: colors.grey, fontSize: 9, marginTop: 3 },
+    activityHeader: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.borderSoft },
+    activityRow: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    activityIcon: { width: 34, height: 34, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.blueSoft },
+    activityText: { flex: 1, minWidth: 0, gap: 3 },
+    activityTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5 },
+    activityTitle: { flex: 1, color: colors.white, fontSize: 10, fontWeight: '700' },
+    activityTime: { color: colors.grey, fontSize: 9 },
+    activityMeta: { color: colors.grey, fontSize: 9 },
+    activityBody: { color: colors.greySoft, fontSize: 9, lineHeight: 13 },
+    unreadDotSmall: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.blueLight },
+    emptyActivity: { minHeight: 115, justifyContent: 'center', alignItems: 'center', gap: 8 },
+    coachesPanel: { minHeight: 150 },
+    dutyRange: { color: colors.grey, fontSize: 10, marginHorizontal: 14, marginTop: 11, marginBottom: 6 },
+    coachEmpty: { minHeight: 65, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 },
+    emptyDashboard: { minHeight: 330, justifyContent: 'center', alignItems: 'center', gap: 12 },
+    emptyIcon: { width: 54, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 27, backgroundColor: colors.blueSoft },
+    modalBackdrop: { ...StyleSheet.absoluteFill, zIndex: 80, elevation: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,10,15,0.78)' },
+    composeModal: { width: 'min(480px, 92%)' as any, maxHeight: '85%', borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, padding: 18, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
+    composeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, borderBottomWidth: 1, borderColor: colors.borderSoft, marginBottom: 14 },
+    recipientRow: { minHeight: 39, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 8, borderRadius: 6 },
+    recipientRowActive: { backgroundColor: colors.blueSoft },
+    checkbox: { width: 17, height: 17, alignItems: 'center', justifyContent: 'center', borderRadius: 4, borderWidth: 1, borderColor: colors.border },
+    checkboxActive: { borderColor: colors.blueLight, backgroundColor: colors.blueLight },
+    recipientName: { flex: 1, color: colors.white, fontSize: 11 },
+    recipientKind: { color: colors.grey, fontSize: 10 },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderColor: colors.borderSoft },
+    loading: { paddingVertical: 80 },
+  });
+}

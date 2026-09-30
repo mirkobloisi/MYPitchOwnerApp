@@ -1,12 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AppButton from '../../components/AppButton';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
+import WebAcademyDashboard from '../../components/WebAcademyDashboard';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { useAcademyRealtime } from '../../lib/academyRealtime';
 import { useAuth } from '../../lib/auth';
@@ -79,6 +80,28 @@ export default function AcademyScreen() {
     () => [...academies].sort((a, b) => Number(b.is_main) - Number(a.is_main)),
     [academies]
   );
+
+  if (Platform.OS === 'web') {
+    return (
+      <WebAcademyDashboard
+        academies={sortedAcademies}
+        counts={academyCounts}
+        loading={isLoading}
+        createForm={{
+          visible: showCreate,
+          name: newName,
+          city: newCity,
+          error: errorMessage,
+          busy: isCreating,
+          onNameChange: setNewName,
+          onCityChange: setNewCity,
+          onCreate: handleCreate,
+          onStartCreate: () => { setShowCreate(true); setErrorMessage(''); },
+          onCancel: () => { setShowCreate(false); setErrorMessage(''); },
+        }}
+      />
+    );
+  }
 
   return (
     <Screen maxWidth={900}>
