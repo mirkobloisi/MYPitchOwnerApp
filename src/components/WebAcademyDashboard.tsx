@@ -996,7 +996,6 @@ export default function WebAcademyDashboard({
                 />
               )) : <View style={styles.matchesListEmpty}><View style={styles.emptyIconSmall}><Ionicons name="calendar-outline" size={18} color={colors.blueLight} /></View><Text style={styles.emptyMessage}>No matches found for this period.</Text></View>}
             </ScrollView>
-            <View style={[styles.modalActions, styles.matchesListActions]}><Pressable onPress={() => setMatchesDialog(null)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.close')}</Text></Pressable></View>
           </View>
         </View>
       </Modal>
@@ -1499,7 +1498,6 @@ function makeStyles(colors: AppColors) {
     matchesListScroll: { flexShrink: 1, minHeight: 150, marginTop: 4.8 },
     matchesListContent: { paddingBottom: 4.8 },
     matchesListEmpty: { minHeight: 180, justifyContent: 'center', alignItems: 'center', gap: 9.6 },
-    matchesListActions: { marginTop: 12, paddingTop: 12 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14.4 },
     scoreInputColumn: { flex: 1, minWidth: 0, gap: 8.4 },
     scoreInput: { height: 57.6, borderRadius: 9.6, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, color: colors.white, textAlign: 'center', fontSize: 26.4, fontWeight: '700', outlineStyle: 'none' as any },
