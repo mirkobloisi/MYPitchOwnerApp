@@ -1406,7 +1406,7 @@ function makeStyles(colors: AppColors) {
     selectedChoice: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     matchRosterBlock: { borderWidth: 1, borderColor: colors.border, borderRadius: 8.4, padding: 10.8, marginBottom: 14.4, maxHeight: 180, overflow: 'scroll' as any },
     matchModal: { width: 'min(1120px, 92%)' as any, maxWidth: 1344, maxHeight: '92%', padding: 26.4 },
-    matchModalScaleDown: { transform: [{ scale: 0.75 }] },
+    matchModalScaleDown: { transform: [{ scale: 0.8625 }] },
     resultModal: { width: 'min(440px, 92%)' as any, maxWidth: 528 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14.4 },
     scoreInputColumn: { flex: 1, minWidth: 0, gap: 8.4 },

@@ -147,6 +147,30 @@ export async function cropAndUploadAcademyCover(
   return data.publicUrl;
 }
 
+/** Crops a venue photo and uploads it to the owner's pitch image folder. */
+export async function cropAndUploadPitchPhoto(
+  ownerId: string,
+  pitchId: string,
+  image: PickedAvatarImage,
+  crop: { originX: number; originY: number; width: number; height: number }
+): Promise<string> {
+  const manipulated = await ImageManipulator.manipulateAsync(
+    image.uri,
+    [
+      { crop: { originX: crop.originX, originY: crop.originY, width: crop.width, height: crop.height } },
+      { resize: { width: 1440 } },
+    ],
+    { compress: 0.86, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  const response = await fetch(manipulated.uri);
+  const arrayBuffer = await response.arrayBuffer();
+  const path = `${ownerId}/${pitchId}/pitch-${Date.now()}.jpg`;
+  const { error } = await supabase.storage.from('pitch-images').upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from('pitch-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /**
  * A viewable URL for an academy member's photo.
  *

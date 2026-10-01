@@ -244,6 +244,20 @@ export async function updatePitchBookingSettings(input: {
   if (error) throw error;
 }
 
+/** Owner-scoped update for a pitch's venue photo and facilities. */
+export async function updatePitchPresentation(input: { pitchId: string; facilities: string[]; imageUrl?: string | null }) {
+  const { error } = await withAbortableTimeout(
+    supabase.rpc('update_pitch_presentation', {
+      pitch_id_input: input.pitchId,
+      facilities_input: input.facilities,
+      image_url_input: input.imageUrl ?? null,
+    }),
+    REQUEST_TIMEOUT_MS,
+    'updatePitchPresentation'
+  );
+  if (error) throw error;
+}
+
 export async function setPitchPlayerBookingPaused(input: {
   pitchId: string;
   paused: boolean;

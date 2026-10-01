@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import BookingSettingsModal from './BookingSettingsModal';
+import PitchPresentationModal from './PitchPresentationModal';
 import PlayerBookingPauseControl from './PlayerBookingPauseControl';
 import Screen from './Screen';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -26,6 +27,7 @@ export default function WebPitches() {
   const [query, setQuery] = useState('');
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [settingsPitch, setSettingsPitch] = useState<PitchRecord | null>(null);
+  const [presentationPitch, setPresentationPitch] = useState<PitchRecord | null>(null);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visiblePitches = pitches.filter((pitch) =>
     [pitch.name, pitch.city, pitch.area, pitch.format].some((value) =>
@@ -36,8 +38,9 @@ export default function WebPitches() {
 
   if (isDesktop) {
     return <>
-      <DesktopPitches pitches={visiblePitches} selectedPitch={selectedPitch} query={query} setQuery={setQuery} setPreviewId={setPreviewId} pitchOwner={pitchOwner} onManageSettings={setSettingsPitch} />
+      <DesktopPitches pitches={visiblePitches} selectedPitch={selectedPitch} query={query} setQuery={setQuery} setPreviewId={setPreviewId} pitchOwner={pitchOwner} onManageSettings={setSettingsPitch} onEditPitch={setPresentationPitch} />
       <BookingSettingsModal pitch={settingsPitch} visible={!!settingsPitch} onDismiss={() => setSettingsPitch(null)} />
+      {presentationPitch ? <PitchPresentationModal key={presentationPitch.id} pitch={presentationPitch} onDismiss={() => setPresentationPitch(null)} /> : null}
     </>;
   }
 
@@ -94,73 +97,46 @@ export default function WebPitches() {
             </ScrollView>
           </View>
 
-          {selectedPitch ? <PitchDetails key={selectedPitch.id} pitch={selectedPitch} desktop={false} onManageSettings={() => setSettingsPitch(selectedPitch)} /> : (
+          {selectedPitch ? <PitchDetails key={selectedPitch.id} pitch={selectedPitch} desktop={false} onManageSettings={() => setSettingsPitch(selectedPitch)} onEditPitch={() => setPresentationPitch(selectedPitch)} /> : (
             <View style={styles.detail}><Text style={styles.empty}>{t('pitches.noSearchResults')}</Text></View>
           )}
         </View>
       )}
       <BookingSettingsModal pitch={settingsPitch} visible={!!settingsPitch} onDismiss={() => setSettingsPitch(null)} />
+      {presentationPitch ? <PitchPresentationModal key={presentationPitch.id} pitch={presentationPitch} onDismiss={() => setPresentationPitch(null)} /> : null}
     </Screen>
   );
 }
 
 function DesktopPitches({
-  pitches, selectedPitch, query, setQuery, setPreviewId, pitchOwner, onManageSettings,
+  pitches, selectedPitch, query, setQuery, setPreviewId, pitchOwner, onManageSettings, onEditPitch,
 }: {
-  pitches: PitchRecord[];
-  selectedPitch?: PitchRecord;
-  query: string;
-  setQuery: (value: string) => void;
-  setPreviewId: (value: string) => void;
-  pitchOwner?: { business_name?: string | null } | null;
-  onManageSettings: (pitch: PitchRecord) => void;
+  pitches: PitchRecord[]; selectedPitch?: PitchRecord; query: string; setQuery: (value: string) => void; setPreviewId: (value: string) => void;
+  pitchOwner?: { business_name?: string | null } | null; onManageSettings: (pitch: PitchRecord) => void; onEditPitch: (pitch: PitchRecord) => void;
 }) {
   const { t } = useTranslation();
   const { activePitch } = useAuth();
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
   const filtered = pitches.filter((pitch) => statusFilter === 'all' || pitch.status === statusFilter);
   const displayedPitch = filtered.find((pitch) => pitch.id === selectedPitch?.id) ?? filtered[0];
-  return (
-    <Screen scroll={false} maxWidth={WIDE_CONTENT_MAX_WIDTH} ambientGlows={false} style={styles.canvas} contentStyle={styles.desktopContent}>
-      <View style={[styles.heading, styles.desktopHeading]}>
-        <View style={styles.headingText}><Text accessibilityRole="header" style={styles.title}>{t('pitches.title')}</Text><Text style={styles.subtitle}>{t('pitches.subtitle')}</Text></View>
-        <View style={styles.desktopPitchBadge}><Ionicons name="business-outline" size={15} color={colors.blueLight} /><Text style={styles.centerName} numberOfLines={1}>{pitchOwner?.business_name?.trim() || t('availability.sportsCenter')}</Text></View>
-      </View>
-      <View style={styles.focusedWorkspace}>
-        <View style={styles.focusedNavigator}>
-          <View style={styles.focusedNavigatorHeader}>
-            <View><Text style={styles.focusedNavigatorTitle}>Your pitches</Text><Text style={styles.focusedNavigatorCount}>{pitches.length} {pitches.length === 1 ? 'pitch' : 'pitches'}</Text></View>
-            <View style={styles.focusedFilters}>
-              {(['all', 'active', 'paused'] as const).map((filter) => <Pressable key={filter} onPress={() => setStatusFilter(filter)} style={[styles.desktopFilter, styles.focusedFilter, statusFilter === filter && styles.desktopFilterSelected]}><Text style={[styles.desktopFilterText, styles.focusedFilterText, statusFilter === filter && styles.desktopFilterTextSelected]}>{filter[0].toUpperCase() + filter.slice(1)}</Text></Pressable>)}
-            </View>
-            <View style={[styles.desktopSearch, styles.focusedSearch]}><Ionicons name="search-outline" size={18} color={colors.grey} /><TextInput value={query} onChangeText={setQuery} placeholder={t('pitches.searchPlaceholder')} placeholderTextColor={colors.greyDark} style={styles.desktopSearchInput} /></View>
-          </View>
-          <ScrollView style={styles.focusedPitchList} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
-            {filtered.map((pitch) => <Pressable key={pitch.id} accessibilityRole="button" accessibilityState={{ selected: pitch.id === displayedPitch?.id }} onPress={() => setPreviewId(pitch.id)} style={[styles.focusedPitchRow, pitch.id === displayedPitch?.id && styles.focusedPitchRowSelected]}>
-              <View style={styles.focusedPitchPhoto}><PitchPhoto uri={pitch.image_urls?.[0]} label={pitch.name} /></View>
-              <View style={styles.focusedPitchInfo}><Text style={styles.focusedPitchName} numberOfLines={2}>{pitch.name}</Text><Text style={styles.focusedPitchMeta}>{pitch.format} · {pitch.pitch_type || 'Outdoor'}</Text><Text style={styles.focusedPitchMeta} numberOfLines={1}>{[pitch.city, pitch.area].filter(Boolean).join(' · ')}</Text><PitchStatus status={pitch.status} /></View>
-              {pitch.id === activePitch?.id ? <View style={styles.focusedAgendaMark}><Ionicons name="calendar-outline" size={14} color={colors.blueLight} /><Text style={styles.focusedAgendaText}>Agenda</Text></View> : null}
-            </Pressable>)}
-            {filtered.length === 0 ? <Text style={styles.empty}>{pitches.length === 0 ? t('pitches.noPitches') : t('pitches.noSearchResults')}</Text> : null}
-          </ScrollView>
-        </View>
-        {displayedPitch ? <View style={styles.focusedDetail}><DesktopPitchDetails pitch={displayedPitch} onManageSettings={() => onManageSettings(displayedPitch)} /></View> : <View style={styles.focusedEmpty}><Text style={styles.empty}>{t('pitches.noSearchResults')}</Text></View>}
-      </View>
-    </Screen>
-  );
+  return <Screen scroll maxWidth={WIDE_CONTENT_MAX_WIDTH} ambientGlows={false} style={styles.canvas} contentStyle={styles.desktopContent}>
+    <View style={[styles.heading, styles.desktopHeading]}><View style={styles.headingText}><Text accessibilityRole="header" style={styles.title}>{t('pitches.title')}</Text><Text style={styles.subtitle}>{t('pitches.subtitle')}</Text></View><View style={styles.desktopPitchBadge}><Ionicons name="business-outline" size={15} color={colors.blueLight} /><Text style={styles.centerName} numberOfLines={1}>{pitchOwner?.business_name?.trim() || t('availability.sportsCenter')}</Text></View></View>
+    <View style={styles.venueToolbar}><Text style={styles.venueSectionTitle}>Your pitches <Text style={styles.venueCount}>· {pitches.length}</Text></Text><View style={styles.venueToolbarControls}><View style={styles.desktopSearch}><Ionicons name="search-outline" size={17} color={colors.grey} /><TextInput value={query} onChangeText={setQuery} placeholder={t('pitches.searchPlaceholder')} placeholderTextColor={colors.greyDark} style={styles.desktopSearchInput} /></View><View style={styles.focusedFilters}>{(['all', 'active', 'paused'] as const).map((filter) => <Pressable key={filter} onPress={() => setStatusFilter(filter)} style={[styles.desktopFilter, statusFilter === filter && styles.desktopFilterSelected]}><Text style={[styles.desktopFilterText, statusFilter === filter && styles.desktopFilterTextSelected]}>{filter[0].toUpperCase() + filter.slice(1)}</Text></Pressable>)}</View></View></View>
+    <ScrollView horizontal style={styles.venueStrip} contentContainerStyle={styles.venueStripContent} showsHorizontalScrollIndicator={false}>{filtered.map((pitch) => <Pressable key={pitch.id} accessibilityRole="button" accessibilityState={{ selected: pitch.id === displayedPitch?.id }} onPress={() => setPreviewId(pitch.id)} style={[styles.venueTile, pitch.id === displayedPitch?.id && styles.venueTileSelected]}><View style={styles.venueTileImage}><PitchPhoto uri={pitch.image_urls?.[0]} label={pitch.name} /></View><View style={styles.venueTileCopy}><Text style={styles.venueTileName} numberOfLines={1}>{pitch.name}</Text><Text style={styles.venueTileMeta} numberOfLines={1}>{[pitch.city, pitch.area].filter(Boolean).join(' · ') || pitch.format}</Text><PitchStatus status={pitch.status} /></View>{pitch.id === activePitch?.id ? <View style={styles.venueTileAgenda}><Ionicons name="calendar-outline" size={12} color={colors.blueLight} /><Text style={styles.focusedAgendaText}>Agenda</Text></View> : null}</Pressable>)}{filtered.length === 0 ? <Text style={styles.empty}>{pitches.length === 0 ? t('pitches.noPitches') : t('pitches.noSearchResults')}</Text> : null}</ScrollView>
+    {displayedPitch ? <DesktopPitchDetails pitch={displayedPitch} onManageSettings={() => onManageSettings(displayedPitch)} onEditPitch={() => onEditPitch(displayedPitch)} /> : null}
+  </Screen>;
 }
 
-function DesktopPitchDetails({ pitch, onManageSettings }: { pitch: PitchRecord; onManageSettings: () => void }) {
+function DesktopPitchDetails({ pitch, onManageSettings, onEditPitch }: { pitch: PitchRecord; onManageSettings: () => void; onEditPitch: () => void }) {
   const { t } = useTranslation();
-  const photos = (pitch.image_urls ?? []).filter(Boolean);
   const durations = [...(pitch.allowed_durations_minutes?.length ? pitch.allowed_durations_minutes : [pitch.duration_minutes])].sort((a, b) => a - b);
-  return <View style={styles.desktopDetailCard}>
-    <View style={styles.desktopDetailTop}><View style={styles.desktopDetailTitleRow}><Text style={styles.desktopDetailTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View><View style={styles.desktopDetailActions}><PlayerBookingPauseControl pitch={pitch} />{pitch.maps_url ? <Pressable style={styles.desktopOutlineButton} onPress={() => Linking.openURL(pitch.maps_url!)}><Ionicons name="open-outline" size={16} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.openInMaps')}</Text></Pressable> : null}<Pressable style={styles.desktopPrimaryButton} onPress={onManageSettings}><Ionicons name="options-outline" size={15} color={colors.blackText} /><Text style={styles.desktopPrimaryText}>{t('pitches.manageBookingSettings')}</Text></Pressable></View></View>
-    <View style={styles.desktopDetailBody}><View style={styles.desktopDetailImage}><PitchPhoto uri={photos[0]} label={pitch.name} large /></View><View style={styles.desktopDescriptionColumn}>{pitch.description ? <Text style={styles.desktopDescription}>{pitch.description}</Text> : null}<Text style={styles.desktopFacilitiesTitle}>{t('pitches.facilitiesLabel')}</Text><View style={styles.desktopDetailFacilities}>{(pitch.facilities ?? []).map((facility, index) => <View key={`${facility}-${index}`} style={styles.desktopDetailFacility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={21} color={colors.blueLight} /><Text style={styles.desktopCellMuted}>{facility}</Text></View>)}</View></View><View style={styles.desktopDetailStats}><SpecLine label={t('pitches.formatLabel')} value={pitch.format} /><SpecLine label={t('pitches.typeLabel')} value={pitch.pitch_type || 'Outdoor'} /><SpecLine label={t('pitches.priceLabel')} value={`€${Number(pitch.price_per_hour).toFixed(0)}`} /><SpecLine label={t('pitches.matchDurationLabel')} value={durations.map((minutes) => `${minutes} min`).join(' / ')} /><SpecLine label={t('pitches.locationLabel')} value={pitch.city || pitch.area || ''} /></View></View>
-    <View style={styles.desktopDetailNote}><Ionicons name="information-circle-outline" size={18} color={colors.grey} /><Text style={styles.supportText}>{t('pitches.noteText')}</Text></View>
-  </View>;
+  return <View style={styles.venueOverviewCard}><View style={styles.venueHeroColumn}><View style={styles.venueHero}><PitchPhoto key={pitch.image_urls?.[0] ?? 'empty'} uri={pitch.image_urls?.[0]} label={pitch.name} large /><Pressable onPress={onEditPitch} style={styles.venueCameraButton} accessibilityRole="button" accessibilityLabel="Change pitch picture"><Ionicons name="camera-outline" size={17} color={colors.white} /></Pressable></View>{pitch.description ? <Text style={styles.venueDescription}>{pitch.description}</Text> : null}</View>
+    <View style={styles.venueInfoColumn}><View style={styles.venueInfoHeader}><View style={styles.venueInfoIdentity}><Text style={styles.venuePitchName}>{pitch.name}</Text><PitchStatus status={pitch.status} /><Text style={styles.venueAddress}>{[pitch.city, pitch.area, pitch.address].filter(Boolean).join(' · ')}</Text></View><View style={styles.venueActions}><PlayerBookingPauseControl pitch={pitch} />{pitch.maps_url ? <Pressable style={styles.desktopOutlineButton} onPress={() => Linking.openURL(pitch.maps_url!)}><Ionicons name="open-outline" size={15} color={colors.blueLight} /><Text style={styles.desktopButtonText}>{t('pitches.openInMaps')}</Text></Pressable> : null}<Pressable style={styles.desktopPrimaryButton} onPress={onManageSettings}><Ionicons name="options-outline" size={15} color={colors.blackText} /><Text style={styles.desktopPrimaryText}>{t('pitches.manageBookingSettings')}</Text></Pressable></View></View>
+      <View style={styles.venueMetrics}><SpecLine label={t('pitches.formatLabel')} value={pitch.format} /><SpecLine label={t('pitches.typeLabel')} value={pitch.pitch_type || 'Outdoor'} /><SpecLine label={t('pitches.priceLabel')} value={`€${Number(pitch.price_per_hour).toFixed(0)} / hour`} /><SpecLine label={t('pitches.matchDurationLabel')} value={durations.map((minutes) => `${minutes} min`).join(' / ')} /></View>
+      <View style={styles.venueFacilitiesHeader}><Text style={styles.desktopFacilitiesTitle}>{t('pitches.facilitiesLabel')}</Text><Pressable onPress={onEditPitch} style={styles.facilitiesEditButton}><Ionicons name="create-outline" size={14} color={colors.blueLight} /><Text style={styles.desktopButtonText}>Change / add</Text></Pressable></View><View style={styles.venueFacilities}>{pitch.facilities?.length ? pitch.facilities.map((facility, index) => <View key={`${facility}-${index}`} style={styles.venueFacility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={18} color={colors.blueLight} /><Text style={styles.venueFacilityText}>{facility}</Text></View>) : <Text style={styles.venueHint}>No facilities added yet.</Text>}</View>
+      <View style={styles.venueNote}><Ionicons name="information-circle-outline" size={16} color={colors.grey} /><Text style={styles.supportText}>{t('pitches.noteText')}</Text></View>
+    </View></View>;
 }
-
 function SpecLine({ label, value }: { label: string; value: string }) { return <View style={styles.desktopSpecLine}><Text style={styles.desktopCellMuted}>{label}</Text><Text style={styles.desktopCellStrong}>{value}</Text></View>; }
 
 function PitchPhoto({ uri, label, large = false }: { uri?: string; label: string; large?: boolean }) {
@@ -183,7 +159,7 @@ function PitchStatus({ status }: { status: PitchRecord['status'] }) {
   return <View style={styles.status}><View style={[styles.statusDot, { backgroundColor: color }]} /><Text style={[styles.statusText, { color }]}>{t(label)}</Text></View>;
 }
 
-function PitchDetails({ pitch, desktop, onManageSettings }: { pitch: PitchRecord; desktop: boolean; onManageSettings?: () => void }) {
+function PitchDetails({ pitch, desktop, onManageSettings, onEditPitch }: { pitch: PitchRecord; desktop: boolean; onManageSettings?: () => void; onEditPitch?: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -194,7 +170,7 @@ function PitchDetails({ pitch, desktop, onManageSettings }: { pitch: PitchRecord
   return (
     <View style={[styles.detail, desktop && styles.desktopDetail]}>
       <View style={desktop ? styles.desktopIdentityRow : undefined}>
-        <View style={[styles.hero, desktop && styles.desktopHero]}><PitchPhoto key={photo ?? 'empty'} uri={photo} label={pitch.name} large /></View>
+        <View style={[styles.hero, desktop && styles.desktopHero]}><PitchPhoto key={photo ?? 'empty'} uri={photo} label={pitch.name} large /><Pressable onPress={onEditPitch} style={styles.venueCameraButton} accessibilityRole="button" accessibilityLabel="Change pitch picture"><Ionicons name="camera-outline" size={17} color={colors.white} /></Pressable></View>
         <View style={[styles.detailHeading, desktop && styles.desktopDetailHeading]}>
           <View style={styles.detailHeadingText}>
             <View style={styles.nameRow}><Text accessibilityRole="header" style={styles.pitchTitle}>{pitch.name}</Text><PitchStatus status={pitch.status} /></View>
@@ -219,8 +195,8 @@ function PitchDetails({ pitch, desktop, onManageSettings }: { pitch: PitchRecord
       </View>
       <View style={desktop ? styles.desktopSections : undefined}>
       {pitch.description ? <View style={[styles.section, desktop && styles.desktopSection]}><Text style={styles.sectionTitle}>{t('pitches.descriptionLabel')}</Text><Text style={[styles.description, desktop && styles.desktopDescription]}>{pitch.description}</Text></View> : null}
-      {pitch.facilities?.length ? <View style={[styles.section, desktop && styles.desktopSection]}><Text style={styles.sectionTitle}>{t('pitches.facilitiesLabel')}</Text><View style={[styles.facilities, desktop && styles.desktopFacilities]}>
-        {pitch.facilities.map((facility, index) => <View key={`${facility}-${index}`} style={styles.facility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={19} color={colors.grey} /><Text style={styles.facilityText}>{facility}</Text></View>)}
+      {(pitch.facilities?.length || onEditPitch) ? <View style={[styles.section, desktop && styles.desktopSection]}><View style={styles.mobileFacilitiesHeader}><Text style={styles.sectionTitle}>{t('pitches.facilitiesLabel')}</Text>{onEditPitch ? <Pressable onPress={onEditPitch} style={styles.facilitiesEditButton}><Ionicons name="create-outline" size={14} color={colors.blueLight} /><Text style={styles.desktopButtonText}>Change / add</Text></Pressable> : null}</View><View style={[styles.facilities, desktop && styles.desktopFacilities]}>
+        {pitch.facilities?.length ? pitch.facilities.map((facility, index) => <View key={`${facility}-${index}`} style={styles.facility}><Ionicons name={facilityIcons[facility.trim().toLowerCase()] ?? 'checkmark-circle-outline'} size={19} color={colors.grey} /><Text style={styles.facilityText}>{facility}</Text></View>) : <Text style={styles.venueHint}>No facilities added yet.</Text>}
       </View></View> : null}
       </View>
       <View style={[styles.actions, desktop && styles.desktopActions]}>
@@ -247,7 +223,39 @@ const styles = StyleSheet.create({
   content: { paddingTop: 18, paddingBottom: 100 },
   desktopContent: { flex: 1, minHeight: 0, paddingTop: 14, paddingBottom: 12 },
   desktopHeading: { marginBottom: 12, flexShrink: 0, minHeight: 44 },
-  desktopWorkspace: { flex: 1, minHeight: 0 },
+  venueToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  venueSectionTitle: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  venueCount: { color: colors.grey, fontSize: 13, fontWeight: '400' },
+  venueToolbarControls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  venueStrip: { flexGrow: 0, marginBottom: 14 },
+  venueStripContent: { gap: 9, paddingBottom: 2 },
+  venueTile: { position: 'relative', width: 218, minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 7, backgroundColor: colors.card },
+  venueTileSelected: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
+  venueTileImage: { width: 60, height: 58, flexShrink: 0, overflow: 'hidden', borderRadius: 5, backgroundColor: colors.cardSoft },
+  venueTileCopy: { flex: 1, minWidth: 0, gap: 3 },
+  venueTileName: { color: colors.white, fontSize: 13, fontWeight: '600' },
+  venueTileMeta: { color: colors.grey, fontSize: 11 },
+  venueTileAgenda: { position: 'absolute', right: 6, top: 5, flexDirection: 'row', alignItems: 'center', gap: 2 },
+  venueOverviewCard: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'stretch', gap: 20, padding: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft },
+  venueHeroColumn: { flex: 0.9, minWidth: 270, gap: 10 },
+  venueHero: { position: 'relative', width: '100%' as any, aspectRatio: 1.38, minHeight: 200, maxHeight: 330, overflow: 'hidden', borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
+  venueCameraButton: { position: 'absolute', top: 10, right: 10, width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(8,17,26,0.88)' },
+  venueDescription: { color: colors.greySoft, fontSize: 13, lineHeight: 19 },
+  venueInfoColumn: { flex: 1.1, minWidth: 330, justifyContent: 'space-between', gap: 12 },
+  venueInfoHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 },
+  venueInfoIdentity: { flex: 1, minWidth: 180, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  venuePitchName: { color: colors.white, fontSize: 21, lineHeight: 27, fontWeight: '600' },
+  venueAddress: { width: '100%' as any, color: colors.grey, fontSize: 12 },
+  venueActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 7 },
+  venueMetrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, paddingVertical: 13, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border },
+  venueFacilitiesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  mobileFacilitiesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  facilitiesEditButton: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 30, paddingHorizontal: 9, borderWidth: 1, borderColor: colors.borderBlue, borderRadius: 6 },
+  venueFacilities: { minHeight: 52, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-start', gap: 13 },
+  venueFacility: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  venueFacilityText: { color: colors.greySoft, fontSize: 12 },
+  venueHint: { color: colors.grey, fontSize: 12 },
+  venueNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
   desktopNavigator: { width: 280, minHeight: 0 },
   // The list scrolls independently; it cannot push the detail panel off screen.
   desktopDetail: { padding: 16, minHeight: 0, overflow: 'hidden' },
@@ -315,8 +323,8 @@ const styles = StyleSheet.create({
   desktopDetailNote: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   heading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 22 },
   headingText: { flexGrow: 1, flexBasis: 260 },
-  title: { color: colors.white, fontSize: 24, lineHeight: 30, fontWeight: '600', letterSpacing: -0.6 },
-  subtitle: { color: colors.grey, fontSize: 12, lineHeight: 16, marginTop: 3 },
+  title: { color: colors.white, fontSize: 32.4, lineHeight: 39.6, fontWeight: '700', letterSpacing: -0.6 },
+  subtitle: { color: colors.grey, fontSize: 14.4, lineHeight: 20, marginTop: 3 },
   centerBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, minHeight: 36, maxWidth: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 7, backgroundColor: colors.card },
   centerName: { color: colors.white, fontSize: 13, fontWeight: '600', flexShrink: 1 },
   workspace: { flexDirection: 'row', alignItems: 'stretch', borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft, overflow: 'hidden' },
@@ -337,7 +345,7 @@ const styles = StyleSheet.create({
   detail: { flex: 1, minWidth: 0, padding: 18 },
   photo: { width: '100%', height: '100%' },
   photoFallback: { flex: 1, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', gap: 9, backgroundColor: colors.cardSoft },
-  hero: { width: '100%', aspectRatio: 2.5, minHeight: 150, maxHeight: 330, borderRadius: 7, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  hero: { position: 'relative', width: '100%', aspectRatio: 2.5, minHeight: 150, maxHeight: 330, borderRadius: 7, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   gallery: { marginTop: 10, flexGrow: 0 },
   galleryContent: { gap: 8, paddingBottom: 4 },
   thumbnail: { width: 94, height: 60, borderWidth: 2, borderColor: colors.border, borderRadius: 6, overflow: 'hidden' },
