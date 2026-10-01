@@ -198,6 +198,9 @@ export default function WebAcademyDashboard({
   const [opponentOptions, setOpponentOptions] = useState<Awaited<ReturnType<typeof fetchPublicAcademiesForMatches>>>([]);
   const [matchMapsUrl, setMatchMapsUrl] = useState('');
   const [matchSelected, setMatchSelected] = useState<Set<string>>(new Set());
+  const [matchesDialog, setMatchesDialog] = useState<'upcoming' | 'past' | null>(null);
+  const [matchesFilterMonth, setMatchesFilterMonth] = useState('all');
+  const [matchesFilterYear, setMatchesFilterYear] = useState('all');
   const [matchRosterTab, setMatchRosterTab] = useState<'player' | 'staff'>('player');
   const [matchError, setMatchError] = useState('');
   const [resultSession, setResultSession] = useState<SessionRow | null>(null);
@@ -253,6 +256,10 @@ export default function WebAcademyDashboard({
     if (selectedId) loadAcademyContent(selectedId);
   }, [selectedId, loadAcademyContent, messagesVersion, enrolmentsVersion, unread]);
 
+  useEffect(() => {
+    void fetchPublicAcademiesForMatches().then(setOpponentOptions);
+  }, []);
+
   const approvedPlayers = useMemo(
     () => enrolments.filter((row) => row.status === 'approved' && row.member?.member_kind === 'player'),
     [enrolments]
@@ -292,6 +299,20 @@ export default function WebAcademyDashboard({
       .slice(0, 3),
     [seasonSessions, now, normalizedSearch]
   );
+  const allUpcomingMatches = useMemo(
+    () => sessions.filter((row) => !row.is_cancelled && new Date(row.starts_at).getTime() >= now)
+      .sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
+    [sessions, now]
+  );
+  const allPastMatches = useMemo(
+    () => sessions.filter((row) => !row.is_cancelled && new Date(row.starts_at).getTime() < now)
+      .sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
+    [sessions, now]
+  );
+  const matchesDialogSessions = (matchesDialog === 'upcoming' ? allUpcomingMatches : allPastMatches)
+    .filter((session) => matchesFilterMonth === 'all' || String(new Date(session.starts_at).getMonth()) === matchesFilterMonth)
+    .filter((session) => matchesFilterYear === 'all' || String(new Date(session.starts_at).getFullYear()) === matchesFilterYear);
+  const matchesDialogYears = [...new Set(sessions.map((session) => String(new Date(session.starts_at).getFullYear())))].sort((a, b) => Number(b) - Number(a));
   const recentConversations = useMemo(
     () => conversations
       .filter((row) => !normalizedSearch || [row.title, row.other_names.join(' '), row.last_body]
@@ -671,6 +692,7 @@ export default function WebAcademyDashboard({
               sessions={upcoming}
               academyName={selectedAcademy.name}
               academyLogoUrl={selectedAcademy.logo_url}
+              opponentAcademies={opponentOptions}
               emptyText={normalizedSearch ? t('academy.dashboardNoSearchMatches') : t('academy.noMatches')}
               showStatus
               styles={styles}
@@ -678,7 +700,7 @@ export default function WebAcademyDashboard({
               t={t}
               loading={isLoadingAcademy}
               onCreate={openMatchDialog}
-              onViewAll={() => goToAcademyDetails('matches')}
+              onViewAll={() => { setMatchesFilterMonth('all'); setMatchesFilterYear('all'); setMatchesDialog('upcoming'); }}
               onSession={() => goToAcademyDetails('matches')}
             />
             <MatchesPanel
@@ -686,13 +708,14 @@ export default function WebAcademyDashboard({
               sessions={played}
               academyName={selectedAcademy.name}
               academyLogoUrl={selectedAcademy.logo_url}
+              opponentAcademies={opponentOptions}
               emptyText={normalizedSearch ? t('academy.dashboardNoSearchMatches') : t('academy.dashboardNoPastMatches')}
               showStatus={false}
               styles={styles}
               colors={colors}
               t={t}
               loading={isLoadingAcademy}
-              onViewAll={() => goToAcademyDetails('matches')}
+              onViewAll={() => { setMatchesFilterMonth('all'); setMatchesFilterYear('all'); setMatchesDialog('past'); }}
               onSession={() => goToAcademyDetails('matches')}
               onEnterResult={(session) => { setResultSession(session); setHomeScoreInput(session.home_score == null ? '' : String(session.home_score)); setAwayScoreInput(session.away_score == null ? '' : String(session.away_score)); setResultError(''); }}
             />
@@ -928,6 +951,55 @@ export default function WebAcademyDashboard({
           </View>
         </View>
       </Modal>
+
+      <Modal transparent visible={matchesDialog !== null} animationType="fade" onRequestClose={() => setMatchesDialog(null)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMatchesDialog(null)} />
+          <View style={[styles.composeModal, styles.matchesListModal]}>
+            <View style={styles.composeHeader}>
+              <View>
+                <Text style={styles.panelTitle}>{matchesDialog === 'upcoming' ? t('academy.dashboardNextMatches') : t('academy.dashboardPastResults')}</Text>
+                <Text style={styles.panelHint}>{selectedAcademy?.name} · {matchesDialogSessions.length} {matchesDialogSessions.length === 1 ? 'match' : 'matches'}</Text>
+              </View>
+              <Pressable onPress={() => setMatchesDialog(null)} style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t('common.cancel')}><Ionicons name="close" size={18} color={colors.grey} /></Pressable>
+            </View>
+            <View style={styles.matchesFilterRow}>
+              <View style={styles.matchesFilterField}>
+                <Text style={styles.matchesFilterLabel}>Month</Text>
+                <MatchTimeSelect value={matchesFilterMonth} onChange={(event: any) => setMatchesFilterMonth(event.target.value)} style={styles.matchesFilterSelect}>
+                  <MatchTimeOption value="all">All months</MatchTimeOption>
+                  {Array.from({ length: 12 }, (_, month) => <MatchTimeOption key={month} value={String(month)}>{new Date(2024, month, 1).toLocaleDateString(undefined, { month: 'long' })}</MatchTimeOption>)}
+                </MatchTimeSelect>
+              </View>
+              <View style={styles.matchesFilterField}>
+                <Text style={styles.matchesFilterLabel}>Year</Text>
+                <MatchTimeSelect value={matchesFilterYear} onChange={(event: any) => setMatchesFilterYear(event.target.value)} style={styles.matchesFilterSelect}>
+                  <MatchTimeOption value="all">All years</MatchTimeOption>
+                  {matchesDialogYears.map((year) => <MatchTimeOption key={year} value={year}>{year}</MatchTimeOption>)}
+                </MatchTimeSelect>
+              </View>
+            </View>
+            <ScrollView style={styles.matchesListScroll} contentContainerStyle={styles.matchesListContent} showsVerticalScrollIndicator>
+              {matchesDialogSessions.length ? matchesDialogSessions.map((session) => (
+                <MatchSessionRow
+                  key={session.id}
+                  session={session}
+                  academyName={selectedAcademy?.name ?? ''}
+                  academyLogoUrl={selectedAcademy?.logo_url ?? null}
+                  opponentAcademies={opponentOptions}
+                  showStatus={matchesDialog === 'upcoming'}
+                  styles={styles}
+                  colors={colors}
+                  t={t}
+                  onSession={() => { setMatchesDialog(null); goToAcademyDetails('matches'); }}
+                  onEnterResult={matchesDialog === 'past' ? (row) => { setMatchesDialog(null); setResultSession(row); setHomeScoreInput(row.home_score == null ? '' : String(row.home_score)); setAwayScoreInput(row.away_score == null ? '' : String(row.away_score)); setResultError(''); } : undefined}
+                />
+              )) : <View style={styles.matchesListEmpty}><View style={styles.emptyIconSmall}><Ionicons name="calendar-outline" size={18} color={colors.blueLight} /></View><Text style={styles.emptyMessage}>No matches found for this period.</Text></View>}
+            </ScrollView>
+            <View style={[styles.modalActions, styles.matchesListActions]}><Pressable onPress={() => setMatchesDialog(null)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.close')}</Text></Pressable></View>
+          </View>
+        </View>
+      </Modal>
    </Screen>
   );
 }
@@ -1087,8 +1159,8 @@ function LinksPanel({ styles, colors, t, onParent, onCoach }: {
   );
 }
 
-function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText, showStatus, styles, colors, t, loading, onCreate, onViewAll, onSession, onEnterResult }: {
-  title: string; sessions: SessionRow[]; academyName: string; academyLogoUrl: string | null; emptyText: string; showStatus: boolean;
+function MatchesPanel({ title, sessions, academyName, academyLogoUrl, opponentAcademies, emptyText, showStatus, styles, colors, t, loading, onCreate, onViewAll, onSession, onEnterResult }: {
+  title: string; sessions: SessionRow[]; academyName: string; academyLogoUrl: string | null; opponentAcademies: Pick<AcademyRow, 'id' | 'logo_url'>[]; emptyText: string; showStatus: boolean;
   styles: ReturnType<typeof makeStyles>; colors: AppColors; t: (key: string) => string; loading: boolean;
   onCreate?: () => void; onViewAll: () => void; onSession: (session: SessionRow) => void; onEnterResult?: (session: SessionRow) => void;
 }) {
@@ -1103,27 +1175,35 @@ function MatchesPanel({ title, sessions, academyName, academyLogoUrl, emptyText,
       </View>
       {loading ? <ActivityIndicator color={colors.blueLight} style={styles.panelLoading} /> : sessions.length === 0 ? (
         <View style={styles.emptyMatch}><View style={styles.emptyIconSmall}><Ionicons name="trophy-outline" size={18} color={colors.blueLight} /></View><Text style={styles.emptyMessage}>{emptyText}</Text>{onCreate ? <Pressable onPress={onCreate}><Text style={styles.emptyAction}>{t('academy.dashboardScheduleFirstMatch')}</Text></Pressable> : null}</View>
-      ) : sessions.map((session) => {
-        const parts = matchDateParts(session.starts_at);
-        return (
-          <View key={session.id} style={styles.matchRow}>
-            <Pressable onPress={() => onSession(session)} style={({ hovered, pressed }: any) => [styles.matchRowMain, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
-            <View style={styles.matchDateBlock}><Text style={styles.matchDay}>{parts.day}</Text><Text style={styles.matchDate}>{parts.date}</Text><Text style={styles.matchTime}>{parts.time}</Text></View>
-            <View style={styles.matchDivider} />
-            <View style={styles.matchMain}>
-              <View style={styles.matchTeams}>
-                <View style={[styles.teamNameWrap, styles.homeTeamWrap]}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="contain" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
-                {showStatus ? <Text style={styles.versus}>{t('academy.dashboardVs')}</Text> : session.home_score != null && session.away_score != null ? <Text style={styles.matchScore}>{session.home_score} : {session.away_score}</Text> : onEnterResult ? <Pressable onPress={(event) => { event.stopPropagation(); onEnterResult(session); }} style={styles.enterResultButton}><Text style={styles.enterResultText}>{t('academy.dashboardEnterResult')}</Text></Pressable> : <Text style={styles.versus}>—</Text>}
-                <View style={[styles.teamNameWrap, styles.awayTeamWrap]}><View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View><Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
-              </View>
-            </View>
-            {showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>}
-            <Ionicons name="chevron-forward" size={17} color={colors.grey} />
-            </Pressable>
-          </View>
-        );
-      })}
+      ) : sessions.map((session) => <MatchSessionRow key={session.id} session={session} academyName={academyName} academyLogoUrl={academyLogoUrl} opponentAcademies={opponentAcademies} showStatus={showStatus} styles={styles} colors={colors} t={t} onSession={() => onSession(session)} onEnterResult={onEnterResult} />)}
     </Panel>
+  );
+}
+
+function MatchSessionRow({ session, academyName, academyLogoUrl, opponentAcademies, showStatus, styles, colors, t, onSession, onEnterResult }: {
+  session: SessionRow; academyName: string; academyLogoUrl: string | null;
+  opponentAcademies: Pick<AcademyRow, 'id' | 'logo_url'>[]; showStatus: boolean;
+  styles: ReturnType<typeof makeStyles>; colors: AppColors; t: (key: string) => string;
+  onSession: () => void; onEnterResult?: (session: SessionRow) => void;
+}) {
+  const parts = matchDateParts(session.starts_at);
+  const opponentLogoUrl = opponentAcademies.find((academy) => academy.id === session.opponent_academy_id)?.logo_url;
+  return (
+    <View style={styles.matchRow}>
+      <Pressable onPress={onSession} style={({ hovered, pressed }: any) => [styles.matchRowMain, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
+        <View style={styles.matchDateBlock}><Text style={styles.matchDay}>{parts.day}</Text><Text style={styles.matchDate}>{parts.date}</Text><Text style={styles.matchTime}>{parts.time}</Text></View>
+        <View style={styles.matchDivider} />
+        <View style={styles.matchMain}>
+          <View style={styles.matchTeams}>
+            <View style={[styles.teamNameWrap, styles.homeTeamWrap]}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="contain" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
+            {showStatus ? <Text style={styles.versus}>{t('academy.dashboardVs')}</Text> : session.home_score != null && session.away_score != null ? <Text style={styles.matchScore}>{session.home_score} : {session.away_score}</Text> : onEnterResult ? <Pressable onPress={(event) => { event.stopPropagation(); onEnterResult(session); }} style={styles.enterResultButton}><Text style={styles.enterResultText}>{t('academy.dashboardEnterResult')}</Text></Pressable> : <Text style={styles.versus}>—</Text>}
+            <View style={[styles.teamNameWrap, styles.awayTeamWrap]}>{opponentLogoUrl ? <Image source={{ uri: opponentLogoUrl }} style={styles.teamCrestImage} resizeMode="contain" /> : <View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
+          </View>
+        </View>
+        {showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>}
+        <Ionicons name="chevron-forward" size={17} color={colors.grey} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -1411,6 +1491,15 @@ function makeStyles(colors: AppColors) {
     matchModal: { width: 'min(1120px, 92%)' as any, maxWidth: 1344, maxHeight: '92%', padding: 26.4 },
     matchModalScaleDown: { transform: [{ scale: 0.8625 }] },
     resultModal: { width: 'min(440px, 92%)' as any, maxWidth: 528 },
+    matchesListModal: { width: 'min(780px, 94%)' as any, maxWidth: 936, maxHeight: '88%', paddingBottom: 12 },
+    matchesFilterRow: { flexDirection: 'row', gap: 12, paddingBottom: 14.4, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    matchesFilterField: { flex: 1, minWidth: 0, gap: 6 },
+    matchesFilterLabel: { color: colors.greySoft, fontSize: 12, fontWeight: '600' },
+    matchesFilterSelect: { height: 42, boxSizing: 'border-box', border: `1px solid ${colors.border}`, borderRadius: 7.2, backgroundColor: colors.cardSoft, color: colors.white, paddingHorizontal: 10.8, fontSize: 13.2, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
+    matchesListScroll: { flexShrink: 1, minHeight: 150, marginTop: 4.8 },
+    matchesListContent: { paddingBottom: 4.8 },
+    matchesListEmpty: { minHeight: 180, justifyContent: 'center', alignItems: 'center', gap: 9.6 },
+    matchesListActions: { marginTop: 12, paddingTop: 12 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14.4 },
     scoreInputColumn: { flex: 1, minWidth: 0, gap: 8.4 },
     scoreInput: { height: 57.6, borderRadius: 9.6, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, color: colors.white, textAlign: 'center', fontSize: 26.4, fontWeight: '700', outlineStyle: 'none' as any },
