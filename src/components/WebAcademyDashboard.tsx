@@ -465,8 +465,11 @@ export default function WebAcademyDashboard({
   }
 
   async function openMatchDialog() {
-    setMatchError(''); setMatchSelected(new Set()); setMatchRosterTab('player'); setShowMatchAcademies(false);
+    setMatchError(''); setMatchRosterTab('player'); setShowMatchAcademies(false);
     setMatchOpponent(''); setMatchOpponentId(null); setMatchMapsUrl(''); setShowMatch(true);
+    setMatchSelected(new Set(enrolments
+      .filter((row) => row.status === 'approved' && (row.member?.member_kind === 'player' || row.member?.member_kind === 'staff'))
+      .map((row) => row.member_id)));
     setOpponentOptions(await fetchPublicAcademiesForMatches());
   }
 
@@ -857,7 +860,7 @@ export default function WebAcademyDashboard({
                       <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{selectedAcademy?.name || 'Choose an academy'}</Text><Text style={styles.matchSelectHint}>{selectedAcademy?.city || 'Select the team playing this match'}</Text></View>
                       <Ionicons name={showMatchAcademies ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
                     </Pressable>
-                    {showMatchAcademies ? <View style={styles.matchAcademyDropdown}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); setMatchSelected(new Set()); setEnrolments(await fetchEnrolments(a.id)); setShowMatchAcademies(false); }} style={[styles.matchAcademyOption, a.id === selectedAcademy?.id && styles.matchAcademyOptionActive]}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'Location not added'}</Text></View>{a.id === selectedAcademy?.id ? <Ionicons name="checkmark-circle" size={18} color={colors.blueLight} /> : null}</Pressable>)}</View> : null}
+                    {showMatchAcademies ? <View style={styles.matchAcademyDropdown}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); const rows = await fetchEnrolments(a.id); setEnrolments(rows); setMatchSelected(new Set(rows.filter((row) => row.status === 'approved' && (row.member?.member_kind === 'player' || row.member?.member_kind === 'staff')).map((row) => row.member_id))); setShowMatchAcademies(false); }} style={[styles.matchAcademyOption, a.id === selectedAcademy?.id && styles.matchAcademyOptionActive]}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'Location not added'}</Text></View>{a.id === selectedAcademy?.id ? <Ionicons name="checkmark-circle" size={18} color={colors.blueLight} /> : null}</Pressable>)}</View> : null}
                   </View>
                   <View style={styles.matchFieldColumn}>
                     <Text style={styles.matchFormLabel}>Opponent academy or name</Text>
