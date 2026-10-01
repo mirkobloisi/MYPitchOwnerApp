@@ -785,7 +785,7 @@ export default function WebAcademyDashboard({
 
       <Modal transparent visible={showMatch} animationType="fade" onRequestClose={() => setShowMatch(false)}>
         <View style={styles.modalBackdrop}><Pressable style={StyleSheet.absoluteFill} onPress={() => setShowMatch(false)} />
-          <View style={[styles.composeModal, styles.matchModal]}>
+          <View style={[styles.composeModal, styles.matchModal, width >= 1200 && styles.matchModalScaleDown]}>
             <View style={[styles.composeHeader, styles.matchDialogHeader]}><View><Text style={styles.matchDialogTitle}>{t('academy.dashboardCreateMatch')}</Text><Text style={styles.matchDialogSubtitle}>Schedule a match and invite your squad</Text></View><Pressable onPress={() => setShowMatch(false)} style={styles.matchDialogClose}><Ionicons name="close" size={26} color={colors.grey} /></Pressable></View>
             <ScrollView showsVerticalScrollIndicator={false} style={styles.matchFormScroll} contentContainerStyle={styles.matchFormContent}>
               <View style={[styles.matchLayout, width < 1000 && styles.matchLayoutStacked]}>
@@ -1406,6 +1406,7 @@ function makeStyles(colors: AppColors) {
     selectedChoice: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
     matchRosterBlock: { borderWidth: 1, borderColor: colors.border, borderRadius: 8.4, padding: 10.8, marginBottom: 14.4, maxHeight: 180, overflow: 'scroll' as any },
     matchModal: { width: 'min(1120px, 92%)' as any, maxWidth: 1344, maxHeight: '92%', padding: 26.4 },
+    matchModalScaleDown: { transform: [{ scale: 0.75 }] },
     resultModal: { width: 'min(440px, 92%)' as any, maxWidth: 528 },
     scoreInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14.4 },
     scoreInputColumn: { flex: 1, minWidth: 0, gap: 8.4 },
