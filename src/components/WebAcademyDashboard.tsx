@@ -70,7 +70,6 @@ type Props = {
 
 type AcademyArea = 'overview' | 'academies' | 'players' | 'parents' | 'coaches' | 'matches' | 'messages';
 
-const MatchDateInput = 'input' as any;
 const MatchTimeSelect = 'select' as any;
 const MatchTimeOption = 'option' as any;
 
@@ -191,6 +190,8 @@ export default function WebAcademyDashboard({
   const [showMatchAcademies, setShowMatchAcademies] = useState(false);
   const [matchBusy, setMatchBusy] = useState(false);
   const [matchDate, setMatchDate] = useState(() => { const date = new Date(); date.setDate(date.getDate() + 1); return localDateIso(date); });
+  const [showMatchCalendar, setShowMatchCalendar] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => { const date = new Date(); return new Date(date.getFullYear(), date.getMonth(), 1); });
   const [matchStartMinutes, setMatchStartMinutes] = useState<number | null>(17 * 60);
   const [matchEndMinutes, setMatchEndMinutes] = useState<number | null>(18 * 60 + 30);
   const [matchOpponent, setMatchOpponent] = useState('');
@@ -217,6 +218,14 @@ export default function WebAcademyDashboard({
   const matchEndOptions = useMemo(() => matchStartMinutes === null ? [] :
     Array.from({ length: 48 }, (_, i) => (i + 1) * 30 + matchStartMinutes)
       .filter((minutes) => minutes <= 48 * 30), [matchStartMinutes]);
+  const calendarDays = useMemo(() => {
+    const firstDay = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const gridStart = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1 - firstDay.getDay());
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index);
+      return { date, iso: localDateIso(date), inMonth: date.getMonth() === calendarMonth.getMonth() };
+    });
+  }, [calendarMonth]);
 
   useEffect(() => {
     if (!sortedAcademies.length) {
@@ -485,8 +494,21 @@ export default function WebAcademyDashboard({
     if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert(kind === 'parent' ? 'Parent academy link copied.' : 'Demo coach link copied. Coach registration is not enabled yet.');
   }
 
+  function selectMatchDate(date: string) {
+    setMatchDate(date);
+    const day = new Date(`${date}T00:00:00`);
+    const available = Array.from({ length: 48 }, (_, index) => index * 30).filter((minutes) =>
+      new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(minutes / 60), minutes % 60).getTime() >= Date.now()
+    );
+    const startTime = available.includes(17 * 60) ? 17 * 60 : available[0] ?? null;
+    setMatchStartMinutes(startTime);
+    setMatchEndMinutes(startTime !== null && startTime + 90 <= 1440 ? startTime + 90 : null);
+    setShowMatchCalendar(false);
+  }
+
   async function openMatchDialog() {
     setMatchError(''); setMatchRosterTab('player'); setShowMatchAcademies(false);
+    setShowMatchCalendar(false);
     setMatchOpponent(''); setMatchOpponentId(null); setMatchMapsUrl(''); setShowMatch(true);
     setMatchSelected(new Set(enrolments
       .filter((row) => row.status === 'approved' && (row.member?.member_kind === 'player' || row.member?.member_kind === 'staff'))
@@ -818,29 +840,32 @@ export default function WebAcademyDashboard({
                 <View style={[styles.matchLeftColumn, width < 1000 && styles.matchColumnStacked]}>
                   <View style={styles.matchDateField}>
                     <Text style={styles.matchFormLabel}>Match date</Text>
-                    <View style={styles.matchDateControl}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Choose match date" accessibilityState={{ expanded: showMatchCalendar }} onPress={() => { setCalendarMonth(new Date(`${matchDate}T00:00:00`)); setShowMatchCalendar((open) => !open); }} style={[styles.matchDateControl, showMatchCalendar && styles.matchDateControlOpen]}>
                       <Ionicons name="calendar-outline" size={18} color={colors.blueLight} />
                       <Text style={styles.matchNativeValue}>{new Date(matchDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-                      <Ionicons name="chevron-down" size={16} color={colors.grey} />
-                      <MatchDateInput
-                        type="date"
-                        value={matchDate}
-                        min={localDateIso(new Date())}
-                        onChange={(event: any) => {
-                          const date = event.target.value;
-                          if (!date) return;
-                          setMatchDate(date);
-                          const day = new Date(date + 'T00:00:00');
-                          const available = Array.from({ length: 48 }, (_, index) => index * 30).filter((minutes) =>
-                            new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(minutes / 60), minutes % 60).getTime() >= Date.now()
-                          );
-                          const startTime = available.includes(17 * 60) ? 17 * 60 : available[0] ?? null;
-                          setMatchStartMinutes(startTime);
-                          setMatchEndMinutes(startTime !== null && startTime + 90 <= 1440 ? startTime + 90 : null);
-                        }}
-                        style={styles.matchNativePickerOverlay}
-                      />
+                      <Ionicons name={showMatchCalendar ? 'chevron-up' : 'chevron-down'} size={16} color={colors.grey} />
+                    </Pressable>
+                  {showMatchCalendar ? (
+                    <View style={styles.matchCalendarPopup}>
+                      <View style={styles.matchCalendarHeader}>
+                        <Pressable accessibilityRole="button" accessibilityLabel="Previous month" disabled={calendarMonth.getFullYear() === new Date().getFullYear() && calendarMonth.getMonth() === new Date().getMonth()} onPress={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))} style={styles.matchCalendarNav}>
+                          <Ionicons name="chevron-back" size={16} color={colors.blueLight} />
+                        </Pressable>
+                        <Text style={styles.matchCalendarMonth}>{calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</Text>
+                        <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))} style={styles.matchCalendarNav}>
+                          <Ionicons name="chevron-forward" size={16} color={colors.blueLight} />
+                        </Pressable>
+                      </View>
+                      <View style={styles.matchCalendarGrid}>
+                        {Array.from({ length: 7 }, (_, day) => <Text key={`weekday-${day}`} style={styles.matchCalendarWeekday}>{new Date(2024, 0, 7 + day).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2)}</Text>)}
+                        {calendarDays.map(({ date, iso, inMonth }) => {
+                          const disabled = iso < localDateIso(new Date());
+                          const selected = iso === matchDate;
+                          return <Pressable key={iso} disabled={disabled} accessibilityRole="button" accessibilityLabel={date.toLocaleDateString(undefined, { dateStyle: 'full' })} accessibilityState={{ selected, disabled }} onPress={() => selectMatchDate(iso)} style={[styles.matchCalendarDay, !inMonth && styles.matchCalendarDayOutside, selected && styles.matchCalendarDaySelected, disabled && styles.matchCalendarDayDisabled]}><Text style={[styles.matchCalendarDayText, !inMonth && styles.matchCalendarDayOutsideText, selected && styles.matchCalendarDaySelectedText, disabled && styles.matchCalendarDayDisabledText]}>{date.getDate()}</Text></Pressable>;
+                        })}
+                      </View>
                     </View>
+                  ) : null}
                   </View>
                   <View style={styles.matchTimeRow}>
                     <View style={styles.matchTimeField}>
@@ -1512,9 +1537,23 @@ function makeStyles(colors: AppColors) {
     matchColumnDivider: { width: 1.2, backgroundColor: colors.borderSoft },
     matchColumnDividerStacked: { width: '100%' as any, height: 1.2 },
     matchNativeValue: { flex: 1, minWidth: 0, color: colors.white, fontSize: 16.8, fontWeight: '500' },
-    matchDateField: { width: '100%' },
-    matchDateControl: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, position: 'relative' },
-    matchNativePickerOverlay: { ...StyleSheet.absoluteFill, width: '100%', height: '100%', opacity: 0, zIndex: 2, cursor: 'pointer', colorScheme: 'dark' } as any,
+    matchDateField: { width: '100%', position: 'relative', zIndex: 5 },
+    matchDateControl: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: '#385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, position: 'relative', cursor: 'pointer' } as any,
+    matchDateControlOpen: { borderColor: colors.blueLight },
+    matchCalendarPopup: { position: 'absolute', top: 85, left: 0, right: 0, zIndex: 20, padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.card, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+    matchCalendarHeader: { height: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+    matchCalendarNav: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 7, backgroundColor: colors.cardSoft, cursor: 'pointer' } as any,
+    matchCalendarMonth: { color: colors.white, fontSize: 14.4, fontWeight: '600' },
+    matchCalendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+    matchCalendarWeekday: { width: '14.2857%' as any, height: 30, color: colors.grey, textAlign: 'center', textAlignVertical: 'center', fontSize: 11, fontWeight: '600' },
+    matchCalendarDay: { width: '14.2857%' as any, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 7, cursor: 'pointer' } as any,
+    matchCalendarDayOutside: { opacity: 0.45 },
+    matchCalendarDaySelected: { backgroundColor: colors.blueLight },
+    matchCalendarDayDisabled: { cursor: 'default' } as any,
+    matchCalendarDayText: { color: colors.greySoft, fontSize: 12.6, fontVariant: ['tabular-nums'] },
+    matchCalendarDayOutsideText: { color: colors.greyDark },
+    matchCalendarDaySelectedText: { color: colors.blackText, fontWeight: '700' },
+    matchCalendarDayDisabledText: { color: colors.greyDark },
     matchNativeField: { position: 'relative', minWidth: 0, height: 56 },
     matchNativeIcon: { position: 'absolute', left: 14, top: 18, zIndex: 1, pointerEvents: 'none' } as any,
     matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16.8, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
