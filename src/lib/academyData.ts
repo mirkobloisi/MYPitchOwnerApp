@@ -201,6 +201,47 @@ export async function addSessionAttendees(sessionId: string, memberIds: string[]
   return academy().from('session_attendees').insert(memberIds.map((member_id) => ({ session_id: sessionId, member_id, response: 'invited' })));
 }
 
+export async function fetchSessionAttendees(sessionId: string): Promise<SessionAttendeeRow[]> {
+  const { data, error } = await academy()
+    .from('session_attendees')
+    .select('member_id, response')
+    .eq('session_id', sessionId);
+  if (error) throw error;
+  if (!data) return [];
+
+  const rows = data as Pick<SessionAttendeeRow, 'member_id' | 'response'>[];
+  const memberIds = rows.map((row) => row.member_id);
+  if (!memberIds.length) return [];
+  const { data: members, error: memberError } = await academy().from('members').select(MEMBER_COLUMNS).in('id', memberIds);
+  if (memberError) throw memberError;
+  const byId = new Map(((members ?? []) as AcademyMember[]).map((member) => [member.id, member]));
+  return rows.map((row) => ({ ...row, member: byId.get(row.member_id) ?? null }));
+}
+
+export async function updateMatchAndResendNotifications(input: {
+  sessionId: string;
+  title?: string | null;
+  startsAt: string;
+  endsAt: string;
+  locationName?: string | null;
+  mapsUrl?: string | null;
+  opponent?: string | null;
+  opponentAcademyId?: string | null;
+  attendeeMemberIds: string[];
+}) {
+  return academy().rpc('update_match_and_resend_notifications', {
+    target_session_id: input.sessionId,
+    target_title: input.title?.trim() || null,
+    target_starts_at: input.startsAt,
+    target_ends_at: input.endsAt,
+    target_location_name: input.locationName?.trim() || null,
+    target_maps_url: input.mapsUrl?.trim() || null,
+    target_opponent: input.opponent?.trim() || null,
+    target_opponent_academy_id: input.opponentAcademyId || null,
+    target_member_ids: input.attendeeMemberIds,
+  });
+}
+
 export async function regenerateInviteToken(academyId: string): Promise<string | null> {
   const { data, error } = await academy().rpc('regenerate_invite_token', {
     target_academy_id: academyId,
@@ -316,6 +357,12 @@ export type SessionRow = {
   pitch_id: string | null;
   home_score: number | null;
   away_score: number | null;
+};
+
+export type SessionAttendeeRow = {
+  member_id: string;
+  response: 'invited' | 'going' | 'not_going';
+  member: AcademyMember | null;
 };
 
 const SESSION_COLUMNS =

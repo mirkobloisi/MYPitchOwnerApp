@@ -30,7 +30,9 @@ import {
   AcademyCounts,
   AcademyRow,
   EnrolmentRow,
+  SessionAttendeeRow,
   SessionRow,
+  fetchSessionAttendees,
   fetchEnrolments,
   fetchSessions,
   updateSessionResult,
@@ -40,7 +42,7 @@ import { useAcademyRealtime } from '../lib/academyRealtime';
 import { WIDE_CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
 import * as Clipboard from 'expo-clipboard';
 import { PickedAvatarImage, cropAndUploadAcademyCover, cropAndUploadAcademyLogo } from '../lib/avatarUpload';
-import { addSessionAttendees, createSession, fetchPublicAcademiesForMatches, setMainAcademy, updateAcademy } from '../lib/academyData';
+import { addSessionAttendees, createSession, fetchPublicAcademiesForMatches, setMainAcademy, updateAcademy, updateMatchAndResendNotifications } from '../lib/academyData';
 import AvatarPickerTrigger from './AvatarPickerTrigger';
 import AvatarCropModal from './AvatarCropModal';
 import { AppColors, weeklineColors } from '../theme/palettes';
@@ -189,6 +191,7 @@ export default function WebAcademyDashboard({
   const [showMatch, setShowMatch] = useState(false);
   const [showMatchAcademies, setShowMatchAcademies] = useState(false);
   const [matchBusy, setMatchBusy] = useState(false);
+  const [editingSession, setEditingSession] = useState<SessionRow | null>(null);
   const [matchDate, setMatchDate] = useState(() => { const date = new Date(); date.setDate(date.getDate() + 1); return localDateIso(date); });
   const [showMatchCalendar, setShowMatchCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => { const date = new Date(); return new Date(date.getFullYear(), date.getMonth(), 1); });
@@ -200,6 +203,10 @@ export default function WebAcademyDashboard({
   const [matchMapsUrl, setMatchMapsUrl] = useState('');
   const [matchSelected, setMatchSelected] = useState<Set<string>>(new Set());
   const [matchesDialog, setMatchesDialog] = useState<'upcoming' | 'past' | null>(null);
+  const [sessionDetails, setSessionDetails] = useState<SessionRow | null>(null);
+  const [sessionAttendees, setSessionAttendees] = useState<SessionAttendeeRow[]>([]);
+  const [sessionAttendeesLoading, setSessionAttendeesLoading] = useState(false);
+  const [sessionAttendeeError, setSessionAttendeeError] = useState('');
   const [matchesFilterMonth, setMatchesFilterMonth] = useState('all');
   const [matchesFilterYear, setMatchesFilterYear] = useState('all');
   const [matchRosterTab, setMatchRosterTab] = useState<'player' | 'staff'>('player');
@@ -507,6 +514,7 @@ export default function WebAcademyDashboard({
   }
 
   async function openMatchDialog() {
+    setEditingSession(null);
     setMatchError(''); setMatchRosterTab('player'); setShowMatchAcademies(false);
     setShowMatchCalendar(false);
     setMatchOpponent(''); setMatchOpponentId(null); setMatchMapsUrl(''); setShowMatch(true);
@@ -514,6 +522,51 @@ export default function WebAcademyDashboard({
       .filter((row) => row.status === 'approved' && (row.member?.member_kind === 'player' || row.member?.member_kind === 'staff'))
       .map((row) => row.member_id)));
     setOpponentOptions(await fetchPublicAcademiesForMatches());
+  }
+
+  async function openSessionDetails(session: SessionRow) {
+    setMatchesDialog(null);
+    setSessionDetails(session);
+    setSessionAttendees([]);
+    setSessionAttendeeError('');
+    setSessionAttendeesLoading(true);
+    try {
+      setSessionAttendees(await fetchSessionAttendees(session.id));
+    } catch (error) {
+      setSessionAttendeeError(error instanceof Error ? error.message : 'Could not load match attendees.');
+    } finally {
+      setSessionAttendeesLoading(false);
+    }
+  }
+
+  async function editSession(session: SessionRow) {
+    setSessionDetails(null);
+    setMatchError('');
+    setMatchRosterTab('player');
+    setShowMatchAcademies(false);
+    setShowMatchCalendar(false);
+    setMatchOpponent(session.opponent ?? '');
+    setMatchOpponentId(session.opponent_academy_id);
+    setMatchMapsUrl(session.maps_url ?? '');
+    const start = new Date(session.starts_at);
+    const end = new Date(session.ends_at);
+    setMatchDate(localDateIso(start));
+    setCalendarMonth(new Date(start.getFullYear(), start.getMonth(), 1));
+    setMatchStartMinutes(start.getHours() * 60 + start.getMinutes());
+    setMatchEndMinutes(end.getHours() * 60 + end.getMinutes());
+    let attendees: SessionAttendeeRow[];
+    let roster: EnrolmentRow[];
+    try {
+      [attendees, roster] = await Promise.all([fetchSessionAttendees(session.id), fetchEnrolments(session.academy_id)]);
+    } catch (error) {
+      setSessionAttendeeError(error instanceof Error ? error.message : 'Could not load match attendees.');
+      setSessionDetails(session);
+      return;
+    }
+    setEnrolments(roster);
+    setMatchSelected(new Set(attendees.filter((row) => roster.some((enrolment) => enrolment.status === 'approved' && enrolment.member_id === row.member_id && (enrolment.member?.member_kind === 'player' || enrolment.member?.member_kind === 'staff'))).map((row) => row.member_id)));
+    setEditingSession(session);
+    setShowMatch(true);
   }
 
   async function saveMatch() {
@@ -524,6 +577,26 @@ export default function WebAcademyDashboard({
     const starts = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate(), Math.floor(matchStartMinutes / 60), matchStartMinutes % 60).toISOString();
     const ends = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate(), Math.floor(matchEndMinutes / 60), matchEndMinutes % 60).toISOString();
     setMatchBusy(true); setMatchError('');
+    if (editingSession) {
+      const result = await updateMatchAndResendNotifications({
+        sessionId: editingSession.id,
+        title: editingSession.title,
+        startsAt: starts,
+        endsAt: ends,
+        opponent: matchOpponent,
+        opponentAcademyId: matchOpponentId,
+        locationName: mapsLink ? mapsLocationLabel(mapsLink) : null,
+        mapsUrl: mapsLink || null,
+        attendeeMemberIds: [...matchSelected],
+      });
+      if (result.error) { setMatchBusy(false); setMatchError(result.error.message); return; }
+      const academyId = editingSession.academy_id;
+      const notificationCount = Number(result.data ?? 0);
+      setMatchBusy(false); setShowMatch(false); setEditingSession(null);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.alert(notificationCount ? `Match updated. ${notificationCount} notifications were sent to selected players, coaches, and their parents.` : 'Match updated. No notifications were sent because there were no selected recipients or their match notifications are turned off.');
+      await loadAcademyContent(academyId);
+      return;
+    }
     const result = await createSession({ academyId: selectedAcademy.id, kind: 'match', startsAt: starts,
       endsAt: ends,
       opponent: matchOpponent, opponentAcademyId: matchOpponentId,
@@ -723,7 +796,7 @@ export default function WebAcademyDashboard({
               loading={isLoadingAcademy}
               onCreate={openMatchDialog}
               onViewAll={() => { setMatchesFilterMonth('all'); setMatchesFilterYear('all'); setMatchesDialog('upcoming'); }}
-              onSession={() => goToAcademyDetails('matches')}
+              onSession={(session) => { void openSessionDetails(session); }}
             />
             <MatchesPanel
               title={t('academy.dashboardPastResults')}
@@ -738,7 +811,7 @@ export default function WebAcademyDashboard({
               t={t}
               loading={isLoadingAcademy}
               onViewAll={() => { setMatchesFilterMonth('all'); setMatchesFilterYear('all'); setMatchesDialog('past'); }}
-              onSession={() => goToAcademyDetails('matches')}
+              onSession={(session) => { void openSessionDetails(session); }}
               onEnterResult={(session) => { setResultSession(session); setHomeScoreInput(session.home_score == null ? '' : String(session.home_score)); setAwayScoreInput(session.away_score == null ? '' : String(session.away_score)); setResultError(''); }}
             />
           </View>
@@ -834,7 +907,7 @@ export default function WebAcademyDashboard({
       <Modal transparent visible={showMatch} animationType="fade" onRequestClose={() => setShowMatch(false)}>
         <View style={styles.modalBackdrop}><Pressable style={StyleSheet.absoluteFill} onPress={() => setShowMatch(false)} />
           <View style={[styles.composeModal, styles.matchModal, width >= 1200 && styles.matchModalScaleDown]}>
-            <View style={[styles.composeHeader, styles.matchDialogHeader]}><View><Text style={styles.matchDialogTitle}>{t('academy.dashboardCreateMatch')}</Text><Text style={styles.matchDialogSubtitle}>Schedule a match and invite your squad</Text></View><Pressable onPress={() => setShowMatch(false)} style={styles.matchDialogClose}><Ionicons name="close" size={26} color={colors.grey} /></Pressable></View>
+            <View style={[styles.composeHeader, styles.matchDialogHeader]}><View><Text style={styles.matchDialogTitle}>{editingSession ? 'Edit match' : t('academy.dashboardCreateMatch')}</Text><Text style={styles.matchDialogSubtitle}>{editingSession ? 'Update match details and resend invitations' : 'Schedule a match and invite your squad'}</Text></View><Pressable onPress={() => { setShowMatch(false); setEditingSession(null); }} style={styles.matchDialogClose}><Ionicons name="close" size={26} color={colors.grey} /></Pressable></View>
             <ScrollView showsVerticalScrollIndicator={false} style={styles.matchFormScroll} contentContainerStyle={styles.matchFormContent}>
               <View style={[styles.matchLayout, width < 1000 && styles.matchLayoutStacked]}>
                 <View style={[styles.matchLeftColumn, width < 1000 && styles.matchColumnStacked]}>
@@ -903,12 +976,12 @@ export default function WebAcademyDashboard({
                   </View>
                   <View style={styles.matchFieldColumn}>
                     <Text style={styles.matchFormLabel}>Your academy</Text>
-                    <Pressable onPress={() => setShowMatchAcademies((v) => !v)} style={[styles.matchSelectButton, showMatchAcademies && styles.matchSelectButtonOpen]}>
+                    <Pressable disabled={!!editingSession} onPress={() => setShowMatchAcademies((v) => !v)} style={[styles.matchSelectButton, showMatchAcademies && styles.matchSelectButtonOpen]}>
                       {selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}
                       <View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{selectedAcademy?.name || 'Choose an academy'}</Text><Text style={styles.matchSelectHint}>{selectedAcademy?.city || 'Select the team playing this match'}</Text></View>
                       <Ionicons name={showMatchAcademies ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
                     </Pressable>
-                    {showMatchAcademies ? <View style={styles.matchAcademyDropdown}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); const rows = await fetchEnrolments(a.id); setEnrolments(rows); setMatchSelected(new Set(rows.filter((row) => row.status === 'approved' && (row.member?.member_kind === 'player' || row.member?.member_kind === 'staff')).map((row) => row.member_id))); setShowMatchAcademies(false); }} style={[styles.matchAcademyOption, a.id === selectedAcademy?.id && styles.matchAcademyOptionActive]}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'Location not added'}</Text></View>{a.id === selectedAcademy?.id ? <Ionicons name="checkmark-circle" size={18} color={colors.blueLight} /> : null}</Pressable>)}</View> : null}
+                    {showMatchAcademies && !editingSession ? <View style={styles.matchAcademyDropdown}>{sortedAcademies.map((a) => <Pressable key={a.id} onPress={async () => { setSelectedId(a.id); const rows = await fetchEnrolments(a.id); setEnrolments(rows); setMatchSelected(new Set(rows.filter((row) => row.status === 'approved' && (row.member?.member_kind === 'player' || row.member?.member_kind === 'staff')).map((row) => row.member_id))); setShowMatchAcademies(false); }} style={[styles.matchAcademyOption, a.id === selectedAcademy?.id && styles.matchAcademyOptionActive]}>{a.logo_url ? <Image source={{ uri: a.logo_url }} style={styles.matchAcademyLogo} resizeMode="contain" /> : <View style={styles.matchAcademyLogoFallback}><Ionicons name="shield-outline" size={20} color={colors.blueLight} /></View>}<View style={styles.matchSelectText}><Text style={styles.matchSelectTitle}>{a.name}</Text><Text style={styles.matchSelectHint}>{a.city || 'Location not added'}</Text></View>{a.id === selectedAcademy?.id ? <Ionicons name="checkmark-circle" size={18} color={colors.blueLight} /> : null}</Pressable>)}</View> : null}
                   </View>
                   <View style={styles.matchFieldColumn}>
                     <Text style={styles.matchFormLabel}>Opponent academy or name</Text>
@@ -972,7 +1045,49 @@ export default function WebAcademyDashboard({
               </View>
               {matchError ? <Text style={styles.errorText}>{matchError}</Text> : null}
             </ScrollView>
-            <View style={styles.modalActions}><Pressable onPress={() => setShowMatch(false)} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable><Pressable disabled={!matchOpponent.trim() || !matchDate || matchStartMinutes === null || matchEndMinutes === null || matchBusy} onPress={saveMatch} style={[styles.primaryButton, (!matchOpponent.trim() || !matchDate || matchStartMinutes === null || matchEndMinutes === null || matchBusy) && styles.disabledButton]}>{matchBusy ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name="calendar" size={16} color={colors.blackText} />}<Text style={styles.primaryButtonText}>Create match</Text></Pressable></View>
+            <View style={styles.modalActions}><Pressable onPress={() => { setShowMatch(false); setEditingSession(null); }} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable><Pressable disabled={!matchOpponent.trim() || !matchDate || matchStartMinutes === null || matchEndMinutes === null || matchBusy} onPress={saveMatch} style={[styles.primaryButton, (!matchOpponent.trim() || !matchDate || matchStartMinutes === null || matchEndMinutes === null || matchBusy) && styles.disabledButton]}>{matchBusy ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name={editingSession ? 'notifications-outline' : 'calendar'} size={16} color={colors.blackText} />}<Text style={styles.primaryButtonText}>{editingSession ? 'Save & resend notifications' : 'Create match'}</Text></Pressable></View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={!!sessionDetails} animationType="fade" onRequestClose={() => setSessionDetails(null)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSessionDetails(null)} />
+          <View style={[styles.composeModal, styles.sessionDetailsModal]}>
+            <View style={styles.composeHeader}>
+              <View>
+                <Text style={styles.panelTitle}>{matchesDialog === 'past' || (sessionDetails && new Date(sessionDetails.starts_at).getTime() < Date.now()) ? 'Past match details' : 'Match details'}</Text>
+                <Text style={styles.panelHint}>{selectedAcademy?.name} · {sessionDetails?.opponent || 'Opponent to be confirmed'}</Text>
+              </View>
+              <Pressable onPress={() => setSessionDetails(null)} style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t('common.cancel')}><Ionicons name="close" size={18} color={colors.grey} /></Pressable>
+            </View>
+            {sessionDetails ? (() => {
+              const parts = matchDateParts(sessionDetails.starts_at);
+              const isPastMatch = new Date(sessionDetails.starts_at).getTime() < Date.now();
+              const players = sessionAttendees.filter((row) => row.member?.member_kind === 'player');
+              const coaches = sessionAttendees.filter((row) => row.member?.member_kind === 'staff');
+              return (
+                <ScrollView style={styles.sessionDetailsScroll} contentContainerStyle={styles.sessionDetailsContent} showsVerticalScrollIndicator>
+                  <View style={styles.sessionDetailsTeams}>
+                    <View style={styles.sessionDetailsTeam}>{selectedAcademy?.logo_url ? <Image source={{ uri: selectedAcademy.logo_url }} style={styles.sessionDetailsLogo} resizeMode="contain" /> : <View style={styles.sessionDetailsLogoFallback}><Ionicons name="shield-outline" size={24} color={colors.blueLight} /></View>}<Text style={styles.sessionDetailsTeamName}>{sessionDetails.title || selectedAcademy?.name}</Text></View>
+                    <View style={styles.sessionDetailsCenter}>{sessionDetails.home_score != null && sessionDetails.away_score != null ? <Text style={styles.sessionDetailsScore}>{sessionDetails.home_score} : {sessionDetails.away_score}</Text> : <Text style={styles.matchupVs}>VS</Text>}{isPastMatch && (sessionDetails.home_score == null || sessionDetails.away_score == null) ? <Text style={styles.sessionDetailsNoResult}>Result not entered</Text> : null}</View>
+                    <View style={styles.sessionDetailsTeam}>{opponentOptions.find((academy) => academy.id === sessionDetails.opponent_academy_id)?.logo_url ? <Image source={{ uri: opponentOptions.find((academy) => academy.id === sessionDetails.opponent_academy_id)?.logo_url! }} style={styles.sessionDetailsLogo} resizeMode="contain" /> : <View style={[styles.sessionDetailsLogoFallback, styles.opponentCrest]}><Ionicons name="shield-outline" size={24} color={colors.orange} /></View>}<Text style={styles.sessionDetailsTeamName}>{sessionDetails.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
+                  </View>
+                  <View style={styles.sessionDetailsInfoGrid}>
+                    <View style={styles.sessionDetailsInfo}><Text style={styles.sessionDetailsLabel}>Date</Text><Text style={styles.sessionDetailsValue}>{new Date(sessionDetails.starts_at).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text></View>
+                    <View style={styles.sessionDetailsInfo}><Text style={styles.sessionDetailsLabel}>Time</Text><Text style={styles.sessionDetailsValue}>{parts.time} – {new Date(sessionDetails.ends_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}</Text></View>
+                    <View style={[styles.sessionDetailsInfo, styles.sessionDetailsPlace]}><Text style={styles.sessionDetailsLabel}>Place</Text><Text style={styles.sessionDetailsValue}>{sessionDetails.location_name || sessionDetails.maps_url || 'Not specified'}</Text></View>
+                  </View>
+                  <View style={styles.sessionAttendeesBlock}>
+                    <View style={styles.sessionAttendeesHeading}><Text style={styles.panelTitleSmall}>Players involved</Text><Text style={styles.recipientKind}>{players.length}</Text></View>
+                    {sessionAttendeeError ? <Text style={styles.errorText}>{sessionAttendeeError}</Text> : sessionAttendeesLoading ? <ActivityIndicator color={colors.blueLight} style={styles.sessionAttendeesLoading} /> : players.length ? players.map((row) => <SessionAttendeeItem key={row.member_id} attendee={row} styles={styles} colors={colors} />) : <Text style={styles.sessionAttendeesEmpty}>No players were selected for this match.</Text>}
+                    <View style={[styles.sessionAttendeesHeading, styles.sessionCoachHeading]}><Text style={styles.panelTitleSmall}>Coaches involved</Text><Text style={styles.recipientKind}>{coaches.length}</Text></View>
+                    {!sessionAttendeeError && (sessionAttendeesLoading ? <ActivityIndicator color={colors.blueLight} style={styles.sessionAttendeesLoading} /> : coaches.length ? coaches.map((row) => <SessionAttendeeItem key={row.member_id} attendee={row} styles={styles} colors={colors} />) : <Text style={styles.sessionAttendeesEmpty}>No coaches were selected for this match.</Text>)}
+                  </View>
+                </ScrollView>
+              );
+            })() : null}
+            {!sessionAttendeesLoading && !sessionAttendeeError && !sessionDetails?.is_cancelled && sessionDetails && new Date(sessionDetails.starts_at).getTime() >= Date.now() ? <View style={[styles.modalActions, styles.sessionDetailsActions]}><Pressable onPress={() => { void editSession(sessionDetails); }} style={styles.primaryButton}><Ionicons name="create-outline" size={16} color={colors.blackText} /><Text style={styles.primaryButtonText}>Edit match & resend invitations</Text></Pressable></View> : null}
           </View>
         </View>
       </Modal>
@@ -1016,7 +1131,7 @@ export default function WebAcademyDashboard({
                   styles={styles}
                   colors={colors}
                   t={t}
-                  onSession={() => { setMatchesDialog(null); goToAcademyDetails('matches'); }}
+                  onSession={() => { void openSessionDetails(session); }}
                   onEnterResult={matchesDialog === 'past' ? (row) => { setMatchesDialog(null); setResultSession(row); setHomeScoreInput(row.home_score == null ? '' : String(row.home_score)); setAwayScoreInput(row.away_score == null ? '' : String(row.away_score)); setResultError(''); } : undefined}
                 />
               )) : <View style={styles.matchesListEmpty}><View style={styles.emptyIconSmall}><Ionicons name="calendar-outline" size={18} color={colors.blueLight} /></View><Text style={styles.emptyMessage}>No matches found for this period.</Text></View>}
@@ -1227,6 +1342,19 @@ function MatchSessionRow({ session, academyName, academyLogoUrl, opponentAcademi
         {showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>}
         <Ionicons name="chevron-forward" size={17} color={colors.grey} />
       </Pressable>
+    </View>
+  );
+}
+
+function SessionAttendeeItem({ attendee, styles, colors }: {
+  attendee: SessionAttendeeRow; styles: ReturnType<typeof makeStyles>; colors: AppColors;
+}) {
+  const response = attendee.response === 'going' ? 'Going' : attendee.response === 'not_going' ? 'Not going' : 'Invited';
+  return (
+    <View style={styles.sessionAttendeeRow}>
+      <View style={styles.matchParticipantAvatar}>{attendee.member?.avatar_url ? <Image source={{ uri: attendee.member.avatar_url }} style={styles.matchParticipantImage} /> : <Text style={styles.matchParticipantInitial}>{(attendee.member?.full_name || '?').slice(0, 1).toUpperCase()}</Text>}</View>
+      <Text style={styles.recipientName} numberOfLines={1}>{attendee.member?.full_name || 'Academy member'}</Text>
+      <View style={[styles.sessionAttendeeResponse, attendee.response === 'going' && styles.sessionAttendeeGoing, attendee.response === 'not_going' && styles.sessionAttendeeDeclined]}><Text style={[styles.sessionAttendeeResponseText, attendee.response === 'going' && styles.sessionAttendeeGoingText, attendee.response === 'not_going' && styles.sessionAttendeeDeclinedText]}>{response}</Text></View>
     </View>
   );
 }
@@ -1516,6 +1644,35 @@ function makeStyles(colors: AppColors) {
     matchModalScaleDown: { transform: [{ scale: 0.8625 }] },
     resultModal: { width: 'min(440px, 92%)' as any, maxWidth: 528 },
     matchesListModal: { width: 'min(780px, 94%)' as any, maxWidth: 936, maxHeight: '88%', paddingBottom: 12 },
+    sessionDetailsModal: { width: 'min(680px, 94%)' as any, maxWidth: 816, maxHeight: '88%' },
+    sessionDetailsScroll: { flexShrink: 1, minHeight: 120 },
+    sessionDetailsContent: { gap: 14.4, paddingBottom: 7.2 },
+    sessionDetailsTeams: { minHeight: 112, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10.8, padding: 14.4, borderWidth: 1, borderColor: colors.border, borderRadius: 9.6, backgroundColor: colors.cardSoft },
+    sessionDetailsTeam: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6 },
+    sessionDetailsLogo: { width: 45.6, height: 45.6, backgroundColor: 'transparent' },
+    sessionDetailsLogoFallback: { width: 45.6, height: 45.6, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: colors.blueSoft },
+    sessionDetailsTeamName: { color: colors.white, fontSize: 13.2, fontWeight: '600', textAlign: 'center' },
+    sessionDetailsCenter: { minWidth: 67.2, alignItems: 'center', justifyContent: 'center' },
+    sessionDetailsScore: { color: colors.white, fontSize: 22, fontWeight: '700', fontVariant: ['tabular-nums'] },
+    sessionDetailsNoResult: { color: colors.grey, fontSize: 10.8, textAlign: 'center', marginTop: 3.6 },
+    sessionDetailsInfoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9.6 },
+    sessionDetailsInfo: { flex: 1, minWidth: 160, gap: 4.8, padding: 10.8, borderWidth: 1, borderColor: colors.borderSoft, borderRadius: 8.4, backgroundColor: colors.backgroundSoft },
+    sessionDetailsPlace: { flexBasis: '100%' as any },
+    sessionDetailsLabel: { color: colors.grey, fontSize: 10.8, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+    sessionDetailsValue: { color: colors.white, fontSize: 13.2, lineHeight: 18 },
+    sessionAttendeesBlock: { padding: 12, borderWidth: 1, borderColor: colors.borderSoft, borderRadius: 9.6, backgroundColor: colors.backgroundSoft },
+    sessionAttendeesHeading: { flexDirection: 'row', alignItems: 'center', gap: 8.4, paddingBottom: 7.2, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    sessionCoachHeading: { marginTop: 12, paddingTop: 8.4, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+    sessionAttendeesLoading: { paddingVertical: 16.8 },
+    sessionAttendeesEmpty: { color: colors.grey, fontSize: 12, paddingVertical: 10.8 },
+    sessionAttendeeRow: { minHeight: 43.2, flexDirection: 'row', alignItems: 'center', gap: 8.4, paddingVertical: 4.8, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
+    sessionAttendeeResponse: { paddingHorizontal: 7.2, paddingVertical: 3.6, borderRadius: 6, backgroundColor: colors.blueSoft },
+    sessionAttendeeResponseText: { color: colors.blueLight, fontSize: 10.8, fontWeight: '600' },
+    sessionAttendeeGoing: { backgroundColor: colors.greenSoft },
+    sessionAttendeeGoingText: { color: colors.green },
+    sessionAttendeeDeclined: { backgroundColor: colors.orangeSoft },
+    sessionAttendeeDeclinedText: { color: colors.orange },
+    sessionDetailsActions: { marginTop: 12, paddingTop: 12 },
     matchesFilterRow: { flexDirection: 'row', gap: 12, paddingBottom: 14.4, borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
     matchesFilterField: { flex: 1, minWidth: 0, gap: 6 },
     matchesFilterLabel: { color: colors.greySoft, fontSize: 12, fontWeight: '600' },
