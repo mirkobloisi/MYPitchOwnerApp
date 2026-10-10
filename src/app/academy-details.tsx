@@ -267,14 +267,24 @@ export default function AcademyDetailsScreen() {
   async function handleMoveSelect(value: string) {
     if (!movingMember || !academyId) return;
 
-    if (value === REMOVE_VALUE) {
-      await ownerRemoveEnrolment(movingMember.id, academyId);
-    } else {
-      await ownerAddEnrolment(movingMember.id, value);
-    }
+    setErrorMessage('');
 
-    setMovingMember(null);
-    load();
+    try {
+      const { error } =
+        value === REMOVE_VALUE
+          ? await ownerRemoveEnrolment(movingMember.id, academyId)
+          : await ownerAddEnrolment(movingMember.id, value);
+
+      if (error) {
+        setErrorMessage(error.message);
+        return;
+      }
+
+      setMovingMember(null);
+      await load();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Could not update team membership.');
+    }
   }
 
   if (isLoading) {
