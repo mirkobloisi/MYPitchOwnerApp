@@ -30,6 +30,7 @@ type FamilyRosterProps = {
   familyLabel: string;
   coachesLabel: string;
   onMemberAction?: (member: RosterMember) => void;
+  colors?: AppColors;
 };
 
 type FamilyRow = { player: RosterMember | null; guardians: RosterMember[] };
@@ -71,8 +72,10 @@ export default function FamilyRoster({
   familyLabel,
   coachesLabel,
   onMemberAction,
+  colors: colorsOverride,
 }: FamilyRosterProps) {
-  const { colors } = useAppTheme();
+  const { colors: themeColors } = useAppTheme();
+  const colors = colorsOverride ?? themeColors;
   const styles = makeStyles(colors);
   const rows = useMemo(() => pairFamilies(players, guardians), [players, guardians]);
 

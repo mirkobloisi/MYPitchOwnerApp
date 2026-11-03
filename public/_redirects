@@ -20,8 +20,8 @@
 # refuses, and icons break with no error anywhere — exactly what happened, and
 # it took a manual trace of the response bytes to find. Existing files are
 # still served normally; only genuinely missing ones 404.
-/assets/*   /404.html    404
-/_expo/*    /404.html    404
+/assets/*   /not-found.html    404
+/_expo/*    /not-found.html    404
 
 # ── Single-page app ───────────────────────────────────────────────────────
 # Every other route is resolved in the browser by one index.html, so a direct

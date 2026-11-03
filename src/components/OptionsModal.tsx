@@ -22,6 +22,7 @@ type OptionsModalProps = {
   emptyText?: string;
   onSelect: (value: string) => void;
   onClose: () => void;
+  colors?: AppColors;
 };
 
 /** One tap-to-choose list, used for times, durations and pitches alike. */
@@ -33,8 +34,10 @@ export default function OptionsModal({
   emptyText,
   onSelect,
   onClose,
+  colors: colorsOverride,
 }: OptionsModalProps) {
-  const { colors } = useAppTheme();
+  const { colors: themeColors } = useAppTheme();
+  const colors = colorsOverride ?? themeColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (

@@ -26,6 +26,7 @@ type AppButtonProps = Omit<PressableProps, 'style'> & {
   fullWidth?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  colors?: AppColors;
 };
 
 export default function AppButton({
@@ -39,9 +40,11 @@ export default function AppButton({
   onPressOut,
   onHoverIn,
   onHoverOut,
+  colors: colorsOverride,
   ...props
 }: AppButtonProps) {
-  const { colors } = useAppTheme();
+  const { colors: themeColors } = useAppTheme();
+  const colors = colorsOverride ?? themeColors;
   const { styles, variantStyles, textStyles, primaryGradient } = useMemo(
     () => buildStyles(colors),
     [colors]

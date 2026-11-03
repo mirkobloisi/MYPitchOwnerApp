@@ -18,6 +18,7 @@ type AppHeaderProps = {
   showBack?: boolean;
   right?: ReactNode;
   onBackPress?: () => void;
+  colors?: AppColors;
 };
 
 export default function AppHeader({
@@ -26,9 +27,11 @@ export default function AppHeader({
   showBack = true,
   right,
   onBackPress,
+  colors: colorsOverride,
 }: AppHeaderProps) {
   const router = useRouter();
-  const { colors } = useAppTheme();
+  const { colors: themeColors } = useAppTheme();
+  const colors = colorsOverride ?? themeColors;
   const { isDesktop } = useBreakpoint();
   const { t } = useTranslation();
   const { unread } = useAcademyRealtime();

@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import AnimatedPressable from '../components/AnimatedPressable';
 import AppButton from '../components/AppButton';
@@ -40,7 +40,7 @@ import {
   cropAndUploadAcademyLogo,
   signedMemberAvatars,
 } from '../lib/avatarUpload';
-import { AppColors } from '../theme/palettes';
+import { AppColors, weeklineColors } from '../theme/palettes';
 import { WIDE_CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius, spacing } from '../theme/layout';
@@ -52,7 +52,8 @@ const REMOVE_VALUE = '__remove__';
 export default function AcademyDetailsScreen() {
   const { academyId } = useLocalSearchParams<{ academyId: string }>();
   const router = useRouter();
-  const { colors } = useAppTheme();
+  const { colors: appColors } = useAppTheme();
+  const colors = Platform.OS === 'web' ? weeklineColors : appColors;
   const { t } = useTranslation();
   const { pitchOwner } = useAuth();
   const { isWide } = useBreakpoint();
@@ -65,6 +66,8 @@ export default function AcademyDetailsScreen() {
   const [myOtherAcademies, setMyOtherAcademies] = useState<AcademyRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [memberAvatars, setMemberAvatars] = useState<Record<string, string | null>>({});
 
   const [isEditingDetails, setIsEditingDetails] = useState(false);
@@ -168,20 +171,35 @@ export default function AcademyDetailsScreen() {
   }
 
   function handleDelete() {
-    if (!academyId) return;
+    if (!academyId || isDeleting) return;
+
+    if (Platform.OS === 'web') {
+      setShowDeleteConfirm(true);
+      return;
+    }
 
     Alert.alert(t('academy.deleteTitle'), t('academy.deleteWarning'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
         style: 'destructive',
-        onPress: async () => {
-          const { error } = await deleteAcademy(academyId);
-          if (error) setErrorMessage(error.message);
-          else router.back();
-        },
+        onPress: () => { void confirmDeleteAcademy(); },
       },
     ]);
+  }
+
+  async function confirmDeleteAcademy() {
+    if (!academyId || isDeleting) return;
+    setIsDeleting(true);
+    setErrorMessage('');
+    const { error } = await deleteAcademy(academyId);
+    setIsDeleting(false);
+    if (error) {
+      setShowDeleteConfirm(false);
+      setErrorMessage(error.message);
+    } else {
+      router.back();
+    }
   }
 
   async function handleSetMain() {
@@ -291,7 +309,7 @@ export default function AcademyDetailsScreen() {
   if (isLoading) {
     return (
       <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH}>
-        <AppHeader title={t('academy.title')} />
+        <AppHeader title={t('academy.title')} colors={colors} />
         <ActivityIndicator color={colors.greenLight} style={styles.loading} />
       </Screen>
     );
@@ -300,7 +318,7 @@ export default function AcademyDetailsScreen() {
   if (!item) {
     return (
       <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH}>
-        <AppHeader title={t('academy.title')} />
+        <AppHeader title={t('academy.title')} colors={colors} />
         <View style={styles.emptyBox}>
           <Text style={styles.emptyText}>{t('academy.notFound')}</Text>
         </View>
@@ -320,6 +338,7 @@ export default function AcademyDetailsScreen() {
       familyLabel={t('academy.rosterFamily')}
       coachesLabel={t('academy.rosterCoaches')}
       onMemberAction={(member) => setMovingMember(member)}
+      colors={colors}
     />
   );
 
@@ -348,6 +367,7 @@ export default function AcademyDetailsScreen() {
             fullWidth={false}
             style={styles.formButton}
             onPress={copyInviteLink}
+            colors={colors}
           />
 
           {copiedMessage ? <Text style={styles.savedText}>{copiedMessage}</Text> : null}
@@ -458,6 +478,7 @@ export default function AcademyDetailsScreen() {
       <AppHeader
         title={item.name}
         subtitle={item.city ?? undefined}
+        colors={colors}
         right={
           <AnimatedPressable
             style={styles.editButton}
@@ -530,7 +551,7 @@ export default function AcademyDetailsScreen() {
 
           {savedMessage ? <Text style={styles.savedText}>{savedMessage}</Text> : null}
 
-          <AppButton title={t('common.save')} loading={isSaving} disabled={!name.trim()} onPress={handleSave} />
+          <AppButton title={t('common.save')} loading={isSaving} disabled={!name.trim()} onPress={handleSave} colors={colors} />
 
           {!item.is_main ? (
             <AnimatedPressable style={styles.setMainButton} onPress={handleSetMain}>
@@ -551,6 +572,26 @@ export default function AcademyDetailsScreen() {
           </AnimatedPressable>
         </View>
       ) : null}
+
+      <Modal transparent visible={showDeleteConfirm} animationType="fade" onRequestClose={() => setShowDeleteConfirm(false)}>
+        <View style={styles.deleteBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowDeleteConfirm(false)} accessibilityLabel={t('common.cancel')} />
+          <View style={styles.deleteDialog} accessibilityViewIsModal accessibilityRole="alert">
+            <View style={styles.deleteDialogIcon}><Ionicons name="trash-outline" size={21} color={colors.red} /></View>
+            <Text style={styles.cardTitle}>{t('academy.deleteTitle')}</Text>
+            <Text style={styles.deleteDialogBody}>{t('academy.deleteWarning')}</Text>
+            <View style={styles.deleteDialogActions}>
+              <Pressable disabled={isDeleting} onPress={() => setShowDeleteConfirm(false)} style={styles.deleteCancelButton} accessibilityRole="button">
+                <Text style={styles.deleteCancelText}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable disabled={isDeleting} onPress={() => { void confirmDeleteAcademy(); }} style={[styles.deleteConfirmButton, isDeleting && styles.deleteConfirmDisabled]} accessibilityRole="button">
+                {isDeleting ? <ActivityIndicator size="small" color={colors.white} /> : <Ionicons name="trash-outline" size={15} color={colors.white} />}
+                <Text style={styles.deleteConfirmText}>{t('common.delete')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {isWide ? (
         <View style={styles.wideLayout}>
@@ -581,6 +622,7 @@ export default function AcademyDetailsScreen() {
         emptyText={t('academy.noOtherOwnAcademies')}
         onSelect={handleMoveSelect}
         onClose={() => setMovingMember(null)}
+        colors={colors}
       />
     </Screen>
   );
@@ -1037,6 +1079,64 @@ const makeStyles = (colors: AppColors) =>
       fontSize: scaleFont(13),
       fontWeight: '800',
     },
+    deleteBackdrop: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg,
+      backgroundColor: 'rgba(2, 10, 17, 0.78)',
+    },
+    deleteDialog: {
+      width: '100%',
+      maxWidth: 480,
+      padding: spacing.lg,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+    },
+    deleteDialogIcon: {
+      width: 42,
+      height: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.md,
+      backgroundColor: colors.redSoft,
+      marginBottom: spacing.md,
+    },
+    deleteDialogBody: {
+      color: colors.greySoft,
+      fontSize: scaleFont(13),
+      lineHeight: 20,
+      marginTop: -spacing.xs,
+    },
+    deleteDialogActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: spacing.sm,
+      marginTop: spacing.lg,
+    },
+    deleteCancelButton: {
+      minHeight: 42,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+    },
+    deleteCancelText: { color: colors.greySoft, fontSize: scaleFont(12), fontWeight: '700' },
+    deleteConfirmButton: {
+      minHeight: 42,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.md,
+      backgroundColor: colors.red,
+    },
+    deleteConfirmText: { color: colors.white, fontSize: scaleFont(12), fontWeight: '800' },
+    deleteConfirmDisabled: { opacity: 0.65 },
     savedText: {
       color: colors.greenLight,
       fontSize: scaleFont(12),
