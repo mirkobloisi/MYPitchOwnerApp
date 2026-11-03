@@ -17,6 +17,7 @@ import {
 import { AcademyRow, fetchEnrolments, fetchMyAcademies } from '../lib/academyData';
 import { AcademyNotice, fetchNotices, markNoticeRead, markSessionNoticesRead } from '../lib/academyNotices';
 import { useAcademyRealtime } from '../lib/academyRealtime';
+import { useAuth } from '../lib/auth';
 import { INBOX_WIDTH } from '../theme/breakpoints';
 import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -59,6 +60,7 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
   const isWeb = Platform.OS === 'web';
   const colors = isWeb ? weeklineColors : themeColors;
   const { t } = useTranslation();
+  const { pitchOwner } = useAuth();
   const router = useRouter();
   const styles = useMemo(() => makeStyles(colors, isWeb), [colors, isWeb]);
   const { unread, messagesVersion } = useAcademyRealtime();
@@ -107,7 +109,7 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
     setComposeError('');
     setSelectedAcademyIds(new Set());
     setSelectedPeople(new Set());
-    fetchMyAcademies().then(setAcademies);
+    fetchMyAcademies(pitchOwner?.id).then(setAcademies);
   }
 
   function closeCompose() {

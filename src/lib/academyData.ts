@@ -49,10 +49,13 @@ export type EnrolmentRow = {
   member: AcademyMember | null;
 };
 
-export async function fetchMyAcademies(): Promise<AcademyRow[]> {
+export async function fetchMyAcademies(pitchOwnerId: string | null | undefined): Promise<AcademyRow[]> {
+  if (!pitchOwnerId) return [];
+
   const { data, error } = await academy()
     .from('academies')
     .select(ACADEMY_COLUMNS)
+    .eq('pitch_owner_id', pitchOwnerId)
     .order('created_at', { ascending: true });
 
   if (error || !data) return [];
@@ -65,14 +68,42 @@ export async function createAcademy(input: {
   city?: string | null;
   description?: string | null;
 }) {
-  return academy()
+  const { data: existing, error: existingError } = await academy()
     .from('academies')
-    .insert({
-      pitch_owner_id: input.pitchOwnerId,
-      name: input.name.trim(),
-      city: input.city?.trim() || null,
-      description: input.description?.trim() || null,
-    });
+    .select('id')
+    .eq('pitch_owner_id', input.pitchOwnerId)
+    .limit(1);
+
+  if (existingError) return { data: null, error: existingError, isFirstAcademy: false };
+
+  const isFirstAcademy = !existing?.length;
+  const fields = {
+    pitch_owner_id: input.pitchOwnerId,
+    name: input.name.trim(),
+    city: input.city?.trim() || null,
+    description: input.description?.trim() || null,
+    is_main: isFirstAcademy,
+  };
+  const created = await academy()
+    .from('academies')
+    .insert(fields)
+    .select('id')
+    .single();
+
+  // If the owner creates their first team from two signed-in devices at once,
+  // the database's one-main-team constraint chooses the first; keep the
+  // second academy as a regular team instead of failing the creation.
+  const uniqueDetails = `${created.error?.message ?? ''} ${created.error?.details ?? ''}`;
+  if (isFirstAcademy && created.error?.code === '23505' && uniqueDetails.includes('academies_one_main_per_owner')) {
+    const retry = await academy()
+      .from('academies')
+      .insert({ ...fields, is_main: false })
+      .select('id')
+      .single();
+    return { ...retry, isFirstAcademy: false };
+  }
+
+  return { ...created, isFirstAcademy };
 }
 
 export async function updateAcademy(
@@ -177,11 +208,14 @@ export async function fetchAcademyCounts(
   return counts;
 }
 
-export async function fetchAcademy(academyId: string): Promise<AcademyRow | null> {
+export async function fetchAcademy(academyId: string, pitchOwnerId: string | null | undefined): Promise<AcademyRow | null> {
+  if (!pitchOwnerId) return null;
+
   const { data } = await academy()
     .from('academies')
     .select(ACADEMY_COLUMNS)
     .eq('id', academyId)
+    .eq('pitch_owner_id', pitchOwnerId)
     .maybeSingle();
 
   return (data as AcademyRow) ?? null;

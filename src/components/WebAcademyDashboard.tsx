@@ -51,6 +51,7 @@ import { radius } from '../theme/layout';
 
 type CreateAcademyForm = {
   visible: boolean;
+  isFirstAcademy: boolean;
   name: string;
   city: string;
   error: string;
@@ -687,7 +688,7 @@ export default function WebAcademyDashboard({
           accessibilityRole="button"
         >
           <Ionicons name="add" size={18} color={colors.blackText} />
-          <Text style={styles.primaryButtonText}>{t('academy.createAction')}</Text>
+          <Text style={styles.primaryButtonText}>{academies.length === 0 ? t('academy.createMainAction') : t('academy.createAction')}</Text>
         </Pressable>
         <View style={styles.headerSpacer} />
         <Pressable style={styles.iconButton} onPress={() => setShowSearch((value) => !value)} accessibilityRole="button" accessibilityLabel={t('academy.dashboardSearch')}>
@@ -706,7 +707,7 @@ export default function WebAcademyDashboard({
       {createForm.visible ? (
         <View style={styles.createForm}>
           <View style={styles.createFormHeading}>
-            <View><Text style={styles.panelTitle}>{t('academy.createTitle')}</Text><Text style={styles.panelHint}>{t('academy.dashboardCreateHint')}</Text></View>
+            <View><Text style={styles.panelTitle}>{createForm.isFirstAcademy ? t('academy.firstAcademyTitle') : t('academy.createTitle')}</Text><Text style={styles.panelHint}>{createForm.isFirstAcademy ? t('academy.firstAcademyIntro') : t('academy.dashboardCreateHint')}</Text></View>
             <Pressable onPress={createForm.onCancel} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable>
           </View>
           <View style={styles.createInputs}>
@@ -714,7 +715,7 @@ export default function WebAcademyDashboard({
             <TextInput value={createForm.city} onChangeText={createForm.onCityChange} placeholder={t('academy.cityPlaceholder')} placeholderTextColor={colors.greyDark} style={styles.formInput} />
             <Pressable style={[styles.primaryButton, !createForm.name.trim() && styles.disabledButton]} disabled={!createForm.name.trim() || createForm.busy} onPress={createForm.onCreate}>
               {createForm.busy ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name="add" size={18} color={colors.blackText} />}
-              <Text style={styles.primaryButtonText}>{t('academy.createAction')}</Text>
+              <Text style={styles.primaryButtonText}>{createForm.isFirstAcademy ? t('academy.createMainAction') : t('academy.createAction')}</Text>
             </Pressable>
             <Pressable onPress={createForm.onCancel} style={styles.outlineButton}><Text style={styles.outlineButtonText}>{t('common.cancel')}</Text></Pressable>
           </View>
@@ -731,7 +732,16 @@ export default function WebAcademyDashboard({
         ))}
       </View>
 
-      {section === 'academies' ? (
+      {!selectedAcademy && loading ? (
+        <View style={styles.emptyDashboard}><ActivityIndicator size="small" color={colors.blueLight} /></View>
+      ) : !selectedAcademy ? (
+        <View style={styles.emptyDashboard}>
+          <View style={styles.emptyIcon}><Ionicons name="school-outline" size={26} color={colors.blueLight} /></View>
+          <Text style={styles.panelTitle}>{t('academy.firstAcademyTitle')}</Text>
+          <Text style={styles.panelHint}>{t('academy.firstAcademyIntro')}</Text>
+          <Pressable style={styles.primaryButton} onPress={createForm.onStartCreate}><Ionicons name="add" size={18} color={colors.blackText} /><Text style={styles.primaryButtonText}>{t('academy.createMainAction')}</Text></Pressable>
+        </View>
+      ) : section === 'academies' ? (
         <AcademiesList
           academies={sortedAcademies}
           counts={counts}
@@ -740,13 +750,6 @@ export default function WebAcademyDashboard({
           t={t}
           onManage={(academyId) => router.push({ pathname: '/academy-details', params: { academyId } } as any)}
         />
-      ) : !selectedAcademy && !loading ? (
-        <View style={styles.emptyDashboard}>
-          <View style={styles.emptyIcon}><Ionicons name="school-outline" size={26} color={colors.blueLight} /></View>
-          <Text style={styles.panelTitle}>{t('academy.noAcademies')}</Text>
-          <Text style={styles.panelHint}>{t('academy.dashboardCreateHint')}</Text>
-          <Pressable style={styles.primaryButton} onPress={createForm.onStartCreate}><Ionicons name="add" size={18} color={colors.blackText} /><Text style={styles.primaryButtonText}>{t('academy.createAction')}</Text></Pressable>
-        </View>
       ) : selectedAcademy ? (
           <View style={[styles.dashboardGrid, width < 1180 && styles.dashboardGridNarrow, width >= 1180 && { ...styles.dashboardGridFill, minHeight: Math.max(420, viewportHeight - 180) }]}>
           <View style={[styles.leftColumn, width < 1180 && styles.columnFullWidth, width >= 1180 && styles.leftColumnFill]}>

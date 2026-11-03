@@ -34,6 +34,7 @@ import {
   updateAcademy,
 } from '../lib/academyData';
 import { useAcademyRealtime } from '../lib/academyRealtime';
+import { useAuth } from '../lib/auth';
 import {
   PickedAvatarImage,
   cropAndUploadAcademyLogo,
@@ -53,6 +54,7 @@ export default function AcademyDetailsScreen() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const { t } = useTranslation();
+  const { pitchOwner } = useAuth();
   const { isWide } = useBreakpoint();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { markRead } = useAcademyRealtime();
@@ -82,13 +84,22 @@ export default function AcademyDetailsScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
 
   const load = useCallback(async () => {
-    if (!academyId) return;
+    if (!academyId || !pitchOwner?.id) return;
 
-    const [row, enrolmentRows, matchRows, others] = await Promise.all([
-      fetchAcademy(academyId),
+    const row = await fetchAcademy(academyId, pitchOwner.id);
+    if (!row) {
+      setItem(null);
+      setEnrolments([]);
+      setMatches([]);
+      setMyOtherAcademies([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const [enrolmentRows, matchRows, others] = await Promise.all([
       fetchEnrolments(academyId),
       fetchSessions(academyId, 'match'),
-      fetchMyAcademies(),
+      fetchMyAcademies(pitchOwner.id),
     ]);
 
     setItem(row);
@@ -103,7 +114,7 @@ export default function AcademyDetailsScreen() {
     }
 
     setIsLoading(false);
-  }, [academyId]);
+  }, [academyId, pitchOwner?.id]);
 
   useEffect(() => {
     load();
