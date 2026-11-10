@@ -418,7 +418,7 @@ export default function StatsWebScreen() {
               aria-label={t('stats.pitchFilterLabel')}
               value={selectedPitchValue}
               onChange={(event: any) => setSelectedPitch(event.currentTarget.value)}
-              style={[styles.pitchSelect, { appearance: 'none', border: 'none', outline: 'none', cursor: 'pointer', colorScheme: 'dark' }] as any}
+              style={StyleSheet.flatten([styles.pitchSelect, { appearance: 'none', border: 'none', outline: 'none', cursor: 'pointer', colorScheme: 'dark' } as any]) as any}
             >
               <WebOption value="all">{t('stats.allPitches')}</WebOption>
               {pitches.map((pitch) => <WebOption key={pitch.id} value={pitch.id}>{pitch.name}</WebOption>)}
