@@ -26,7 +26,6 @@ const NAV_ITEMS: { name: string; href: string; labelKey: string; icon: IconName 
   { name: 'academy', href: '/academy', labelKey: 'nav.academy', icon: 'school-outline' },
   { name: 'availability', href: '/availability', labelKey: 'nav.availability', icon: 'time-outline' },
   { name: 'stats', href: '/stats', labelKey: 'nav.stats', icon: 'bar-chart-outline' },
-  { name: 'transactions', href: '/transactions', labelKey: 'nav.transactions', icon: 'card-outline' },
   { name: 'profile', href: '/profile', labelKey: 'nav.profile', icon: 'person-circle-outline' },
 ];
 const PRIMARY_NAV_NAMES = new Set(['agenda', 'availability', 'academy']);
@@ -50,7 +49,7 @@ const ROUTE_TAB_OVERRIDE: Record<string, string> = {
 
 /**
  * Browser navigation for the Pitch Owner app, kept mounted at the root so it
- * never disappears — not for the seven desktop tabs, and not for a detail screen
+ * never disappears — not for the six desktop tabs, and not for a detail screen
  * (an academy's own page, a booking) reached by drilling into one of them.
  *
  * Native keeps the platform tab bar and has no equivalent of the sidebar — see
