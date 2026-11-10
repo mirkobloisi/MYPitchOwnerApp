@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,7 +8,6 @@ import AnimatedPressable from '../../components/AnimatedPressable';
 import AppButton from '../../components/AppButton';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
-import AcademyFirstRunTutorial from '../../components/AcademyFirstRunTutorial';
 import OptionsModal, { PickerOption } from '../../components/OptionsModal';
 import WebAcademyDashboard from '../../components/WebAcademyDashboard';
 import WebInboxPanel from '../../components/WebInboxPanel';
@@ -29,8 +27,6 @@ import { AppColors, weeklineColors } from '../../theme/palettes';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { radius, spacing } from '../../theme/layout';
 import { scaleFont } from '../../theme/typography';
-
-type AcademyTutorialProgress = { academyId: string; step: number; completed?: boolean };
 
 export default function AcademyScreen() {
   const router = useRouter();
@@ -56,11 +52,7 @@ export default function AcademyScreen() {
   const [isLoadingMobileMatches, setIsLoadingMobileMatches] = useState(false);
   const [showAcademyPicker, setShowAcademyPicker] = useState(false);
   const [mobileAcademyTab, setMobileAcademyTab] = useState<'overview' | 'notifications'>('overview');
-  const [tutorialProgress, setTutorialProgress] = useState<AcademyTutorialProgress | null>(null);
-  const [tutorialSeen, setTutorialSeen] = useState(false);
-  const [tutorialCheckedOwnerId, setTutorialCheckedOwnerId] = useState<string | null>(null);
   const academyLoadRequest = useRef(0);
-  const tutorialStorageKey = pitchOwner?.id ? `mypitch:academy-first-run:${pitchOwner.id}` : null;
 
   const load = useCallback(async () => {
     const requestId = ++academyLoadRequest.current;
@@ -85,38 +77,6 @@ export default function AcademyScreen() {
     });
   }, [pitchOwner?.id]);
 
-  useEffect(() => {
-    let active = true;
-    setTutorialProgress(null);
-    setTutorialSeen(false);
-    setTutorialCheckedOwnerId(null);
-    if (!tutorialStorageKey) return () => { active = false; };
-
-    AsyncStorage.getItem(tutorialStorageKey)
-      .then((raw) => {
-        if (!active) return;
-        if (raw) {
-          const parsed = JSON.parse(raw) as AcademyTutorialProgress;
-          if (parsed?.completed) setTutorialSeen(true);
-          else if (parsed?.academyId) setTutorialProgress(parsed);
-        }
-        setTutorialCheckedOwnerId(pitchOwner?.id ?? null);
-      })
-      .catch(() => {
-        if (active) setTutorialCheckedOwnerId(pitchOwner?.id ?? null);
-      });
-
-    return () => { active = false; };
-  }, [tutorialStorageKey, pitchOwner?.id]);
-
-  const saveTutorialProgress = useCallback(async (progress: AcademyTutorialProgress) => {
-    setTutorialProgress(progress.completed ? null : progress);
-    setTutorialSeen(!!progress.completed);
-    if (tutorialStorageKey) {
-      try { await AsyncStorage.setItem(tutorialStorageKey, JSON.stringify(progress)); } catch { /* tutorial can be restarted manually if storage is unavailable */ }
-    }
-  }, [tutorialStorageKey]);
-
   useFocusEffect(
     useCallback(() => {
       load();
@@ -130,7 +90,7 @@ export default function AcademyScreen() {
     setIsCreating(true);
     setErrorMessage('');
 
-    const { data, error, isFirstAcademy } = await createAcademy({ pitchOwnerId: pitchOwner.id, name, city: newCity });
+    const { error } = await createAcademy({ pitchOwnerId: pitchOwner.id, name, city: newCity });
     setIsCreating(false);
 
     if (error) {
@@ -141,9 +101,6 @@ export default function AcademyScreen() {
     setNewName('');
     setNewCity('');
     setShowCreate(false);
-    if (isFirstAcademy && data?.id) {
-      await saveTutorialProgress({ academyId: data.id, step: 0 });
-    }
     await load();
   }
 
@@ -177,39 +134,9 @@ export default function AcademyScreen() {
     return () => { isCurrent = false; };
   }, [selectedAcademy?.id]);
 
-  const tutorialAcademy = tutorialProgress && sortedAcademies.find((academy) => academy.id === tutorialProgress.academyId);
-  useEffect(() => {
-    if (
-      !pitchOwner?.id ||
-      tutorialCheckedOwnerId !== pitchOwner.id ||
-      ownerAcademyLoading ||
-      sortedAcademies.length === 0 ||
-      tutorialSeen ||
-      tutorialProgress
-    ) return;
-
-    const progress: AcademyTutorialProgress = { academyId: sortedAcademies[0].id, step: 0 };
-    setTutorialProgress(progress);
-    if (tutorialStorageKey) {
-      void AsyncStorage.setItem(tutorialStorageKey, JSON.stringify(progress)).catch(() => undefined);
-    }
-  }, [
-    ownerAcademyLoading,
-    pitchOwner?.id,
-    sortedAcademies,
-    tutorialCheckedOwnerId,
-    tutorialProgress,
-    tutorialSeen,
-    tutorialStorageKey,
-  ]);
-  const openAcademyGuide = useCallback(() => {
-    if (selectedAcademy) void saveTutorialProgress({ academyId: selectedAcademy.id, step: 0 });
-  }, [saveTutorialProgress, selectedAcademy]);
-
   if (Platform.OS !== 'web' && !tabletApp) {
     return (
-      <>
-        <MobileAcademyOverview
+      <MobileAcademyOverview
           academies={sortedAcademies}
           counts={academyCounts}
           selectedAcademy={selectedAcademy}
@@ -232,31 +159,15 @@ export default function AcademyScreen() {
           onCancelCreate={() => { setShowCreate(false); setErrorMessage(''); }}
           onSubmitCreate={handleCreate}
           onOpenAcademy={(academyId) => router.push({ pathname: '/academy-details', params: { academyId } } as any)}
-          onOpenTutorial={openAcademyGuide}
           mobileTab={mobileAcademyTab}
           onSelectMobileTab={setMobileAcademyTab}
           t={t}
-        />
-        <AcademyFirstRunTutorial
-          visible={!!tutorialAcademy && !showCreate}
-          step={tutorialProgress?.step ?? 0}
-          academyName={tutorialAcademy?.name ?? ''}
-          onStepChange={(step) => tutorialProgress && saveTutorialProgress({ ...tutorialProgress, step })}
-          onSkip={() => tutorialProgress && saveTutorialProgress({ ...tutorialProgress, completed: true })}
-          onOpenAcademy={() => {
-            if (!tutorialProgress || !tutorialAcademy) return;
-            saveTutorialProgress({ ...tutorialProgress, completed: true });
-            router.push({ pathname: '/academy-details', params: { academyId: tutorialAcademy.id } } as any);
-          }}
-          t={t}
-        />
-      </>
+      />
     );
   }
 
   if (Platform.OS === 'web') {
     return (
-      <>
       <WebAcademyDashboard
         academies={sortedAcademies}
         counts={academyCounts}
@@ -275,22 +186,7 @@ export default function AcademyScreen() {
           onStartCreate: () => { setShowCreate(true); setErrorMessage(''); },
           onCancel: () => { setShowCreate(false); setErrorMessage(''); },
         }}
-        onOpenTutorial={openAcademyGuide}
       />
-      <AcademyFirstRunTutorial
-        visible={!!tutorialAcademy && !showCreate}
-        step={tutorialProgress?.step ?? 0}
-        academyName={tutorialAcademy?.name ?? ''}
-        onStepChange={(step) => tutorialProgress && saveTutorialProgress({ ...tutorialProgress, step })}
-        onSkip={() => tutorialProgress && saveTutorialProgress({ ...tutorialProgress, completed: true })}
-        onOpenAcademy={() => {
-          if (!tutorialProgress || !tutorialAcademy) return;
-          saveTutorialProgress({ ...tutorialProgress, completed: true });
-          router.push({ pathname: '/academy-details', params: { academyId: tutorialAcademy.id } } as any);
-        }}
-        t={t}
-      />
-      </>
     );
   }
 
@@ -301,13 +197,6 @@ export default function AcademyScreen() {
         subtitle={t('academy.subtitle')}
         showBack={false}
       />
-
-      {selectedAcademy && !showCreate ? (
-        <Pressable style={styles.guideButton} onPress={openAcademyGuide} accessibilityRole="button">
-          <Ionicons name="help-circle-outline" size={17} color={colors.blueLight} />
-          <Text style={styles.guideButtonText}>{t('academy.tutorialButton')}</Text>
-        </Pressable>
-      ) : null}
 
       {showCreate ? (
         <View style={styles.card}>
@@ -423,19 +312,6 @@ export default function AcademyScreen() {
           );
         })
       )}
-      <AcademyFirstRunTutorial
-        visible={!!tutorialAcademy && !showCreate}
-        step={tutorialProgress?.step ?? 0}
-        academyName={tutorialAcademy?.name ?? ''}
-        onStepChange={(step) => tutorialProgress && saveTutorialProgress({ ...tutorialProgress, step })}
-        onSkip={() => tutorialProgress && saveTutorialProgress({ ...tutorialProgress, completed: true })}
-        onOpenAcademy={() => {
-          if (!tutorialProgress || !tutorialAcademy) return;
-          saveTutorialProgress({ ...tutorialProgress, completed: true });
-          router.push({ pathname: '/academy-details', params: { academyId: tutorialAcademy.id } } as any);
-        }}
-        t={t}
-      />
       </Screen>
   );
 }
@@ -443,7 +319,7 @@ export default function AcademyScreen() {
 function MobileAcademyOverview({
   academies, counts, selectedAcademy, matches, unreadCount, isLoading, isLoadingMatches,
   pickerVisible, onOpenPicker, onClosePicker, onSelectAcademy, onCreateAcademy,
-  createVisible, createName, createCity, createError, isCreating, onNameChange, onCityChange, onCancelCreate, onSubmitCreate, onOpenAcademy, onOpenTutorial,
+  createVisible, createName, createCity, createError, isCreating, onNameChange, onCityChange, onCancelCreate, onSubmitCreate, onOpenAcademy,
   mobileTab, onSelectMobileTab, t,
 }: {
   academies: AcademyRow[];
@@ -468,7 +344,6 @@ function MobileAcademyOverview({
   onCancelCreate: () => void;
   onSubmitCreate: () => void;
   onOpenAcademy: (id: string) => void;
-  onOpenTutorial: () => void;
   mobileTab: 'overview' | 'notifications';
   onSelectMobileTab: (tab: 'overview' | 'notifications') => void;
   t: (key: string) => string;
@@ -582,10 +457,6 @@ function MobileAcademyOverview({
                 </View>
               </View>
               <View style={styles.coverActions}>
-                <Pressable onPress={onOpenTutorial} style={styles.guideButton} accessibilityRole="button">
-                  <Ionicons name="help-circle-outline" size={16} color={weeklineColors.blueLight} />
-                  <Text style={styles.guideButtonText}>{t('academy.tutorialButton')}</Text>
-                </Pressable>
                 <Pressable onPress={openAcademy} style={styles.viewAcademyButton} accessibilityRole="button">
                   <Text style={styles.viewAcademyText}>{t('academy.dashboardViewAll')}</Text>
                   <Ionicons name="arrow-forward" size={15} color={weeklineColors.blueLight} />
@@ -722,9 +593,7 @@ const makeMobileStyles = (colors: AppColors) => StyleSheet.create({
   coverKicker: { color: '#D0E8F6', fontSize: scaleFont(10), fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase' },
   coverName: { color: '#FFFFFF', fontSize: scaleFont(21), fontWeight: '900', marginTop: 10 },
   coverMeta: { color: '#D0E3EF', fontSize: scaleFont(12), fontWeight: '600', marginTop: 4 },
-  coverActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: 2 },
-  guideButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.card },
-  guideButtonText: { color: colors.blueLight, fontSize: scaleFont(11), fontWeight: '800' },
+  coverActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, marginBottom: 2 },
   viewAcademyButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 5 },
   viewAcademyText: { color: colors.blueLight, fontSize: scaleFont(12), fontWeight: '800' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 8 },
@@ -776,25 +645,6 @@ const makeStyles = (colors: AppColors) =>
       fontSize: scaleFont(15),
       fontWeight: '800',
       marginBottom: spacing.sm,
-    },
-    guideButton: {
-      minHeight: 42,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      borderWidth: 1,
-      borderColor: colors.borderBlue,
-      borderRadius: radius.md,
-      backgroundColor: colors.card,
-      alignSelf: 'flex-start',
-      marginBottom: spacing.md,
-    },
-    guideButtonText: {
-      color: colors.blueLight,
-      fontSize: scaleFont(13),
-      fontWeight: '800',
     },
     input: {
       backgroundColor: colors.cardSoft,

@@ -69,7 +69,6 @@ type Props = {
   loading: boolean;
   createForm: CreateAcademyForm;
   onRefresh: () => Promise<void>;
-  onOpenTutorial: () => void;
 };
 
 type AcademyArea = 'overview' | 'academies' | 'players' | 'parents' | 'coaches' | 'matches' | 'messages';
@@ -139,7 +138,6 @@ export default function WebAcademyDashboard({
   loading,
   createForm,
   onRefresh,
-  onOpenTutorial,
 }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -692,16 +690,6 @@ export default function WebAcademyDashboard({
           <Ionicons name="add" size={18} color={colors.blackText} />
           <Text style={styles.primaryButtonText}>{academies.length === 0 ? t('academy.createMainAction') : t('academy.createAction')}</Text>
         </Pressable>
-        {selectedAcademy ? (
-          <Pressable
-            style={({ hovered, pressed }: any) => [styles.outlineButton, styles.guideButton, hovered && styles.hovered, pressed && styles.pressed]}
-            onPress={onOpenTutorial}
-            accessibilityRole="button"
-          >
-            <Ionicons name="help-circle-outline" size={16} color={colors.blueLight} />
-            <Text style={styles.guideButtonText}>{t('academy.tutorialButton')}</Text>
-          </Pressable>
-        ) : null}
         <View style={styles.headerSpacer} />
         <Pressable style={styles.iconButton} onPress={() => setShowSearch((value) => !value)} accessibilityRole="button" accessibilityLabel={t('academy.dashboardSearch')}>
           <Ionicons name={showSearch ? 'close' : 'search'} size={19} color={colors.greySoft} />
@@ -1517,8 +1505,6 @@ function makeStyles(colors: AppColors) {
     disabledButton: { opacity: 0.5 },
     outlineButton: { minHeight: 43.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7.2, paddingHorizontal: 13.2, borderRadius: 8.4, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
     outlineButtonText: { color: colors.greySoft, fontSize: 13.2, fontWeight: '600' },
-    guideButton: { minHeight: 43.2, paddingHorizontal: 12 },
-    guideButtonText: { color: colors.blueLight, fontSize: 13.2, fontWeight: '700' },
     sectionNav: { minHeight: 52.8, position: 'relative', zIndex: 0, flexDirection: 'row', alignItems: 'stretch', gap: 16.8, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 14.4 },
     sectionTab: { minWidth: 120, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9.6, paddingHorizontal: 14.4, borderBottomWidth: 2, borderBottomColor: 'transparent' },
     sectionTabActive: { borderBottomColor: colors.blueLight },
