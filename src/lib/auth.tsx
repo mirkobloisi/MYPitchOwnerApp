@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -90,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pitches, setPitches] = useState<PitchRecord[]>([]);
   const [activePitchId, setActivePitchId] = useState<string | null>(null);
   const [ownerTermsAccepted, setOwnerTermsAccepted] = useState(false);
+  const [resolvedOwnerUserId, setResolvedOwnerUserId] = useState<string | null>(null);
+  const latestAuthUserIdRef = useRef<string | null>(null);
 
   async function loadOwnerData(currentSession: Session | null) {
     if (!currentSession) {
@@ -98,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPitches([]);
       setActivePitchId(null);
       setOwnerTermsAccepted(false);
+      if (latestAuthUserIdRef.current === null) setResolvedOwnerUserId(null);
       return;
     }
 
@@ -185,10 +189,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setActivePitchId(null);
       setOwnerTermsAccepted(false);
     }
+
+    // A session is not ready for routing until its owner and terms checks
+    // finish. Ignore a late response from a previous signed-in account.
+    if (latestAuthUserIdRef.current === userId) setResolvedOwnerUserId(userId);
   }
 
   async function refresh() {
     const { data } = await withTimeout(supabase.auth.getSession(), 12000, 'refresh.getSession()');
+    latestAuthUserIdRef.current = data.session?.user.id ?? null;
     setSession(data.session);
     await loadOwnerData(data.session);
   }
@@ -199,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     withTimeout(supabase.auth.getSession(), 12000, 'getSession()')
       .then(async ({ data }) => {
         if (!isMounted) return;
+        latestAuthUserIdRef.current = data.session?.user.id ?? null;
         setSession(data.session);
         // loadOwnerData bounds and catches every query itself now, so it
         // never needs an outer timeout wrapper to avoid hanging forever.
@@ -213,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       if (!isMounted) return;
+      latestAuthUserIdRef.current = nextSession?.user.id ?? null;
       setSession(nextSession);
       // loadOwnerData already catches its own errors/timeouts internally —
       // this fires on every token refresh (including the one Supabase makes
@@ -298,9 +309,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [pitches, activePitchId]
   );
 
+  const authIsLoading = isLoading || (!!session && resolvedOwnerUserId !== session.user.id);
+
   const value = useMemo<AuthContextValue>(
     () => ({
-      isLoading,
+      isLoading: authIsLoading,
       session,
       profile,
       pitchOwner,
@@ -313,7 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
     }),
-    [isLoading, session, profile, pitchOwner, pitches, activePitch, ownerTermsAccepted]
+    [authIsLoading, session, profile, pitchOwner, pitches, activePitch, ownerTermsAccepted]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

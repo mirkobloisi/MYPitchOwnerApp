@@ -2,13 +2,14 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 
 import WebAppShell from '../components/WebAppShell';
 import { AcademyRealtimeProvider } from '../lib/academyRealtime';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { useAppTheme, ThemeProvider } from '../theme/ThemeContext';
 import { LanguageProvider } from '../i18n/LanguageContext';
+import { weeklineColors } from '../theme/palettes';
 
 function AppGate() {
   const router = useRouter();
@@ -117,12 +118,12 @@ function AppGate() {
       <View
         style={{
           flex: 1,
-          backgroundColor: colors.background,
+          backgroundColor: Platform.OS === 'web' ? weeklineColors.background : colors.background,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <ActivityIndicator color={colors.greenLight} size="large" />
+        <ActivityIndicator color={Platform.OS === 'web' ? weeklineColors.blueLight : colors.greenLight} size="large" />
       </View>
     );
   }
