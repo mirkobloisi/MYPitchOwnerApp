@@ -605,7 +605,7 @@ function toDateOnly(date: Date) {
 /**
  * Creates a weekly series, either running until `repeatUntil` or open-ended.
  * An open-ended series is generated about six months ahead and topped up by a
- * daily job, so it continues until the owner deletes it. Weeks that clash with
+ * daily job, so it continues until the owner ends it. Weeks that clash with
  * a match or an existing booking are skipped and reported rather than failing
  * the whole series.
  */
@@ -621,7 +621,7 @@ export async function createRecurringPitchBlocks(input: {
   notes?: string | null;
 }) {
   const { data, error } = await withAbortableTimeout(
-    supabase.rpc('create_recurring_pitch_blocks', {
+    supabase.rpc(input.openEnded ? 'create_unlimited_pitch_blocks' : 'create_recurring_pitch_blocks', {
       pitch_id_input: input.pitchId,
       first_start: input.startTime.toISOString(),
       first_end: input.endTime.toISOString(),
@@ -643,11 +643,10 @@ export async function createRecurringPitchBlocks(input: {
 /** Deletes this occurrence and every later one in the same weekly series. */
 export async function deleteRecurringSeriesFrom(groupId: string, fromTime: Date) {
   const { error } = await withAbortableTimeout(
-    supabase
-      .from('pitch_blocks')
-      .delete()
-      .eq('recurrence_group_id', groupId)
-      .gte('start_time', fromTime.toISOString()),
+    supabase.rpc('end_recurring_pitch_blocks', {
+      group_id_input: groupId,
+      from_time_input: fromTime.toISOString(),
+    }),
     REQUEST_TIMEOUT_MS,
     'deleteRecurringSeriesFrom'
   );

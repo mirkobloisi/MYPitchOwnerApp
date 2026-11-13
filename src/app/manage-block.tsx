@@ -315,7 +315,7 @@ export default function ManageBlockScreen() {
       ? t('manageBlock.deleteDialogTitleExternal')
       : t('manageBlock.deleteDialogTitleBlocked');
 
-    if (isRecurring && seriesRemaining > 1) {
+    if (isRecurring && (seriesRemaining > 1 || block.recurrence_open_ended)) {
       setDialog({
         title,
         message: block.recurrence_open_ended

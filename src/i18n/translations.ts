@@ -750,7 +750,7 @@ export const translations = {
       repeatWeekly: 'Repeat weekly',
       everyWeekdayAtSameTime: 'Every {weekday} at the same time.',
       untilADate: 'Until a date',
-      noEndDate: 'No end date',
+      noEndDate: 'Unlimited',
       endDateLabel: 'End date',
       endDatePlaceholder: 'DD/MM/YYYY',
       repeatsIndefinitely:
@@ -761,7 +761,7 @@ export const translations = {
       bookingCountOther: '{count} bookings · last on {date}',
       errorEndDateFormat: 'Enter the end date as DD/MM/YYYY.',
       errorEndDateBeforeStart: 'The end date must be on or after the first booking.',
-      errorEndDateTooFar: 'Choose an end date within {years} years, or switch to no end date.',
+      errorEndDateTooFar: 'Choose an end date within {years} years, or switch to Unlimited.',
     },
     durationPicker: {
       allDay: 'All day',
@@ -1519,7 +1519,7 @@ export const translations = {
       repeatWeekly: 'Εβδομαδιαία επανάληψη',
       everyWeekdayAtSameTime: 'Κάθε {weekday} την ίδια ώρα.',
       untilADate: 'Μέχρι μια ημερομηνία',
-      noEndDate: 'Χωρίς ημερομηνία λήξης',
+      noEndDate: 'Απεριόριστα',
       endDateLabel: 'Ημερομηνία λήξης',
       endDatePlaceholder: 'ΗΗ/ΜΜ/ΕΕΕΕ',
       repeatsIndefinitely:
@@ -1530,7 +1530,7 @@ export const translations = {
       bookingCountOther: '{count} κρατήσεις · τελευταία στις {date}',
       errorEndDateFormat: 'Εισαγάγετε την ημερομηνία λήξης ως ΗΗ/ΜΜ/ΕΕΕΕ.',
       errorEndDateBeforeStart: 'Η ημερομηνία λήξης πρέπει να είναι ίδια ή μεταγενέστερη της πρώτης κράτησης.',
-      errorEndDateTooFar: 'Επιλέξτε ημερομηνία λήξης εντός {years} ετών, ή αλλάξτε σε χωρίς ημερομηνία λήξης.',
+      errorEndDateTooFar: 'Επιλέξτε ημερομηνία λήξης εντός {years} ετών ή αλλάξτε σε απεριόριστη επανάληψη.',
     },
     durationPicker: {
       allDay: 'Όλη μέρα',
@@ -2288,7 +2288,7 @@ export const translations = {
       repeatWeekly: 'Повторять еженедельно',
       everyWeekdayAtSameTime: 'Каждый {weekday} в одно и то же время.',
       untilADate: 'До определённой даты',
-      noEndDate: 'Без даты окончания',
+      noEndDate: 'Без ограничений',
       endDateLabel: 'Дата окончания',
       endDatePlaceholder: 'ДД/ММ/ГГГГ',
       repeatsIndefinitely:
@@ -2299,7 +2299,7 @@ export const translations = {
       bookingCountOther: '{count} бронирований · последнее {date}',
       errorEndDateFormat: 'Введите дату окончания в формате ДД/ММ/ГГГГ.',
       errorEndDateBeforeStart: 'Дата окончания должна быть не раньше первого бронирования.',
-      errorEndDateTooFar: 'Выберите дату окончания в пределах {years} лет или переключитесь на «без даты окончания».',
+      errorEndDateTooFar: 'Выберите дату окончания в пределах {years} лет или переключитесь на «Без ограничений».',
     },
     durationPicker: {
       allDay: 'Весь день',
