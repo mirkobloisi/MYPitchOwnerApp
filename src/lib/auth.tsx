@@ -279,6 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     businessName: string;
     contactName: string;
     phone: string;
+    ownerTermsSummary?: { version: string; acceptedAt: string };
   }) {
     const { data, error } = await supabase.auth.signUp({
       email: params.email,
@@ -289,6 +290,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           business_name: params.businessName,
           contact_name: params.contactName,
           phone: params.phone,
+          ...(params.ownerTermsSummary ? {
+            owner_terms_summary_version: params.ownerTermsSummary.version,
+            owner_terms_summary_accepted_at: params.ownerTermsSummary.acceptedAt,
+          } : {}),
         },
       },
     });

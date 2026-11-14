@@ -5,7 +5,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +19,7 @@ import Screen from '../../components/Screen';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../lib/auth';
 import { getRememberMe, setRememberMe } from '../../lib/rememberMe';
+import { CURRENT_OWNER_TERMS_VERSION } from '../../lib/pitchData';
 import { weeklineColors as colors } from '../../theme/palettes';
 
 const accessCopy = {
@@ -79,7 +82,7 @@ const accessCopy = {
 export default function SignupWebScreen() {
   const router = useRouter();
   const { signUp } = useAuth();
-  const { t, language } = useLanguage();
+  const { t, tList, language } = useLanguage();
   const { width, height } = useWindowDimensions();
   const copy = accessCopy[language] ?? accessCopy.en;
   const compact = width < 900;
@@ -97,6 +100,8 @@ export default function SignupWebScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [submitted, setSubmitted] = useState<'session' | 'confirmEmail' | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const contactRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
@@ -135,6 +140,10 @@ export default function SignupWebScreen() {
       setErrorMessage(t('signup.errorPasswordMatch'));
       return;
     }
+    if (!termsAccepted) {
+      setErrorMessage(t('signup.errorTermsRequired'));
+      return;
+    }
 
     setRememberMe(remember);
     setIsSubmitting(true);
@@ -145,6 +154,7 @@ export default function SignupWebScreen() {
         businessName: businessName.trim(),
         contactName: contactName.trim(),
         phone: phone.trim(),
+        ownerTermsSummary: { version: CURRENT_OWNER_TERMS_VERSION, acceptedAt: new Date().toISOString() },
       });
       if (error) {
         setErrorMessage(error);
@@ -249,6 +259,16 @@ export default function SignupWebScreen() {
                   <Text style={styles.rememberText}>{t('signup.rememberMe')}</Text>
                 </Pressable>
 
+                <View style={styles.termsRow}>
+                  <Pressable style={styles.termsCheckTarget} onPress={() => setTermsAccepted((value) => !value)} accessibilityRole="checkbox" accessibilityState={{ checked: termsAccepted }} accessibilityLabel={t('signup.termsConsent')}>
+                    <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>{termsAccepted ? <Ionicons name="checkmark" size={13} color={colors.blackText} /> : null}</View>
+                    <Text style={styles.termsText}>{t('signup.termsConsent')}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setTermsOpen(true)} accessibilityRole="button" style={styles.termsLinkButton}>
+                    <Text style={styles.termsLink}>{t('signup.reviewTerms')}</Text>
+                  </Pressable>
+                </View>
+
                 {errorMessage ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{errorMessage}</Text> : null}
                 <Pressable onPress={handleSignup} disabled={isSubmitting} style={[styles.primaryButton, isSubmitting && styles.disabled]} accessibilityRole="button">
                   {isSubmitting ? <ActivityIndicator size="small" color={colors.blackText} /> : null}
@@ -260,6 +280,29 @@ export default function SignupWebScreen() {
             )}
           </View>
         </View>
+        <Modal visible={termsOpen} transparent animationType="fade" onRequestClose={() => setTermsOpen(false)}>
+          <View style={styles.termsOverlay}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setTermsOpen(false)} accessibilityLabel={t('signup.closeTerms')} />
+            <View style={styles.termsModal}>
+              <View style={styles.termsHeader}>
+                <View style={styles.termsHeaderText}>
+                  <Text style={styles.cardKicker}>{t('signup.termsSummaryKicker')}</Text>
+                  <Text accessibilityRole="header" style={styles.termsTitle}>{t('acceptOwnerTerms.title')}</Text>
+                  <Text style={styles.termsVersion}>{t('acceptOwnerTerms.versionLabel', { version: CURRENT_OWNER_TERMS_VERSION })}</Text>
+                </View>
+                <Pressable onPress={() => setTermsOpen(false)} accessibilityRole="button" accessibilityLabel={t('signup.closeTerms')} style={styles.termsClose}><Ionicons name="close" size={20} color="#C4D9E6" /></Pressable>
+              </View>
+              <ScrollView style={styles.termsScroll} contentContainerStyle={styles.termsContent}>
+                <Text style={styles.termsIntro}>{t('signup.termsSummaryIntro')}</Text>
+                {tList('acceptOwnerTerms.summaryPoints').map((point, index) => (
+                  <View key={index} style={styles.termsBulletRow}><View style={styles.termsBullet} /><Text style={styles.termsPoint}>{point}</Text></View>
+                ))}
+                <Text style={styles.termsNote}>{t('signup.termsFullDocumentNote')}</Text>
+              </ScrollView>
+              <Pressable style={styles.termsDone} onPress={() => setTermsOpen(false)} accessibilityRole="button"><Text style={styles.termsDoneText}>{t('signup.closeTerms')}</Text></Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Screen>
   );
@@ -309,10 +352,31 @@ const styles = StyleSheet.create({
   passwordInput: { paddingRight: 65 },
   showButton: { position: 'absolute', right: 4, top: 3, minWidth: 56, height: 37, alignItems: 'center', justifyContent: 'center' },
   showText: { color: '#82C8F5', fontSize: 12, fontWeight: '700' },
-  rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 21, marginBottom: 18 },
+  rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 21, marginBottom: 10 },
   checkbox: { width: 17, height: 17, borderWidth: 1, borderColor: '#46657A', borderRadius: 4, backgroundColor: '#0B1A26', alignItems: 'center', justifyContent: 'center' },
   checkboxChecked: { borderColor: colors.blueLight, backgroundColor: colors.blueLight },
   rememberText: { color: '#B5CAD6', fontSize: 12, fontWeight: '500', flexShrink: 1 },
+  termsRow: { marginBottom: 18 },
+  termsCheckTarget: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingVertical: 5 },
+  termsText: { color: '#D7E5EE', fontSize: 12, lineHeight: 18, fontWeight: '600', flex: 1 },
+  termsLinkButton: { alignSelf: 'flex-start', marginLeft: 26, paddingVertical: 4 },
+  termsLink: { color: '#77C9FC', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
+  termsOverlay: { flex: 1, backgroundColor: 'rgba(3, 12, 20, 0.82)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  termsModal: { width: '100%', maxWidth: 620, maxHeight: '90%', backgroundColor: '#0D1D29', borderColor: '#33566A', borderWidth: 1, borderRadius: 15, padding: 22 },
+  termsHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#294454' },
+  termsHeaderText: { flex: 1 },
+  termsTitle: { color: '#F5FAFD', fontSize: 22, fontWeight: '800', marginTop: 6 },
+  termsVersion: { color: '#9FB8C8', fontSize: 12, marginTop: 6 },
+  termsClose: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  termsScroll: { flexGrow: 0 },
+  termsContent: { paddingVertical: 16 },
+  termsIntro: { color: '#D7E5EE', fontSize: 14, lineHeight: 21, marginBottom: 13 },
+  termsBulletRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  termsBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#68BFF8', marginTop: 8 },
+  termsPoint: { flex: 1, color: '#B5CAD6', fontSize: 13, lineHeight: 20 },
+  termsNote: { color: '#9FB8C8', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  termsDone: { minHeight: 43, borderRadius: 9, backgroundColor: '#68BFF8', alignItems: 'center', justifyContent: 'center' },
+  termsDoneText: { color: '#071520', fontSize: 13, fontWeight: '800' },
   errorText: { color: colors.red, fontSize: 13, marginBottom: 12 },
   primaryButton: { minHeight: 47, width: '100%', borderRadius: 9, backgroundColor: '#68BFF8', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9 },
   primaryButtonText: { color: '#071520', fontSize: 14, fontWeight: '800' },
