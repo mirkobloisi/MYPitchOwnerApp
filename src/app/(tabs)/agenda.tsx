@@ -9,6 +9,7 @@ import AnimatedSwap from '../../components/AnimatedSwap';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
 import WebAgendaBookingModal from '../../components/WebAgendaBookingModal';
+import WebAgendaManageModal from '../../components/WebAgendaManageModal';
 import { useTranslation } from '../../i18n/LanguageContext';
 import { useAcademyRealtime } from '../../lib/academyRealtime';
 import { useAuth } from '../../lib/auth';
@@ -164,6 +165,7 @@ export default function AgendaScreen() {
   const [monthMenuOpen, setMonthMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [webBookingKind, setWebBookingKind] = useState<'blocked' | 'party' | 'external_booking' | null>(null);
+  const [webManageBlockId, setWebManageBlockId] = useState<string | null>(null);
   const [monthStripWidth, setMonthStripWidth] = useState(0);
   const monthStripRef = useRef<ScrollView>(null);
   const mobileTimelineRef = useRef<ScrollView>(null);
@@ -567,8 +569,11 @@ export default function AgendaScreen() {
     // only manages pitch_blocks rows.
     if (event.kind === 'academy') return;
 
-    // External bookings and blocked slots are both pitch_blocks rows, and both
-    // are managed (moved, edited, deleted) on the same screen.
+    // The web keeps event editing in the Agenda; native keeps its detail screen.
+    if (Platform.OS === 'web') {
+      setWebManageBlockId(event.block.id);
+      return;
+    }
     router.push({ pathname: '/manage-block', params: { blockId: event.block.id } });
   }
 
@@ -1488,6 +1493,14 @@ export default function AgendaScreen() {
           initialPitchId={activePitch.id}
           onClose={() => setWebBookingKind(null)}
           onSaved={loadMonth}
+        />
+      ) : null}
+      {Platform.OS === 'web' && activePitch ? (
+        <WebAgendaManageModal
+          blockId={webManageBlockId}
+          pitchName={activePitch.name}
+          onClose={() => setWebManageBlockId(null)}
+          onSaved={() => { void loadMonth(true); }}
         />
       ) : null}
     </Screen>
