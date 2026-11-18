@@ -93,6 +93,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ownerTermsAccepted, setOwnerTermsAccepted] = useState(false);
   const [resolvedOwnerUserId, setResolvedOwnerUserId] = useState<string | null>(null);
   const latestAuthUserIdRef = useRef<string | null>(null);
+  const lastSeenUserIdRef = useRef<string | null>(null);
+
+  // Each Owner has their own workspace. The moment the signed-in account
+  // changes (sign-out, or signing in as someone else in the same tab), drop
+  // everything that belonged to the previous account so it can never show
+  // under the new one — not even for the instant before the new data loads.
+  function adoptSession(nextSession: Session | null) {
+    const nextUserId = nextSession?.user.id ?? null;
+    latestAuthUserIdRef.current = nextUserId;
+    if (lastSeenUserIdRef.current !== nextUserId) {
+      lastSeenUserIdRef.current = nextUserId;
+      setProfile(null);
+      setPitchOwner(null);
+      setPitches([]);
+      setActivePitchId(null);
+      setOwnerTermsAccepted(false);
+      setResolvedOwnerUserId(null);
+    }
+    setSession(nextSession);
+  }
 
   async function loadOwnerData(currentSession: Session | null) {
     if (!currentSession) {
@@ -106,6 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const userId = currentSession.user.id;
+    // A response that arrives after the signed-in account has changed belongs
+    // to the previous account and must be thrown away, never applied.
+    const isStale = () => latestAuthUserIdRef.current !== userId;
 
     try {
       // Every query here is individually bounded AND actually cancelled via
@@ -124,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
 
       if (profileError) throw profileError;
+      if (isStale()) return;
 
       setProfile((profileData as ProfileRecord | null) ?? null);
 
@@ -138,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
 
       if (ownerError) throw ownerError;
+      if (isStale()) return;
 
       const owner = (ownerData as PitchOwnerRecord | null) ?? null;
       setPitchOwner(owner);
@@ -156,15 +181,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
 
         if (pitchesError) throw pitchesError;
+        if (isStale()) return;
 
         const ownedPitches = (pitchesData as PitchRecord[] | null) ?? [];
         setPitches(ownedPitches);
-        setActivePitchId((current) => current ?? ownedPitches[0]?.id ?? null);
+        // Keep the chosen pitch only if it really is one of THIS owner's.
+        setActivePitchId((current) =>
+          current && ownedPitches.some((pitch) => pitch.id === current)
+            ? current
+            : ownedPitches[0]?.id ?? null
+        );
 
         try {
           const acceptance = await fetchMyLatestOwnerTermsAcceptance();
+          if (isStale()) return;
           setOwnerTermsAccepted(acceptance?.termsVersion === CURRENT_OWNER_TERMS_VERSION);
         } catch (acceptanceError) {
+          if (isStale()) return;
           // Treat "couldn't tell" the same as "not accepted" — AppGate then
           // sends the owner to /accept-terms, which is safe to show again
           // even if they had actually already accepted (accepting a second
@@ -184,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // fall back to "no owner data" so AppGate can still route somewhere
       // sane (login/pending) instead of hanging indefinitely.
       console.error('[auth] Failed to load pitch owner data:', error);
+      if (isStale()) return;
       setPitchOwner(null);
       setPitches([]);
       setActivePitchId(null);
@@ -197,8 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function refresh() {
     const { data } = await withTimeout(supabase.auth.getSession(), 12000, 'refresh.getSession()');
-    latestAuthUserIdRef.current = data.session?.user.id ?? null;
-    setSession(data.session);
+    adoptSession(data.session);
     await loadOwnerData(data.session);
   }
 
@@ -208,8 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     withTimeout(supabase.auth.getSession(), 12000, 'getSession()')
       .then(async ({ data }) => {
         if (!isMounted) return;
-        latestAuthUserIdRef.current = data.session?.user.id ?? null;
-        setSession(data.session);
+        adoptSession(data.session);
         // loadOwnerData bounds and catches every query itself now, so it
         // never needs an outer timeout wrapper to avoid hanging forever.
         await loadOwnerData(data.session);
@@ -223,8 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       if (!isMounted) return;
-      latestAuthUserIdRef.current = nextSession?.user.id ?? null;
-      setSession(nextSession);
+      adoptSession(nextSession);
       // loadOwnerData already catches its own errors/timeouts internally —
       // this fires on every token refresh (including the one Supabase makes
       // when the tab regains focus after being idle), so it must never be
