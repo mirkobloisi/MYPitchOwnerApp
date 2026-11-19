@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
 
+import EnvironmentBanner from '../components/EnvironmentBanner';
 import WebAppShell from '../components/WebAppShell';
 import { AcademyRealtimeProvider } from '../lib/academyRealtime';
 import { AuthProvider, useAuth } from '../lib/auth';
@@ -185,7 +186,12 @@ export default function RootLayout() {
         <AuthProvider>
           {/* Inside AuthProvider: the channel is keyed to the signed-in owner. */}
           <AcademyRealtimeProvider>
-            <AppGate />
+            <View style={{ flex: 1 }}>
+              <EnvironmentBanner />
+              <View style={{ flex: 1 }}>
+                <AppGate />
+              </View>
+            </View>
           </AcademyRealtimeProvider>
         </AuthProvider>
       </LanguageProvider>

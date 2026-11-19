@@ -36,7 +36,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <title>MYPitch — Pitch Owner</title>
+        <title>{process.env.EXPO_PUBLIC_APP_ENV === 'test' ? '[TEST] MYPitch — Pitch Owner' : 'MYPitch — Pitch Owner'}</title>
 
         {/* Stops the body scrolling behind the app on web. */}
         <ScrollViewStyleReset />
