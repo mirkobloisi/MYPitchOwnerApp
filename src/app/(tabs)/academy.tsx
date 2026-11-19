@@ -8,10 +8,12 @@ import AnimatedPressable from '../../components/AnimatedPressable';
 import AppButton from '../../components/AppButton';
 import AppHeader from '../../components/AppHeader';
 import Screen from '../../components/Screen';
+import AcademyGuideDialog from '../../components/AcademyGuideDialog';
 import OptionsModal, { PickerOption } from '../../components/OptionsModal';
 import WebAcademyDashboard from '../../components/WebAcademyDashboard';
 import WebInboxPanel from '../../components/WebInboxPanel';
 import { useTranslation } from '../../i18n/LanguageContext';
+import { useAcademyGuide } from '../../lib/academyGuide';
 import { useAcademyRealtime } from '../../lib/academyRealtime';
 import { useAuth } from '../../lib/auth';
 import {
@@ -134,8 +136,20 @@ export default function AcademyScreen() {
     return () => { isCurrent = false; };
   }, [selectedAcademy?.id]);
 
+  const guide = useAcademyGuide({ ready: !ownerAcademyLoading, hasAcademies: sortedAcademies.length > 0 });
+  const startCreate = () => { setShowCreate(true); setErrorMessage(''); };
+  const guideDialog = (
+    <AcademyGuideDialog
+      visible={guide.visible}
+      onClose={guide.close}
+      onCreateAcademy={sortedAcademies.length === 0 ? startCreate : undefined}
+      t={t}
+    />
+  );
+
   if (Platform.OS !== 'web' && !tabletApp) {
     return (
+      <>
       <MobileAcademyOverview
           academies={sortedAcademies}
           counts={academyCounts}
@@ -161,13 +175,17 @@ export default function AcademyScreen() {
           onOpenAcademy={(academyId) => router.push({ pathname: '/academy-details', params: { academyId } } as any)}
           mobileTab={mobileAcademyTab}
           onSelectMobileTab={setMobileAcademyTab}
+          onOpenGuide={guide.open}
           t={t}
       />
+      {guideDialog}
+      </>
     );
   }
 
   if (Platform.OS === 'web') {
     return (
+      <>
       <WebAcademyDashboard
         academies={sortedAcademies}
         counts={academyCounts}
@@ -186,7 +204,10 @@ export default function AcademyScreen() {
           onStartCreate: () => { setShowCreate(true); setErrorMessage(''); },
           onCancel: () => { setShowCreate(false); setErrorMessage(''); },
         }}
+        onOpenGuide={guide.open}
       />
+      {guideDialog}
+      </>
     );
   }
 
@@ -197,6 +218,11 @@ export default function AcademyScreen() {
         subtitle={t('academy.subtitle')}
         showBack={false}
       />
+
+      <Pressable style={styles.guideButton} onPress={guide.open} accessibilityRole="button">
+        <Ionicons name="help-circle-outline" size={17} color={colors.blueLight} />
+        <Text style={styles.guideButtonText}>{t('academy.tutorialButton')}</Text>
+      </Pressable>
 
       {showCreate ? (
         <View style={styles.card}>
@@ -312,6 +338,7 @@ export default function AcademyScreen() {
           );
         })
       )}
+      {guideDialog}
       </Screen>
   );
 }
@@ -320,7 +347,7 @@ function MobileAcademyOverview({
   academies, counts, selectedAcademy, matches, unreadCount, isLoading, isLoadingMatches,
   pickerVisible, onOpenPicker, onClosePicker, onSelectAcademy, onCreateAcademy,
   createVisible, createName, createCity, createError, isCreating, onNameChange, onCityChange, onCancelCreate, onSubmitCreate, onOpenAcademy,
-  mobileTab, onSelectMobileTab, t,
+  mobileTab, onSelectMobileTab, onOpenGuide, t,
 }: {
   academies: AcademyRow[];
   counts: Record<string, AcademyCounts>;
@@ -346,6 +373,7 @@ function MobileAcademyOverview({
   onOpenAcademy: (id: string) => void;
   mobileTab: 'overview' | 'notifications';
   onSelectMobileTab: (tab: 'overview' | 'notifications') => void;
+  onOpenGuide: () => void;
   t: (key: string) => string;
 }) {
   const styles = useMemo(() => makeMobileStyles(weeklineColors), []);
@@ -384,6 +412,14 @@ function MobileAcademyOverview({
           <Text style={styles.title}>{t('academy.title')}</Text>
           <Text style={styles.subtitle}>{t('academy.subtitle')}</Text>
         </View>
+        <Pressable
+          style={styles.headerBell}
+          onPress={onOpenGuide}
+          accessibilityRole="button"
+          accessibilityLabel={t('academy.tutorialButton')}
+        >
+          <Ionicons name="help-circle-outline" size={21} color={weeklineColors.blueLight} />
+        </Pressable>
         <Pressable
           style={styles.headerBell}
           onPress={() => onSelectMobileTab('notifications')}
@@ -773,5 +809,23 @@ const makeStyles = (colors: AppColors) =>
       fontSize: scaleFont(13),
       fontWeight: '600',
       textAlign: 'center',
+    },
+    guideButton: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      minHeight: 36,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      marginBottom: spacing.md,
+    },
+    guideButtonText: {
+      color: colors.blueLight,
+      fontSize: scaleFont(12),
+      fontWeight: '800',
     },
   });

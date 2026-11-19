@@ -69,6 +69,8 @@ type Props = {
   loading: boolean;
   createForm: CreateAcademyForm;
   onRefresh: () => Promise<void>;
+  /** Opens the Academy walkthrough from the header's help button. */
+  onOpenGuide?: () => void;
 };
 
 type AcademyArea = 'overview' | 'academies' | 'players' | 'parents' | 'coaches' | 'matches' | 'messages';
@@ -138,6 +140,7 @@ export default function WebAcademyDashboard({
   loading,
   createForm,
   onRefresh,
+  onOpenGuide,
 }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -691,6 +694,11 @@ export default function WebAcademyDashboard({
           <Text style={styles.primaryButtonText}>{academies.length === 0 ? t('academy.createMainAction') : t('academy.createAction')}</Text>
         </Pressable>
         <View style={styles.headerSpacer} />
+        {onOpenGuide ? (
+          <Pressable style={styles.iconButton} onPress={onOpenGuide} accessibilityRole="button" accessibilityLabel={t('academy.tutorialButton')}>
+            <Ionicons name="help-circle-outline" size={21} color={colors.greySoft} />
+          </Pressable>
+        ) : null}
         <Pressable style={styles.iconButton} onPress={() => setShowSearch((value) => !value)} accessibilityRole="button" accessibilityLabel={t('academy.dashboardSearch')}>
           <Ionicons name={showSearch ? 'close' : 'search'} size={19} color={colors.greySoft} />
         </Pressable>
@@ -740,6 +748,12 @@ export default function WebAcademyDashboard({
           <Text style={styles.panelTitle}>{t('academy.firstAcademyTitle')}</Text>
           <Text style={styles.panelHint}>{t('academy.firstAcademyIntro')}</Text>
           <Pressable style={styles.primaryButton} onPress={createForm.onStartCreate}><Ionicons name="add" size={18} color={colors.blackText} /><Text style={styles.primaryButtonText}>{t('academy.createMainAction')}</Text></Pressable>
+          {onOpenGuide ? (
+            <Pressable style={styles.outlineButton} onPress={onOpenGuide} accessibilityRole="button">
+              <Ionicons name="help-circle-outline" size={18} color={colors.greySoft} />
+              <Text style={styles.outlineButtonText}>{t('academy.tutorialButton')}</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : section === 'academies' ? (
         <AcademiesList
