@@ -87,7 +87,10 @@ export default function ProfileWebScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { language, setLanguage, t } = useLanguage();
-  const { session, profile, pitchOwner, refresh, signOut } = useAuth();
+  const { session, profile, pitchOwner: workspaceOwner, isStaff, canUseTab, refresh, signOut } = useAuth();
+  // For staff, `workspaceOwner` is their employer's record: it supplies the
+  // business name, but the person's own details live on their profile.
+  const pitchOwner = isStaff ? null : workspaceOwner;
   const c = copy[language] ?? copy.en;
   const [dialog, setDialog] = useState<Dialog>(null);
   const [name, setName] = useState('');
@@ -173,16 +176,18 @@ export default function ProfileWebScreen() {
           <Text style={styles.pageTitle}>{t('profile.title')}</Text>
           <Text style={styles.pageSubtitle}>{c.subtitle}</Text>
         </View>
-        <Pressable style={styles.bell} onPress={() => router.push('/(tabs)/inbox' as any)} accessibilityRole="button" accessibilityLabel={t('inbox.notifications')}>
-          <Ionicons name="notifications-outline" size={20} color={colors.blueLight} />
-        </Pressable>
+        {canUseTab('academy') ? (
+          <Pressable style={styles.bell} onPress={() => router.push('/(tabs)/inbox' as any)} accessibilityRole="button" accessibilityLabel={t('inbox.notifications')}>
+            <Ionicons name="notifications-outline" size={20} color={colors.blueLight} />
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={[styles.identity, narrow && styles.identityNarrow]}>
         <View style={styles.avatar}><Text style={styles.avatarLetter}>{displayName.charAt(0).toUpperCase()}</Text></View>
         <View style={styles.identityCopy}>
           <Text style={styles.identityName}>{displayName}</Text>
-          <Text style={styles.identityMeta}>{pitchOwner?.business_name || 'MYPitch'}  ·  <Text style={styles.role}>{role}</Text></Text>
+          <Text style={styles.identityMeta}>{workspaceOwner?.business_name || 'MYPitch'}  ·  <Text style={styles.role}>{role}</Text></Text>
         </View>
         <Pressable style={styles.outlineButton} onPress={() => openDialog('details')} accessibilityRole="button">
           <Ionicons name="pencil-outline" size={17} color={colors.white} />
@@ -201,6 +206,7 @@ export default function ProfileWebScreen() {
           <View style={styles.panelBody}>
             <SettingsRow icon="person-outline" title={c.personalDetails} subtitle={c.personalHint} onPress={() => openDialog('details')} />
             <SettingsRow icon="lock-closed-outline" title={c.passwordSecurity} subtitle={c.passwordHint} onPress={() => openDialog('password')} />
+            {!isStaff ? <SettingsRow icon="people-outline" title={t('team.title')} subtitle={t('team.profileHint')} onPress={() => router.push('/team' as any)} /> : null}
             <View style={styles.settingRow}>
               <View style={styles.rowIcon}><Ionicons name="language-outline" size={19} color={colors.blueLight} /></View>
               <View style={styles.rowCopy}>

@@ -59,11 +59,39 @@ type ProfileRecord = {
   email: string | null;
 };
 
+/**
+ * A staff member's place in an owner's workspace. `allowed_tabs` is what the
+ * owner chose for them; the database enforces the same list, so hiding a tab
+ * here is a convenience, never the security boundary.
+ */
+export type StaffMembershipRecord = {
+  id: string;
+  pitch_owner_id: string;
+  allowed_tabs: string[];
+  status: string;
+};
+
+/** The workspace sections an owner can hand to a staff member. */
+export const STAFF_ASSIGNABLE_TABS = [
+  'agenda',
+  'availability',
+  'pitches',
+  'academy',
+  'stats',
+  'transactions',
+] as const;
+
 type AuthContextValue = {
   isLoading: boolean;
   session: Session | null;
   profile: ProfileRecord | null;
+  /** For a staff member this is their EMPLOYER's workspace record. */
   pitchOwner: PitchOwnerRecord | null;
+  /** True for a signed-in staff member with an active membership. */
+  isStaff: boolean;
+  staffMembership: StaffMembershipRecord | null;
+  /** Owners can use every tab; staff only the ones they were given (plus profile). */
+  canUseTab: (tab: string) => boolean;
   pitches: PitchRecord[];
   activePitch: PitchRecord | null;
   setActivePitchId: (id: string) => void;
@@ -91,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pitches, setPitches] = useState<PitchRecord[]>([]);
   const [activePitchId, setActivePitchId] = useState<string | null>(null);
   const [ownerTermsAccepted, setOwnerTermsAccepted] = useState(false);
+  const [staffMembership, setStaffMembership] = useState<StaffMembershipRecord | null>(null);
   const [resolvedOwnerUserId, setResolvedOwnerUserId] = useState<string | null>(null);
   const latestAuthUserIdRef = useRef<string | null>(null);
   const lastSeenUserIdRef = useRef<string | null>(null);
@@ -109,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPitches([]);
       setActivePitchId(null);
       setOwnerTermsAccepted(false);
+      setStaffMembership(null);
       setResolvedOwnerUserId(null);
     }
     setSession(nextSession);
@@ -121,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPitches([]);
       setActivePitchId(null);
       setOwnerTermsAccepted(false);
+      setStaffMembership(null);
       if (latestAuthUserIdRef.current === null) setResolvedOwnerUserId(null);
       return;
     }
@@ -149,19 +180,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileError) throw profileError;
       if (isStale()) return;
 
-      setProfile((profileData as ProfileRecord | null) ?? null);
+      const profileRow = (profileData as ProfileRecord | null) ?? null;
+      setProfile(profileRow);
 
-      const { data: ownerData, error: ownerError } = await withAbortableTimeout(
-        supabase
-          .from('pitch_owners')
-          .select('id, user_id, business_name, contact_name, email, phone, address, logo_url, status, created_at')
-          .eq('user_id', userId)
-          .maybeSingle(),
-        OWNER_DATA_QUERY_TIMEOUT_MS,
-        'loadOwnerData.owner'
-      );
+      // A staff member works inside their employer's workspace: find their
+      // active membership first, then load the employer's owner record (row
+      // level security lets them read exactly that one).
+      let membership: StaffMembershipRecord | null = null;
+      if (profileRow?.role === 'staff') {
+        const { data: membershipData, error: membershipError } = await withAbortableTimeout(
+          supabase
+            .from('owner_staff_memberships')
+            .select('id, pitch_owner_id, allowed_tabs, status')
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .maybeSingle(),
+          OWNER_DATA_QUERY_TIMEOUT_MS,
+          'loadOwnerData.staffMembership'
+        );
+        if (membershipError) throw membershipError;
+        if (isStale()) return;
+        membership = (membershipData as StaffMembershipRecord | null) ?? null;
+      }
+      setStaffMembership(membership);
 
-      if (ownerError) throw ownerError;
+      const ownerColumns =
+        'id, user_id, business_name, contact_name, email, phone, address, logo_url, status, created_at';
+      let ownerData: unknown = null;
+      if (profileRow?.role === 'staff') {
+        if (membership) {
+          const { data, error: ownerError } = await withAbortableTimeout(
+            supabase.from('pitch_owners').select(ownerColumns).eq('id', membership.pitch_owner_id).maybeSingle(),
+            OWNER_DATA_QUERY_TIMEOUT_MS,
+            'loadOwnerData.staffOwner'
+          );
+          if (ownerError) throw ownerError;
+          ownerData = data;
+        }
+      } else {
+        const { data, error: ownerError } = await withAbortableTimeout(
+          supabase.from('pitch_owners').select(ownerColumns).eq('user_id', userId).maybeSingle(),
+          OWNER_DATA_QUERY_TIMEOUT_MS,
+          'loadOwnerData.owner'
+        );
+        if (ownerError) throw ownerError;
+        ownerData = data;
+      }
+
       if (isStale()) return;
 
       const owner = (ownerData as PitchOwnerRecord | null) ?? null;
@@ -192,7 +257,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             : ownedPitches[0]?.id ?? null
         );
 
-        try {
+        if (membership) {
+          // Staff work under the owner's own agreement with MYPitch; the
+          // terms gate is the owner's, not theirs.
+          setOwnerTermsAccepted(true);
+        } else try {
           const acceptance = await fetchMyLatestOwnerTermsAcceptance();
           if (isStale()) return;
           setOwnerTermsAccepted(acceptance?.termsVersion === CURRENT_OWNER_TERMS_VERSION);
@@ -218,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // sane (login/pending) instead of hanging indefinitely.
       console.error('[auth] Failed to load pitch owner data:', error);
       if (isStale()) return;
+      setStaffMembership(null);
       setPitchOwner(null);
       setPitches([]);
       setActivePitchId(null);
@@ -347,12 +417,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const authIsLoading = isLoading || (!!session && resolvedOwnerUserId !== session.user.id);
 
+  const isStaff = !!staffMembership;
+  const canUseTab = useMemo(
+    () => (tab: string) => {
+      if (!staffMembership) return true;
+      return tab === 'profile' || staffMembership.allowed_tabs.includes(tab);
+    },
+    [staffMembership]
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       isLoading: authIsLoading,
       session,
       profile,
       pitchOwner,
+      isStaff,
+      staffMembership,
+      canUseTab,
       pitches,
       activePitch,
       setActivePitchId,
@@ -362,7 +444,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
     }),
-    [authIsLoading, session, profile, pitchOwner, pitches, activePitch, ownerTermsAccepted]
+    [authIsLoading, session, profile, pitchOwner, isStaff, staffMembership, canUseTab, pitches, activePitch, ownerTermsAccepted]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

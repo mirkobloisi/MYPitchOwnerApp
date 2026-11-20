@@ -23,7 +23,7 @@ const SUPPORT_WHATSAPP = 'https://wa.me/35700000000';
 
 export default function ProfileScreen() {
   const { colors, isDark, toggleScheme } = useAppTheme();
-  const { pitchOwner, refresh, signOut } = useAuth();
+  const { pitchOwner, isStaff, refresh, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -86,7 +86,7 @@ export default function ProfileScreen() {
 
       <View style={styles.heroCard}>
         <AvatarPickerTrigger
-          disabled={!pitchOwner || isUploadingAvatar}
+          disabled={!pitchOwner || isStaff || isUploadingAvatar}
           onPicked={handleAvatarPicked}
           onError={handleAvatarPickError}
         >

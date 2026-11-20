@@ -7,7 +7,7 @@ import { ActivityIndicator, Platform, View } from 'react-native';
 import EnvironmentBanner from '../components/EnvironmentBanner';
 import WebAppShell from '../components/WebAppShell';
 import { AcademyRealtimeProvider } from '../lib/academyRealtime';
-import { AuthProvider, useAuth } from '../lib/auth';
+import { AuthProvider, STAFF_ASSIGNABLE_TABS, useAuth } from '../lib/auth';
 import { useAppTheme, ThemeProvider } from '../theme/ThemeContext';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { weeklineColors } from '../theme/palettes';
@@ -16,7 +16,7 @@ function AppGate() {
   const router = useRouter();
   const segments = useSegments();
   const { colors, isDark, isReady: themeReady } = useAppTheme();
-  const { isLoading, session, profile, pitchOwner, ownerTermsAccepted } = useAuth();
+  const { isLoading, session, profile, pitchOwner, ownerTermsAccepted, isStaff, canUseTab } = useAuth();
 
   // Every icon in the app comes from Ionicons, which is a font: it has to be
   // registered before any glyph can draw, or icons render as empty boxes.
@@ -46,13 +46,20 @@ function AppGate() {
   const onAcceptTermsScreen = group === 'accept-terms';
   // A parent opening their invite link has no MYPitch account at all — this
   // page must work signed out, same as login/signup.
-  const onJoinScreen = group === 'join';
+  // A new staff member opening their invitation link has no account yet either.
+  const onJoinScreen = String(group) === 'join' || String(group) === 'join-staff';
+  const secondSegment = String(segments[1] ?? '');
 
   useEffect(() => {
     if (isLoading || !themeReady) return;
 
     const isApprovedOwner =
       !!session && profile?.role === 'pitch_owner' && pitchOwner?.status === 'active';
+    // A staff member is approved while their membership is active AND their
+    // employer's workspace is. The employer's owner record is loaded as
+    // `pitchOwner`, so the status check is the same.
+    const isApprovedStaff =
+      !!session && profile?.role === 'staff' && isStaff && pitchOwner?.status === 'active';
 
     // Each branch below states where the user MUST be, then moves them there
     // if they aren't already. Written this way so there is no combination of
@@ -74,7 +81,7 @@ function AppGate() {
     // never gets bounced onward by the rules below either.
     if (onJoinScreen) return;
 
-    if (!isApprovedOwner) {
+    if (!isApprovedOwner && !isApprovedStaff) {
       if (!onPendingScreen) router.replace('/pending');
       return;
     }
@@ -84,8 +91,27 @@ function AppGate() {
     // accept-terms until they do. This is a real gate, not just a reminder —
     // continuing to use the Owner Dashboard must not itself count as
     // acceptance (see Clause 13 of the Owner Terms).
-    if (!ownerTermsAccepted) {
+    if (isApprovedOwner && !ownerTermsAccepted) {
       if (!onAcceptTermsScreen) router.replace('/accept-terms');
+      return;
+    }
+
+    // Staff only ever see what their owner gave them. The database enforces
+    // the same list; this just keeps them off screens that would show nothing
+    // (for instance by typing an address) and lands them on their first one.
+    if (isApprovedStaff) {
+      const agendaRoutes = ['add-external-booking', 'block-slot', 'manage-block', 'booking-details'];
+      const academyRoutes = ['academy-details', 'academy-chat', 'academy-group'];
+      const area = String(group ?? '');
+      let allowed = false;
+      if (area === '(tabs)') allowed = canUseTab(secondSegment === 'inbox' ? 'academy' : secondSegment || 'agenda');
+      else if (agendaRoutes.includes(area)) allowed = canUseTab('agenda');
+      else if (academyRoutes.includes(area)) allowed = canUseTab('academy');
+
+      if (onIndexRoute || inAuthGroup || onAcceptTermsScreen || !allowed) {
+        const firstTab = STAFF_ASSIGNABLE_TABS.find((tab) => canUseTab(tab)) ?? 'profile';
+        router.replace(`/(tabs)/${firstTab}` as any);
+      }
       return;
     }
 
@@ -105,6 +131,10 @@ function AppGate() {
     profile,
     pitchOwner,
     ownerTermsAccepted,
+    isStaff,
+    canUseTab,
+    group,
+    secondSegment,
     inAuthGroup,
     onLoginScreen,
     onSignupScreen,

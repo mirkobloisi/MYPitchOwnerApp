@@ -29,8 +29,6 @@ const NAV_ITEMS: { name: string; href: string; labelKey: string; icon: IconName 
   { name: 'profile', href: '/profile', labelKey: 'nav.profile', icon: 'person-circle-outline' },
 ];
 const PRIMARY_NAV_NAMES = new Set(['agenda', 'availability', 'academy']);
-const PRIMARY_NAV_ITEMS = NAV_ITEMS.filter((item) => PRIMARY_NAV_NAMES.has(item.name));
-const MORE_NAV_ITEMS = NAV_ITEMS.filter((item) => !PRIMARY_NAV_NAMES.has(item.name));
 
 /**
  * A detail screen reached from a tab (a booking, an academy's own page)
@@ -45,6 +43,7 @@ const ROUTE_TAB_OVERRIDE: Record<string, string> = {
   '/add-external-booking': '/agenda',
   '/booking-settings': '/agenda',
   '/manage-block': '/agenda',
+  '/team': '/profile',
 };
 
 /**
@@ -64,7 +63,12 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
   const isCompactAgenda = !isDesktop && pathname === '/agenda';
   const router = useRouter();
   const { unread } = useAcademyRealtime();
-  const { pitchOwner } = useAuth();
+  const { pitchOwner, canUseTab } = useAuth();
+  // A staff member only sees the sections their owner gave them.
+  const navItems = useMemo(() => NAV_ITEMS.filter((item) => canUseTab(item.name)), [canUseTab]);
+  const primaryNavItems = navItems.filter((item) => PRIMARY_NAV_NAMES.has(item.name));
+  const moreNavItems = navItems.filter((item) => !PRIMARY_NAV_NAMES.has(item.name));
+  const canSeeInbox = canUseTab('academy');
   const [isInboxOpen, setIsInboxOpen] = useState(false);
   useEffect(() => {
     setIsInboxOpen(false);
@@ -117,7 +121,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
 
           {isWeeklineDesktop && <Text style={styles.weeklineNavHeading}>{t('nav.workspace')}</Text>}
           <View style={themed.navGroup}>
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <NavItem
                 key={item.name}
                 label={t(item.labelKey)}
@@ -131,7 +135,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
               />
             ))}
           </View>
-          <Pressable
+          {canSeeInbox ? <Pressable
             style={[themed.inboxOpenButton, isWeeklineDesktop && styles.weeklineInboxButton]}
             onPress={() => setIsInboxOpen(true)}
           >
@@ -148,7 +152,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
                 {unread.players + unread.parents + unread.messages}
               </Text>
             ) : null}
-          </Pressable>
+          </Pressable> : null}
           {isWeeklineDesktop && (
             <View style={styles.weeklineOwnerFooter}>
               <Text style={styles.weeklineOwnerName} numberOfLines={1}>
@@ -160,7 +164,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
         </View>
       ) : (
         <View style={themed.bottomBar}>
-          {PRIMARY_NAV_ITEMS.map((item) => (
+          {primaryNavItems.map((item) => (
             <NavItem
               key={item.name}
               label={t(item.labelKey)}
@@ -172,23 +176,23 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
               onPress={() => router.replace(item.href as any)}
             />
           ))}
-          <Pressable
-            style={({ pressed }) => [themed.bottomItem, MORE_NAV_ITEMS.some((item) => item.href === effectivePath) && themed.bottomItemActive, pressed && themed.itemPressed]}
+          {moreNavItems.length > 0 ? <Pressable
+            style={({ pressed }) => [themed.bottomItem, moreNavItems.some((item) => item.href === effectivePath) && themed.bottomItemActive, pressed && themed.itemPressed]}
             onPress={() => setIsMoreOpen((open) => !open)}
             accessibilityRole="button"
             accessibilityState={{ expanded: isMoreOpen }}
           >
             <View style={styles.moreIconWrap}>
-              <Ionicons name="ellipsis-horizontal" size={20} color={MORE_NAV_ITEMS.some((item) => item.href === effectivePath) ? shellColors.greenLight : shellColors.greyDark} />
+              <Ionicons name="ellipsis-horizontal" size={20} color={moreNavItems.some((item) => item.href === effectivePath) ? shellColors.greenLight : shellColors.greyDark} />
             </View>
-            <Text style={[themed.bottomLabel, { color: MORE_NAV_ITEMS.some((item) => item.href === effectivePath) ? shellColors.greenLight : shellColors.greyDark }]}>{t('nav.more')}</Text>
-          </Pressable>
+            <Text style={[themed.bottomLabel, { color: moreNavItems.some((item) => item.href === effectivePath) ? shellColors.greenLight : shellColors.greyDark }]}>{t('nav.more')}</Text>
+          </Pressable> : null}
         </View>
       )}
 
-      {!isDesktop && isMoreOpen ? <MoreMenu items={MORE_NAV_ITEMS} label={t} activePath={effectivePath} onNavigate={(href) => { setIsMoreOpen(false); router.replace(href as any); }} /> : null}
+      {!isDesktop && isMoreOpen ? <MoreMenu items={moreNavItems} label={t} activePath={effectivePath} onNavigate={(href) => { setIsMoreOpen(false); router.replace(href as any); }} /> : null}
 
-      {!isDesktop && !isCompactAgenda ? (
+      {!isDesktop && !isCompactAgenda && canSeeInbox ? (
         <Pressable
           style={styles.notificationButton}
           onPress={() => setIsInboxOpen(true)}

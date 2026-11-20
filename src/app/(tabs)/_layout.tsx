@@ -6,6 +6,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTranslation } from '../../i18n/LanguageContext';
 import { useAcademyRealtime } from '../../lib/academyRealtime';
+import { useAuth } from '../../lib/auth';
 import { BOTTOM_BAR_HEIGHT } from '../../theme/breakpoints';
 import { weeklineColors } from '../../theme/palettes';
 import { scaleFont } from '../../theme/typography';
@@ -24,6 +25,7 @@ const PRIMARY_TABS = ['agenda', 'availability', 'academy', 'profile'];
 function OwnerMobileTabBar({ state, navigation, insets }: BottomTabBarProps) {
   const { t } = useTranslation();
   const { unread } = useAcademyRealtime();
+  const { canUseTab } = useAuth();
   const colors = weeklineColors;
   const activeRoute = state.routes[state.index]?.name ?? 'agenda';
 
@@ -37,7 +39,7 @@ function OwnerMobileTabBar({ state, navigation, insets }: BottomTabBarProps) {
   return (
     <View style={[nativeStyles.barRoot, { height: BOTTOM_BAR_HEIGHT + insets.bottom }]}>
       <View style={[nativeStyles.bar, { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
-        {PRIMARY_TABS.map((name) => {
+        {PRIMARY_TABS.filter((name) => canUseTab(name)).map((name) => {
           const route = state.routes.find((item) => item.name === name);
           if (!route) return null;
           const focused = activeRoute === name;
