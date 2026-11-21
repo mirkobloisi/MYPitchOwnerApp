@@ -395,7 +395,7 @@ export const translations = {
     },
     acceptOwnerTerms: {
       title: 'Accept the Owner Terms',
-      versionLabel: 'Owner Terms version {version} — effective 17 September 2026',
+      versionLabel: 'Owner Terms version {version} — effective {date}',
       intro:
         'Before you can receive bookings, please review and accept the current MYPitch Owner Terms & Conditions. Here are the key points:',
       summaryPoints: [
@@ -1261,7 +1261,7 @@ export const translations = {
     },
     acceptOwnerTerms: {
       title: 'Αποδοχή των Όρων Ιδιοκτήτη',
-      versionLabel: 'Όροι Ιδιοκτήτη έκδοση {version} — ισχύει από 17 Σεπτεμβρίου 2026',
+      versionLabel: 'Όροι Ιδιοκτήτη έκδοση {version} — ισχύει από {date}',
       intro:
         'Πριν μπορέσετε να λαμβάνετε κρατήσεις, ελέγξτε και αποδεχθείτε τους ισχύοντες Όρους και Προϋποθέσεις Ιδιοκτήτη MYPitch. Ακολουθούν τα βασικά σημεία:',
       summaryPoints: [
@@ -2130,7 +2130,7 @@ export const translations = {
     },
     acceptOwnerTerms: {
       title: 'Принятие условий для владельцев',
-      versionLabel: 'Условия для владельцев, версия {version} — действуют с 17 сентября 2026 г.',
+      versionLabel: 'Условия для владельцев, версия {version} — действуют с {date}',
       intro:
         'Прежде чем вы сможете принимать бронирования, ознакомьтесь и примите текущие Условия для владельцев MYPitch. Вот основные моменты:',
       summaryPoints: [

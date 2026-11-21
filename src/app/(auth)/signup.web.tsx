@@ -19,7 +19,7 @@ import Screen from '../../components/Screen';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../lib/auth';
 import { getRememberMe, setRememberMe } from '../../lib/rememberMe';
-import { CURRENT_OWNER_TERMS_VERSION } from '../../lib/pitchData';
+import { useCurrentOwnerTerms, useTermsDateText } from '../../lib/ownerTerms';
 import { weeklineColors as colors } from '../../theme/palettes';
 
 const accessCopy = {
@@ -82,6 +82,8 @@ const accessCopy = {
 export default function SignupWebScreen() {
   const router = useRouter();
   const { signUp } = useAuth();
+  const currentTerms = useCurrentOwnerTerms();
+  const effectiveText = useTermsDateText(currentTerms.effectiveAt);
   const { t, tList, language } = useLanguage();
   const { width, height } = useWindowDimensions();
   const copy = accessCopy[language] ?? accessCopy.en;
@@ -154,7 +156,7 @@ export default function SignupWebScreen() {
         businessName: businessName.trim(),
         contactName: contactName.trim(),
         phone: phone.trim(),
-        ownerTermsSummary: { version: CURRENT_OWNER_TERMS_VERSION, acceptedAt: new Date().toISOString() },
+        ownerTermsSummary: { version: currentTerms.version, acceptedAt: new Date().toISOString() },
       });
       if (error) {
         setErrorMessage(error);
@@ -288,7 +290,7 @@ export default function SignupWebScreen() {
                 <View style={styles.termsHeaderText}>
                   <Text style={styles.cardKicker}>{t('signup.termsSummaryKicker')}</Text>
                   <Text accessibilityRole="header" style={styles.termsTitle}>{t('acceptOwnerTerms.title')}</Text>
-                  <Text style={styles.termsVersion}>{t('acceptOwnerTerms.versionLabel', { version: CURRENT_OWNER_TERMS_VERSION })}</Text>
+                  <Text style={styles.termsVersion}>{t('acceptOwnerTerms.versionLabel', { version: currentTerms.version, date: effectiveText })}</Text>
                 </View>
                 <Pressable onPress={() => setTermsOpen(false)} accessibilityRole="button" accessibilityLabel={t('signup.closeTerms')} style={styles.termsClose}><Ionicons name="close" size={20} color="#C4D9E6" /></Pressable>
               </View>

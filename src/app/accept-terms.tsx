@@ -7,9 +7,9 @@ import AppButton from '../components/AppButton';
 import Screen from '../components/Screen';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../lib/auth';
+import { useCurrentOwnerTerms, useTermsDateText } from '../lib/ownerTerms';
 import {
   acceptOwnerTerms,
-  CURRENT_OWNER_TERMS_VERSION,
   OWNER_TERMS_CHECKBOX_TEXT_CANONICAL,
 } from '../lib/pitchData';
 import { AppColors } from '../theme/palettes';
@@ -35,6 +35,8 @@ export default function AcceptOwnerTermsScreen() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const summaryPoints = tList('acceptOwnerTerms.summaryPoints');
+  const currentTerms = useCurrentOwnerTerms();
+  const effectiveText = useTermsDateText(currentTerms.effectiveAt);
 
   async function handleAccept() {
     if (!checked) {
@@ -47,7 +49,7 @@ export default function AcceptOwnerTermsScreen() {
 
     try {
       await acceptOwnerTerms({
-        termsVersion: CURRENT_OWNER_TERMS_VERSION,
+        termsVersion: currentTerms.version,
         checkboxText: OWNER_TERMS_CHECKBOX_TEXT_CANONICAL,
       });
       await refresh();
@@ -69,7 +71,7 @@ export default function AcceptOwnerTermsScreen() {
           </View>
           <Text style={styles.title}>{t('acceptOwnerTerms.title')}</Text>
           <Text style={styles.versionLabel}>
-            {t('acceptOwnerTerms.versionLabel', { version: CURRENT_OWNER_TERMS_VERSION })}
+            {t('acceptOwnerTerms.versionLabel', { version: currentTerms.version, date: effectiveText })}
           </Text>
         </View>
 

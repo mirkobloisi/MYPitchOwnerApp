@@ -9,7 +9,8 @@ import React, {
   useState,
 } from 'react';
 
-import { CURRENT_OWNER_TERMS_VERSION, fetchMyLatestOwnerTermsAcceptance } from './pitchData';
+import { fetchCurrentOwnerTerms } from './ownerTerms';
+import { fetchMyLatestOwnerTermsAcceptance } from './pitchData';
 import { supabase } from './supabase';
 import { withAbortableTimeout, withTimeout } from './withTimeout';
 
@@ -264,7 +265,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else try {
           const acceptance = await fetchMyLatestOwnerTermsAcceptance();
           if (isStale()) return;
-          setOwnerTermsAccepted(acceptance?.termsVersion === CURRENT_OWNER_TERMS_VERSION);
+          // The version in force comes from the database, so publishing a new
+          // Owner Terms version holds every owner at /accept-terms from its
+          // effective date, without an app update. If the version itself can't
+          // be read, fall back to "has accepted something" rather than locking
+          // every owner out over a hiccup.
+          const current = await fetchCurrentOwnerTerms().catch(() => null);
+          if (isStale()) return;
+          setOwnerTermsAccepted(current ? acceptance?.termsVersion === current.version : !!acceptance);
         } catch (acceptanceError) {
           if (isStale()) return;
           // Treat "couldn't tell" the same as "not accepted" — AppGate then
