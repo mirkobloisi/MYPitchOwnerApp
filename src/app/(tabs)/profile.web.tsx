@@ -42,7 +42,8 @@ const copy = {
     cancel: 'Cancel', save: 'Save changes', changePassword: 'Change password', saving: 'Saving…',
     requiredName: 'Enter your name.', requiredPassword: 'Enter your current password.',
     shortPassword: 'Use at least 6 characters.', passwordMismatch: 'The new passwords do not match.',
-    saved: 'Your changes were saved.', passwordSaved: 'Your password was changed.',
+    saved: 'Your changes were saved.', passwordSaved: 'Your new password has been set. Use it the next time you sign in.',
+    ok: 'OK', savedTitle: 'Saved', passwordSavedTitle: 'Password changed',
     unavailable: 'Your account information is unavailable. Please try again.',
   },
   el: {
@@ -60,7 +61,8 @@ const copy = {
     cancel: 'Ακύρωση', save: 'Αποθήκευση', changePassword: 'Αλλαγή κωδικού', saving: 'Αποθήκευση…',
     requiredName: 'Εισαγάγετε το όνομά σας.', requiredPassword: 'Εισαγάγετε τον τρέχοντα κωδικό.',
     shortPassword: 'Χρησιμοποιήστε τουλάχιστον 6 χαρακτήρες.', passwordMismatch: 'Οι νέοι κωδικοί δεν ταιριάζουν.',
-    saved: 'Οι αλλαγές αποθηκεύτηκαν.', passwordSaved: 'Ο κωδικός σας άλλαξε.',
+    saved: 'Οι αλλαγές αποθηκεύτηκαν.', passwordSaved: 'Ο νέος κωδικός σας ορίστηκε. Χρησιμοποιήστε τον στην επόμενη σύνδεση.',
+    ok: 'OK', savedTitle: 'Αποθηκεύτηκε', passwordSavedTitle: 'Ο κωδικός άλλαξε',
     unavailable: 'Τα στοιχεία λογαριασμού δεν είναι διαθέσιμα. Δοκιμάστε ξανά.',
   },
   ru: {
@@ -78,7 +80,8 @@ const copy = {
     cancel: 'Отмена', save: 'Сохранить', changePassword: 'Изменить пароль', saving: 'Сохранение…',
     requiredName: 'Введите своё имя.', requiredPassword: 'Введите текущий пароль.',
     shortPassword: 'Используйте не менее 6 символов.', passwordMismatch: 'Новые пароли не совпадают.',
-    saved: 'Изменения сохранены.', passwordSaved: 'Пароль изменён.',
+    saved: 'Изменения сохранены.', passwordSaved: 'Новый пароль установлен. Используйте его при следующем входе.',
+    ok: 'OK', savedTitle: 'Сохранено', passwordSavedTitle: 'Пароль изменён',
     unavailable: 'Данные аккаунта недоступны. Попробуйте ещё раз.',
   },
 };
@@ -99,7 +102,7 @@ export default function ProfileWebScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<null | { title: string; body: string }>(null);
   const [busy, setBusy] = useState(false);
 
   const displayName = pitchOwner?.contact_name || profile?.full_name || session?.user.email?.split('@')[0] || 'MYPitch';
@@ -109,7 +112,7 @@ export default function ProfileWebScreen() {
 
   function openDialog(next: Exclude<Dialog, null>) {
     setError('');
-    setNotice('');
+    setNotice(null);
     setName(pitchOwner?.contact_name || profile?.full_name || '');
     setPhone(pitchOwner?.phone || '');
     setCurrentPassword('');
@@ -137,7 +140,7 @@ export default function ProfileWebScreen() {
       }
       await refresh();
       setDialog(null);
-      setNotice(c.saved);
+      setNotice({ title: c.savedTitle, body: c.saved });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : c.unavailable);
     } finally {
@@ -158,7 +161,7 @@ export default function ProfileWebScreen() {
       });
       if (updateError) throw updateError;
       setDialog(null);
-      setNotice(c.passwordSaved);
+      setNotice({ title: c.passwordSavedTitle, body: c.passwordSaved });
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -195,7 +198,6 @@ export default function ProfileWebScreen() {
         </Pressable>
       </View>
 
-      {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
       <View style={[styles.columns, compact && styles.columnsStacked]}>
         <View style={[styles.panel, styles.accountPanel, compact && styles.panelFullWidth]}>
@@ -282,6 +284,19 @@ export default function ProfileWebScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal transparent visible={notice !== null} animationType="fade" onRequestClose={() => setNotice(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setNotice(null)}>
+          <Pressable style={[styles.modalCard, styles.successCard]} onPress={() => {}}>
+            <Ionicons name="checkmark-circle" size={48} color={colors.greenLight} />
+            <Text style={styles.successTitle}>{notice?.title}</Text>
+            <Text style={styles.successBody}>{notice?.body}</Text>
+            <Pressable style={[styles.primaryButton, styles.successButton]} onPress={() => setNotice(null)} accessibilityRole="button">
+              <Text style={styles.primaryButtonText}>{c.ok}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -336,7 +351,10 @@ const styles = StyleSheet.create({
   role: { color: colors.blueLight, fontWeight: '700' },
   outlineButton: { minHeight: 40, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 9, backgroundColor: colors.backgroundSoft },
   buttonText: { color: colors.white, fontSize: 14, fontWeight: '700' },
-  notice: { color: colors.greenLight, fontSize: 14, marginTop: 14 },
+  successCard: { alignItems: 'center', maxWidth: 400, gap: 8 },
+  successTitle: { color: colors.white, fontSize: 21, fontWeight: '800', textAlign: 'center', marginTop: 6 },
+  successBody: { color: colors.grey, fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  successButton: { alignSelf: 'stretch', marginTop: 14 },
   columns: { flexDirection: 'row', alignItems: 'flex-start', gap: 18, marginTop: 18 },
   columnsStacked: { flexDirection: 'column' },
   panel: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: colors.border, borderRadius: 13, backgroundColor: colors.card, overflow: 'hidden' },
