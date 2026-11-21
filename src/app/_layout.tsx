@@ -47,7 +47,10 @@ function AppGate() {
   // A parent opening their invite link has no MYPitch account at all — this
   // page must work signed out, same as login/signup.
   // A new staff member opening their invitation link has no account yet either.
-  const onJoinScreen = String(group) === 'join' || String(group) === 'join-staff';
+  // The forgot-password, reset-password and "this wasn't me" pages are opened
+  // from emails, usually by someone who is signed out (or just got signed out).
+  const onRecoveryScreen = ['forgot-password', 'reset-password', 'secure-account'].includes(String(group));
+  const onJoinScreen = onRecoveryScreen || ['join', 'join-staff'].includes(String(group));
   const secondSegment = String(segments[1] ?? '');
 
   useEffect(() => {
@@ -144,7 +147,11 @@ function AppGate() {
     onJoinScreen,
   ]);
 
-  if (isLoading || !themeReady || !fontsReady) {
+  // The recovery pages sign the person in and out themselves while they work
+  // (the emailed link signs them in, then they are signed out again). Showing
+  // the loading spinner during that would unmount the page and lose its state,
+  // so they stay on screen whatever the auth state is doing.
+  if ((isLoading && !onRecoveryScreen) || !themeReady || !fontsReady) {
     return (
       <View
         style={{

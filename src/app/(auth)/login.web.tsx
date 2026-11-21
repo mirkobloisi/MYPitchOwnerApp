@@ -197,12 +197,17 @@ export default function LoginWebScreen() {
               </Pressable>
             </View>
 
-            <Pressable style={styles.rememberRow} onPress={() => setRemember((value) => !value)} accessibilityRole="checkbox" accessibilityState={{ checked: remember }}>
-              <View style={[styles.checkbox, remember && styles.checkboxChecked]}>
-                {remember ? <Ionicons name="checkmark" size={14} color={colors.blackText} /> : null}
-              </View>
-              <Text style={styles.rememberText}>{t('login.rememberMe')}</Text>
-            </Pressable>
+            <View style={styles.rememberLine}>
+              <Pressable style={styles.rememberRow} onPress={() => setRemember((value) => !value)} accessibilityRole="checkbox" accessibilityState={{ checked: remember }}>
+                <View style={[styles.checkbox, remember && styles.checkboxChecked]}>
+                  {remember ? <Ionicons name="checkmark" size={14} color={colors.blackText} /> : null}
+                </View>
+                <Text style={styles.rememberText}>{t('login.rememberMe')}</Text>
+              </Pressable>
+              <Pressable onPress={() => router.push('/forgot-password')} accessibilityRole="link">
+                <Text style={styles.forgotText}>{t('recovery.forgotLink')}</Text>
+              </Pressable>
+            </View>
 
             {errorMessage ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{errorMessage}</Text> : null}
 
@@ -263,7 +268,9 @@ const styles = StyleSheet.create({
   passwordInput: { paddingRight: 79 },
   showPassword: { position: 'absolute', right: 6, top: 5, minWidth: 62, height: 37, alignItems: 'center', justifyContent: 'center' },
   showPasswordText: { color: '#82C8F5', fontSize: 12, fontWeight: '700' },
-  rememberRow: { flexDirection: 'row', alignItems: 'center', marginTop: 21, marginBottom: 23, gap: 9 },
+  rememberLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 21, marginBottom: 23 },
+  rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 },
+  forgotText: { color: '#70C4FC', fontSize: 12, fontWeight: '700' },
   checkbox: { width: 17, height: 17, borderWidth: 1, borderColor: '#46657A', borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0B1A26' },
   checkboxChecked: { backgroundColor: colors.blueLight, borderColor: colors.blueLight },
   rememberText: { color: '#B5CAD6', fontSize: 12, fontWeight: '500', flexShrink: 1 },
