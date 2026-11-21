@@ -323,14 +323,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (isMounted) setIsLoading(false);
       });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!isMounted) return;
       adoptSession(nextSession);
-      // loadOwnerData already catches its own errors/timeouts internally —
-      // this fires on every token refresh (including the one Supabase makes
-      // when the tab regains focus after being idle), so it must never be
-      // left unbounded here.
-      await loadOwnerData(nextSession);
+      // Do NOT await Supabase calls inside this callback. Supabase waits for
+      // every listener to finish before an auth call such as updateUser()
+      // or signIn() returns, while still holding the auth lock; loading the
+      // owner data needs that same lock, so awaiting it here made "change
+      // password" spin until the lock timed out. Running it on the next tick
+      // lets the auth call finish first. loadOwnerData catches its own
+      // errors and timeouts internally.
+      setTimeout(() => {
+        if (isMounted) void loadOwnerData(nextSession);
+      }, 0);
     });
 
     // Browsers throttle or fully pause background-tab timers and can drop a
