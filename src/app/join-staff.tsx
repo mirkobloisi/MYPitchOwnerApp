@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import Screen from '../components/Screen';
@@ -28,6 +28,24 @@ export default function JoinStaffScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<null | { needsConfirmation: boolean; email: string }>(null);
+  // What the owner set up for this link: the business, and the email they
+  // invited (so the new staff member does not have to type it).
+  const [invite, setInvite] = useState<'loading' | 'invalid' | { business: string; email: string | null }>('loading');
+
+  useEffect(() => {
+    if (!token) { setInvite('invalid'); return; }
+    let cancelled = false;
+    supabase.rpc('staff_invite_preview', { p_token: token }).then(({ data, error: previewError }) => {
+      if (cancelled) return;
+      const row = Array.isArray(data) ? data[0] : null;
+      if (previewError || !row) { setInvite('invalid'); return; }
+      setInvite({ business: row.business_name, email: row.invited_email ?? null });
+      if (row.invited_email) setEmail(row.invited_email);
+    });
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const emailLocked = typeof invite === 'object' && !!invite.email;
 
   async function submit() {
     setError('');
@@ -88,19 +106,41 @@ export default function JoinStaffScreen() {
     );
   }
 
+  if (invite === 'loading' || invite === 'invalid') {
+    return (
+      <Screen maxWidth={520} ambientGlows={false} contentStyle={styles.content}>
+        <View style={styles.stack}>
+          {header}
+          <View style={styles.card}>
+            {invite === 'loading' ? (
+              <>
+                <ActivityIndicator color={colors.blueLight} style={{ marginVertical: 8 }} />
+                <Text style={[styles.intro, styles.center]}>{t('joinStaff.checking')}</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="link-outline" size={30} color={colors.greyDark} style={{ alignSelf: 'center' }} />
+                <Text style={[styles.intro, styles.center]}>{token ? t('joinStaff.invalid') : t('joinStaff.missingToken')}</Text>
+              </>
+            )}
+          </View>
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen maxWidth={520} ambientGlows={false} contentStyle={styles.content}>
       <View style={styles.stack}>
       {header}
       <View style={styles.card}>
         <Text style={styles.title}>{t('joinStaff.heading')}</Text>
-        <Text style={styles.subtitle}>{t('joinStaff.subtitle')}</Text>
+        <Text style={styles.subtitle}>{t('joinStaff.invitedBy').replace('{business}', invite.business)}</Text>
         <Text style={styles.intro}>{t('joinStaff.intro')}</Text>
 
-        {!token ? <Text style={styles.error}>{t('joinStaff.missingToken')}</Text> : null}
-
         <Field label={t('joinStaff.nameLabel')} value={fullName} onChangeText={setFullName} autoComplete="name" />
-        <Field label={t('joinStaff.emailLabel')} value={email} onChangeText={setEmail} autoComplete="email" keyboardType="email-address" />
+        <Field label={t('joinStaff.emailLabel')} value={email} onChangeText={setEmail} autoComplete="email" keyboardType="email-address" editable={!emailLocked} />
+        {emailLocked ? <Text style={styles.lockedHint}>{t('joinStaff.emailLocked')}</Text> : null}
         <Field label={t('joinStaff.passwordLabel')} value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" />
         <Field label={t('joinStaff.confirmLabel')} value={confirm} onChangeText={setConfirm} secureTextEntry autoComplete="new-password" />
 
@@ -123,9 +163,11 @@ function Field({
   secureTextEntry,
   autoComplete,
   keyboardType,
+  editable = true,
 }: {
   label: string;
   value: string;
+  editable?: boolean;
   onChangeText: (value: string) => void;
   secureTextEntry?: boolean;
   autoComplete?: 'name' | 'email' | 'new-password';
@@ -142,7 +184,8 @@ function Field({
         keyboardType={keyboardType}
         autoCapitalize={keyboardType === 'email-address' ? 'none' : undefined}
         autoCorrect={false}
-        style={styles.input}
+        editable={editable}
+        style={[styles.input, !editable && styles.inputReadOnly]}
         placeholderTextColor={colors.greyDark}
         accessibilityLabel={label}
       />
@@ -163,6 +206,8 @@ const styles = StyleSheet.create({
   field: { marginTop: 8 },
   label: { color: colors.greySoft, fontSize: 13, fontWeight: '700', marginBottom: 7 },
   input: { minHeight: 44, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.backgroundSoft, color: colors.white, fontSize: 15 },
+  inputReadOnly: { color: colors.greyDark },
+  lockedHint: { color: colors.grey, fontSize: 12, marginTop: 6 },
   error: { color: colors.red, fontSize: 13, marginTop: 12, lineHeight: 19 },
   primaryButton: { minHeight: 46, marginTop: 18, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 9, backgroundColor: colors.blueLight },
   primaryButtonText: { color: colors.blackText, fontSize: 15, fontWeight: '800' },

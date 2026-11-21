@@ -275,6 +275,9 @@ export const translations = {
       successTitle: 'Check your email',
       successBody: 'We sent a confirmation link to {email}. Open it, then sign in to start using MYPitch.',
       readyBody: 'Your account is ready.',
+      invitedBy: 'Invitation from {business}',
+      emailLocked: 'Your invitation was sent to this address, so it cannot be changed.',
+      checking: 'Checking your invitation…',
       continue: 'Continue to sign in',
     },
     join: {
@@ -1108,6 +1111,9 @@ export const translations = {
       successTitle: 'Ελέγξτε το email σας',
       successBody: 'Στείλαμε σύνδεσμο επιβεβαίωσης στο {email}. Ανοίξτε τον και μετά συνδεθείτε για να ξεκινήσετε.',
       readyBody: 'Ο λογαριασμός σας είναι έτοιμος.',
+      invitedBy: 'Πρόσκληση από {business}',
+      emailLocked: 'Η πρόσκληση στάλθηκε σε αυτή τη διεύθυνση, γι’ αυτό δεν αλλάζει.',
+      checking: 'Έλεγχος πρόσκλησης…',
       continue: 'Συνέχεια στη σύνδεση',
     },
     join: {
@@ -1944,6 +1950,9 @@ export const translations = {
       successTitle: 'Проверьте почту',
       successBody: 'Мы отправили ссылку для подтверждения на {email}. Откройте её, затем войдите, чтобы начать работу.',
       readyBody: 'Ваш аккаунт готов.',
+      invitedBy: 'Приглашение от {business}',
+      emailLocked: 'Приглашение отправлено на этот адрес, поэтому изменить его нельзя.',
+      checking: 'Проверяем приглашение…',
       continue: 'Перейти ко входу',
     },
     join: {
