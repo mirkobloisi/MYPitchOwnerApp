@@ -277,6 +277,7 @@ function LegacyBlockSlotScreen() {
           onValueChange={setAllDay}
           trackColor={{ false: colors.cardDark, true: colors.greenSoft }}
           thumbColor={allDay ? colors.greenLight : colors.greyDark}
+          {...({ activeThumbColor: colors.greenLight } as any)}
         />
       </View>
 

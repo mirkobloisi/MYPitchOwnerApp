@@ -234,8 +234,9 @@ function MoreMenu({
   onNavigate: (href: string) => void;
   desktop?: boolean;
 }) {
-  const { colors: appColors } = useAppTheme();
-  const colors = desktop ? weeklineColors : appColors;
+  // Only ever shown on the web, where everything uses the blue palette.
+  const colors = weeklineColors;
+  void desktop;
   return (
     <View style={[styles.moreMenu, desktop ? styles.desktopMoreMenu : styles.mobileMoreMenu, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {items.map((item) => {
@@ -609,6 +610,8 @@ const makeStyles = (colors: AppColors) =>
       justifyContent: 'center',
       gap: 2,
       paddingVertical: spacing.xs,
+      // No browser focus box around a tab after it is tapped.
+      outlineStyle: 'none' as any,
     },
     bottomItemActive: {
       backgroundColor: colors.greenSoft,

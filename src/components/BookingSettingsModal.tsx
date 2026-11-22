@@ -83,6 +83,7 @@ export default function BookingSettingsModal({
               onValueChange={setAllowHalfHour}
               trackColor={{ false: colors.cardDark, true: colors.blueSoft }}
               thumbColor={allowHalfHour ? colors.blueLight : colors.greyDark}
+              {...({ activeThumbColor: colors.blueLight } as any)}
             />
           </View>
 

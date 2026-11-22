@@ -136,6 +136,7 @@ export default function RecurrencePicker({ startDay, value, onChange }: Recurren
           onValueChange={(enabled) => onChange({ ...value, enabled })}
           trackColor={{ false: colors.cardDark, true: colors.greenSoft }}
           thumbColor={value.enabled ? colors.greenLight : colors.greyDark}
+          {...({ activeThumbColor: colors.greenLight } as any)}
         />
       </View>
 

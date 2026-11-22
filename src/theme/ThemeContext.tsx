@@ -8,7 +8,9 @@ import React, {
   useState,
 } from 'react';
 
-import { AppColors, darkColors, lightColors } from './palettes';
+import { Platform } from 'react-native';
+
+import { AppColors, darkColors, lightColors, weeklineColors } from './palettes';
 
 export type ThemeScheme = 'light' | 'dark';
 
@@ -63,8 +65,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ThemeContextValue>(
     () => ({
       scheme,
-      colors: scheme === 'dark' ? darkColors : lightColors,
-      isDark: scheme === 'dark',
+      // The web app has a single look (the blue "weekline" palette used by its
+      // navigation, Agenda and Academy); only the native app is green / themeable.
+      colors: Platform.OS === 'web' ? weeklineColors : scheme === 'dark' ? darkColors : lightColors,
+      isDark: Platform.OS === 'web' || scheme === 'dark',
       isReady,
       setScheme,
       toggleScheme,

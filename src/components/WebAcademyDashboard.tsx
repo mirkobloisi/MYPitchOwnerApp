@@ -1354,19 +1354,24 @@ function MatchSessionRow({ session, academyName, academyLogoUrl, opponentAcademi
 }) {
   const parts = matchDateParts(session.starts_at);
   const opponentLogoUrl = opponentAcademies.find((academy) => academy.id === session.opponent_academy_id)?.logo_url;
+  // A phone has no room for both teams, the result and the badge on one line,
+  // so they stack: home team, result + badge, opponent.
+  const phone = useWindowDimensions().width < 768;
+  const middle = showStatus ? <Text style={styles.versus}>{t('academy.dashboardVs')}</Text> : session.home_score != null && session.away_score != null ? <Text style={[styles.matchScore, phone && styles.matchScorePhone]}>{session.home_score} : {session.away_score}</Text> : onEnterResult ? <Pressable onPress={(event) => { event.stopPropagation(); onEnterResult(session); }} style={styles.enterResultButton}><Text style={styles.enterResultText}>{t('academy.dashboardEnterResult')}</Text></Pressable> : <Text style={styles.versus}>—</Text>;
+  const badge = showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>;
   return (
     <View style={styles.matchRow}>
       <Pressable onPress={onSession} style={({ hovered, pressed }: any) => [styles.matchRowMain, hovered && styles.matchRowHovered, pressed && styles.pressed]}>
-        <View style={styles.matchDateBlock}><Text style={styles.matchDay}>{parts.day}</Text><Text style={styles.matchDate}>{parts.date}</Text><Text style={styles.matchTime}>{parts.time}</Text></View>
-        <View style={styles.matchDivider} />
+        <View style={[styles.matchDateBlock, phone && styles.matchDateBlockPhone]}><Text style={styles.matchDay}>{parts.day}</Text><Text style={styles.matchDate}>{parts.date}</Text><Text style={styles.matchTime}>{parts.time}</Text></View>
+        <View style={[styles.matchDivider, phone && styles.matchDividerPhone]} />
         <View style={styles.matchMain}>
-          <View style={styles.matchTeams}>
+          <View style={[styles.matchTeams, phone && styles.matchTeamsPhone]}>
             <View style={[styles.teamNameWrap, styles.homeTeamWrap]}>{academyLogoUrl ? <Image source={{ uri: academyLogoUrl }} style={styles.teamCrestImage} resizeMode="contain" /> : <View style={styles.teamCrest}><Ionicons name="shield-outline" size={15} color={colors.blueLight} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.title || academyName}</Text></View>
-            {showStatus ? <Text style={styles.versus}>{t('academy.dashboardVs')}</Text> : session.home_score != null && session.away_score != null ? <Text style={styles.matchScore}>{session.home_score} : {session.away_score}</Text> : onEnterResult ? <Pressable onPress={(event) => { event.stopPropagation(); onEnterResult(session); }} style={styles.enterResultButton}><Text style={styles.enterResultText}>{t('academy.dashboardEnterResult')}</Text></Pressable> : <Text style={styles.versus}>—</Text>}
-            <View style={[styles.teamNameWrap, styles.awayTeamWrap]}>{opponentLogoUrl ? <Image source={{ uri: opponentLogoUrl }} style={styles.teamCrestImage} resizeMode="contain" /> : <View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
+            {phone ? <View style={styles.matchMiddlePhone}>{middle}{badge}</View> : middle}
+            <View style={[styles.teamNameWrap, styles.awayTeamWrap, phone && styles.homeTeamWrap]}>{opponentLogoUrl ? <Image source={{ uri: opponentLogoUrl }} style={styles.teamCrestImage} resizeMode="contain" /> : <View style={[styles.teamCrest, styles.opponentCrest]}><Ionicons name="shield-outline" size={15} color={colors.orange} /></View>}<Text style={styles.teamName} numberOfLines={1}>{session.opponent || t('academy.dashboardOpponentToConfirm')}</Text></View>
           </View>
         </View>
-        {showStatus ? <View style={styles.matchStatus}><Text style={styles.matchStatusText}>{session.pitch_id ? t('academy.dashboardHome') : t('academy.dashboardScheduled')}</Text></View> : <View style={styles.completedBadge}><Ionicons name="checkmark-circle" size={13} color={colors.green} /><Text style={styles.completedText}>{t('academy.dashboardCompleted')}</Text></View>}
+        {phone ? null : badge}
         <Ionicons name="chevron-forward" size={17} color={colors.grey} />
       </Pressable>
     </View>
@@ -1625,6 +1630,11 @@ function makeStyles(colors: AppColors) {
     matchDivider: { width: 1.2, height: 62.4, backgroundColor: colors.border, marginRight: 1.2 },
     matchMain: { flex: 1, minWidth: 0 },
     matchTeams: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    matchTeamsPhone: { flexDirection: 'column', alignItems: 'stretch', gap: 6, paddingVertical: 10 },
+    matchMiddlePhone: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+    matchScorePhone: { minWidth: 0, textAlign: 'left' },
+    matchDateBlockPhone: { width: 52 },
+    matchDividerPhone: { height: 80 },
     teamNameWrap: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8.4 },
     homeTeamWrap: { justifyContent: 'flex-start' },
     awayTeamWrap: { justifyContent: 'flex-end' },

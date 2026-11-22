@@ -673,7 +673,9 @@ function makeStyles(width: number) {
     errorText: { color: '#F0A2B1', fontSize: 13, fontWeight: '600' },
     revenueHero: { padding: 20, borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
     heroLayout: { flexDirection: heroDirection, alignItems: 'center', gap: 22 },
-    heroSummary: { flex: 0.82, width: heroDirection === 'column' ? '100%' : undefined, minWidth: 230 },
+    heroSummary: heroDirection === 'column'
+      ? { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%', minWidth: 230 }
+      : { flex: 0.82, minWidth: 230 },
     eyebrowRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
     heroEyebrow: { color: colors.grey, fontSize: 13, fontWeight: '600' },
     periodBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, backgroundColor: '#18344A' },
@@ -681,7 +683,9 @@ function makeStyles(width: number) {
     heroValue: { marginTop: 8, color: colors.white, fontSize: width < 560 ? 32 : 38, lineHeight: 45, fontWeight: '800', letterSpacing: -0.9, fontVariant: ['tabular-nums'] },
     periodCaption: { marginTop: 2, color: colors.greyDark, fontSize: 12, fontWeight: '600' },
     revenueBreakdown: { marginTop: 12, color: colors.grey, fontSize: 11, lineHeight: 17 },
-    chartWrap: { flex: 1.55, width: heroDirection === 'column' ? '100%' : undefined, minWidth: heroDirection === 'row' ? 280 : 0 },
+    chartWrap: heroDirection === 'column'
+      ? { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%', minWidth: 0 }
+      : { flex: 1.55, minWidth: 280 },
     chartHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
     chartTitle: { color: colors.grey, fontSize: 12, fontWeight: '600' },
     svgChart: { width: '100%', height: width < 560 ? 154 : 174, overflow: 'visible' },
@@ -695,8 +699,9 @@ function makeStyles(width: number) {
     detailGrid: { flexDirection: width >= 1120 ? 'row' : 'column', alignItems: 'stretch', gap: 13, marginTop: 13 },
     detailGridStack: { flexDirection: 'column' },
     panel: { padding: 16, borderRadius: 9, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-    revenueByPitchPanel: { flex: 1.12, minWidth: 0 },
-    outcomesPanel: { flex: 0.88, minWidth: 0 },
+    // Stacked, the panels take their natural height (a fractional flex would collapse it).
+    revenueByPitchPanel: width >= 1120 ? { flex: 1.12, minWidth: 0 } : { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', minWidth: 0 },
+    outcomesPanel: width >= 1120 ? { flex: 0.88, minWidth: 0 } : { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', minWidth: 0 },
     panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 },
     panelTitle: { color: colors.white, fontSize: 14, fontWeight: '700' },
     panelSubtitle: { marginTop: 4, color: colors.greyDark, fontSize: 11 },

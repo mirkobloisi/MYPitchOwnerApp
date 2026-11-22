@@ -128,6 +128,7 @@ export default function ProfileScreen() {
           onValueChange={toggleScheme}
           trackColor={{ false: colors.cardDark, true: colors.greenSoft }}
           thumbColor={isDark ? colors.greenLight : colors.greyDark}
+          {...({ activeThumbColor: colors.greenLight } as any)}
         />
       </View>
 

@@ -405,6 +405,7 @@ export default function AvailabilityScreen() {
                   }
                   trackColor={{ false: colors.cardDark, true: colors.blueSoft }}
                   thumbColor={draft.isAvailable ? colors.blueLight : colors.greyDark}
+                  {...({ activeThumbColor: colors.blueLight } as any)}
                 />
               </View>
 

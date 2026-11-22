@@ -359,7 +359,8 @@ const styles = StyleSheet.create({
   columns: { flexDirection: 'row', alignItems: 'flex-start', gap: 18, marginTop: 18 },
   columnsStacked: { flexDirection: 'column' },
   panel: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: colors.border, borderRadius: 13, backgroundColor: colors.card, overflow: 'hidden' },
-  panelFullWidth: { width: '100%' },
+  // Stacked cards take their natural height (flex: 1 would collapse it and clip the content).
+  panelFullWidth: { width: '100%', flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   accountPanel: { flex: 1.25 },
   panelHead: { minHeight: 58, paddingHorizontal: 18, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: colors.borderSoft },
   panelTitle: { color: colors.white, fontSize: 18, fontWeight: '800' },

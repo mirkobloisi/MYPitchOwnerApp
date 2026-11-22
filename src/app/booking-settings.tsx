@@ -106,6 +106,7 @@ export default function BookingSettingsScreen() {
             onValueChange={setAllowHalfHour}
             trackColor={{ false: colors.cardDark, true: colors.greenSoft }}
             thumbColor={allowHalfHour ? colors.greenLight : colors.greyDark}
+            {...({ activeThumbColor: colors.greenLight } as any)}
           />
         </View>
       </View>

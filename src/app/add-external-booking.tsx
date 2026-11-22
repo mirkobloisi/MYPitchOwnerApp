@@ -328,6 +328,7 @@ function LegacyAddExternalBookingScreen() {
               onValueChange={setAllDay}
               trackColor={{ false: colors.cardDark, true: colors.blueSoft }}
               thumbColor={allDay ? colors.blueLight : colors.greyDark}
+              {...({ activeThumbColor: colors.blueLight } as any)}
             />
           </View>
 
