@@ -411,6 +411,18 @@ export const translations = {
         'The complete MYPitch Pitch Owner Agreement and Owner Terms & Conditions have been shared with you directly by MYPitch. This screen summarizes their key points.',
       checkboxText:
         "I confirm that I am authorised to represent this sports facility/operator, and I accept MYPitch's Owner Terms & Conditions (version shown above) and the signed MYPitch Pitch Owner Agreement, including the rules on pricing, reservations, cancellations, refunds, payouts, agenda management, external-reservation responsibility, weather/safety alerts, and data protection.",
+      summaryPointsV2: [
+        'New in version 2.0: registering and getting approved, staff and coach accounts, payment provider onboarding, the Academy features, acceptable use, suspension and liability. Bookings, cancellations, payouts, weather alerts and fees work as before.',
+        'For as long as this version is in force, MYPitch does not charge you any fee to use the Owner App or its features. You set your own price per hour, and any MYPitch fee is added on top, never deducted from your payout.',
+        'You are responsible for the staff and coaches you invite, what they can see and do, and everything they do in your workspace. Remove access when someone leaves.',
+        'If you use the Academy features, you are the controller of parents\' and children\'s data and MYPitch is your processor. You must tell us about a data breach within 24 hours.',
+        'You must enter every external booking, block or closure as soon as it is made. If a confirmed match must be cancelled for exceptional reasons after your payout settled, MYPitch recovers that amount from your payout account.',
+        'MYPitch may suspend your access if you break the Terms or the Agreement, put others at risk, or abuse the platform (for example by continuously cancelling MYPitch bookings).',
+        'If MYPitch changes these Terms in the future, the change only applies to you once you have been shown the new version and explicitly accepted it. Simply continuing to use the app is not acceptance.',
+      ],
+      readFull: 'Read the full Owner Terms (version {version})',
+      checkboxTextV2:
+        "I confirm that I am authorised to represent this sports facility/operator, and I accept MYPitch's Owner Terms & Conditions (version shown above) and the signed MYPitch Pitch Owner Agreement, including the rules on pricing, reservations, cancellations, refunds, payouts, agenda management, external-reservation responsibility, weather/safety alerts, staff and coach access, the Academy features and the handling of parents' and children's data, and data protection.",
       acceptButton: 'I Accept',
       logOut: 'Log Out',
       errorMustCheck: 'Please check the box to confirm you accept the Owner Terms.',
@@ -1277,6 +1289,18 @@ export const translations = {
         'Η πλήρης Συμφωνία Ιδιοκτήτη Γηπέδου MYPitch και οι Όροι και Προϋποθέσεις Ιδιοκτήτη έχουν κοινοποιηθεί απευθείας σε εσάς από την MYPitch. Αυτή η οθόνη συνοψίζει τα βασικά τους σημεία.',
       checkboxText:
         'Επιβεβαιώνω ότι είμαι εξουσιοδοτημένος/η να εκπροσωπώ αυτή την αθλητική εγκατάσταση/φορέα, και αποδέχομαι τους Όρους και Προϋποθέσεις Ιδιοκτήτη MYPitch (η ανωτέρω εκδοχή) και την υπογεγραμμένη Συμφωνία Ιδιοκτήτη Γηπέδου MYPitch, συμπεριλαμβανομένων των κανόνων για τιμολόγηση, κρατήσεις, ακυρώσεις, επιστροφές χρημάτων, αποδόσεις, διαχείριση ημερολογίου, ευθύνη εξωτερικών κρατήσεων, ειδοποιήσεις καιρού/ασφάλειας, και προστασία δεδομένων.',
+      summaryPointsV2: [
+        'Νέα στην έκδοση 2.0: εγγραφή και έγκριση, λογαριασμοί προσωπικού και προπονητών, ένταξη στον πάροχο πληρωμών, λειτουργίες Ακαδημίας, αποδεκτή χρήση, αναστολή και ευθύνη. Οι κρατήσεις, οι ακυρώσεις, οι πληρωμές, οι ειδοποιήσεις καιρού και οι χρεώσεις λειτουργούν όπως πριν.',
+        'Για όσο διάστημα ισχύει η παρούσα έκδοση, το MYPitch δεν σας χρεώνει για τη χρήση της Εφαρμογής Ιδιοκτητών ή των λειτουργιών της. Ορίζετε εσείς την τιμή ανά ώρα και κάθε χρέωση του MYPitch προστίθεται επιπλέον, χωρίς να αφαιρείται ποτέ από την πληρωμή σας.',
+        'Είστε υπεύθυνοι για το προσωπικό και τους προπονητές που προσκαλείτε, για το τι μπορούν να βλέπουν και να κάνουν και για οτιδήποτε κάνουν στον χώρο εργασίας σας. Αφαιρέστε την πρόσβαση όταν κάποιος αποχωρεί.',
+        'Αν χρησιμοποιείτε τις λειτουργίες Ακαδημίας, είστε ο υπεύθυνος επεξεργασίας των δεδομένων γονέων και παιδιών και το MYPitch είναι ο εκτελών την επεξεργασία. Πρέπει να μας ενημερώνετε για παραβίαση δεδομένων εντός 24 ωρών.',
+        'Πρέπει να καταχωρείτε κάθε εξωτερική κράτηση, αποκλεισμό ή κλείσιμο αμέσως μόλις γίνει. Αν ένας επιβεβαιωμένος αγώνας ακυρωθεί για εξαιρετικούς λόγους αφού έχει διακανονιστεί η πληρωμή σας, το MYPitch ανακτά το ποσό από τον λογαριασμό πληρωμών σας.',
+        'Το MYPitch μπορεί να αναστείλει την πρόσβασή σας αν παραβιάσετε τους Όρους ή τη Συμφωνία, θέσετε άλλους σε κίνδυνο ή καταχραστείτε την πλατφόρμα (για παράδειγμα ακυρώνοντας συστηματικά κρατήσεις του MYPitch).',
+        'Αν το MYPitch αλλάξει στο μέλλον τους Όρους, η αλλαγή θα ισχύσει για εσάς μόνο αφού σας εμφανιστεί η νέα έκδοση και την αποδεχτείτε ρητά. Η απλή συνέχιση χρήσης της εφαρμογής δεν αποτελεί αποδοχή.',
+      ],
+      readFull: 'Διαβάστε τους πλήρεις Όρους Ιδιοκτητών (έκδοση {version})',
+      checkboxTextV2:
+        'Επιβεβαιώνω ότι είμαι εξουσιοδοτημένος/η να εκπροσωπώ αυτή την αθλητική εγκατάσταση/φορέα εκμετάλλευσης και αποδέχομαι τους Όρους και Προϋποθέσεις Ιδιοκτητών του MYPitch (έκδοση που εμφανίζεται παραπάνω) και την υπογεγραμμένη Συμφωνία Ιδιοκτήτη Γηπέδου MYPitch, συμπεριλαμβανομένων των κανόνων για τιμολόγηση, κρατήσεις, ακυρώσεις, επιστροφές χρημάτων, πληρωμές, διαχείριση ατζέντας, ευθύνη για εξωτερικές κρατήσεις, ειδοποιήσεις για καιρό/ασφάλεια, πρόσβαση προσωπικού και προπονητών, τις λειτουργίες Ακαδημίας και τη διαχείριση των δεδομένων γονέων και παιδιών, και την προστασία δεδομένων.',
       acceptButton: 'Αποδέχομαι',
       logOut: 'Αποσύνδεση',
       errorMustCheck: 'Παρακαλώ επιλέξτε το κουτί για να επιβεβαιώσετε ότι αποδέχεστε τους Όρους Ιδιοκτήτη.',
@@ -2146,6 +2170,18 @@ export const translations = {
         'Полный текст Соглашения владельца поля MYPitch и Условий для владельцев был передан вам напрямую компанией MYPitch. Этот экран обобщает их ключевые положения.',
       checkboxText:
         'Я подтверждаю, что уполномочен(а) представлять данное спортивное учреждение/оператора, и принимаю Условия для владельцев MYPitch (версия указана выше) и подписанное Соглашение владельца поля MYPitch, включая правила ценообразования, бронирований, отмен, возвратов, выплат, управления расписанием, ответственности за внешние бронирования, оповещений о погоде/безопасности и защиты данных.',
+      summaryPointsV2: [
+        'Новое в версии 2.0: регистрация и одобрение, учётные записи сотрудников и тренеров, подключение к платёжному провайдеру, функции Академии, допустимое использование, приостановка и ответственность. Бронирования, отмены, выплаты, предупреждения о погоде и сборы работают как прежде.',
+        'Пока действует эта версия, MYPitch не взимает с вас плату за использование Приложения для владельцев или его функций. Вы сами устанавливаете цену за час, а любой сбор MYPitch добавляется сверху и никогда не вычитается из вашей выплаты.',
+        'Вы отвечаете за приглашённых сотрудников и тренеров, за то, что они могут видеть и делать, и за все их действия в вашем рабочем пространстве. Отзывайте доступ, когда кто-то уходит.',
+        'Если вы используете функции Академии, вы являетесь оператором данных родителей и детей, а MYPitch — вашим обработчиком. О нарушении безопасности данных вы должны сообщить нам в течение 24 часов.',
+        'Вы обязаны вносить каждое внешнее бронирование, блокировку или закрытие сразу после его совершения. Если подтверждённый матч приходится отменить по исключительным причинам после проведения вашей выплаты, MYPitch взыскивает эту сумму с вашего счёта для выплат.',
+        'MYPitch может приостановить ваш доступ, если вы нарушаете Условия или Соглашение, подвергаете опасности других или злоупотребляете платформой (например, систематически отменяя бронирования MYPitch).',
+        'Если MYPitch изменит эти Условия в будущем, изменение вступит для вас в силу только после того, как вам покажут новую версию и вы явно её примете. Простое продолжение использования приложения принятием не считается.',
+      ],
+      readFull: 'Прочитать полные Условия для владельцев (версия {version})',
+      checkboxTextV2:
+        'Я подтверждаю, что уполномочен(а) представлять этот спортивный объект/оператора, и принимаю Условия и положения для владельцев MYPitch (версия указана выше) и подписанное Соглашение с владельцем площадки MYPitch, включая правила о ценах, бронированиях, отменах, возвратах, выплатах, управлении расписанием, ответственности за внешние бронирования, предупреждениях о погоде/безопасности, доступе сотрудников и тренеров, функциях Академии и обработке данных родителей и детей, а также о защите данных.',
       acceptButton: 'Принимаю',
       logOut: 'Выйти',
       errorMustCheck: 'Пожалуйста, отметьте галочку, подтверждающую принятие условий для владельцев.',

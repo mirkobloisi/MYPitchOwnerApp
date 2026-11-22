@@ -1,16 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppButton from '../components/AppButton';
 import Screen from '../components/Screen';
-import { useTranslation } from '../i18n/LanguageContext';
+import { useLanguage, useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../lib/auth';
 import { useCurrentOwnerTerms, useTermsDateText } from '../lib/ownerTerms';
 import {
   acceptOwnerTerms,
-  OWNER_TERMS_CHECKBOX_TEXT_CANONICAL,
+  isOwnerTermsV2OrLater,
+  ownerTermsCheckboxTextFor,
 } from '../lib/pitchData';
 import { AppColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -19,8 +20,8 @@ import { scaleFont, scaleLine } from '../theme/typography';
 
 // Gated in _layout.tsx: an approved owner whose latest acceptance isn't for
 // CURRENT_OWNER_TERMS_VERSION is routed here and held until they accept.
-// What actually gets recorded is always OWNER_TERMS_CHECKBOX_TEXT_CANONICAL
-// (the exact English wording from the signed Owner Terms), regardless of the
+// What actually gets recorded is always the canonical English tick-box wording
+// for the version being accepted (ownerTermsCheckboxTextFor), regardless of the
 // owner's display language, so the audit trail is unambiguous — the text
 // shown on screen is just a translation of that same sentence for reading.
 export default function AcceptOwnerTermsScreen() {
@@ -34,9 +35,19 @@ export default function AcceptOwnerTermsScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const summaryPoints = tList('acceptOwnerTerms.summaryPoints');
   const currentTerms = useCurrentOwnerTerms();
+  const { language } = useLanguage();
+  const isV2 = isOwnerTermsV2OrLater(currentTerms.version);
+  const summaryPoints = tList(isV2 ? 'acceptOwnerTerms.summaryPointsV2' : 'acceptOwnerTerms.summaryPoints');
   const effectiveText = useTermsDateText(currentTerms.effectiveAt);
+
+  function openFullTerms() {
+    const onWeb = Platform.OS === 'web' && typeof window !== 'undefined';
+    const origin = onWeb ? window.location.origin : 'https://owner.mypitchbookings.com';
+    const url = `${origin}/terms-${currentTerms.version}?lang=${language}`;
+    if (onWeb) window.open(url, '_blank', 'noopener');
+    else void Linking.openURL(url);
+  }
 
   async function handleAccept() {
     if (!checked) {
@@ -50,7 +61,7 @@ export default function AcceptOwnerTermsScreen() {
     try {
       await acceptOwnerTerms({
         termsVersion: currentTerms.version,
-        checkboxText: OWNER_TERMS_CHECKBOX_TEXT_CANONICAL,
+        checkboxText: ownerTermsCheckboxTextFor(currentTerms.version),
       });
       await refresh();
       router.replace('/(tabs)/agenda');
@@ -85,14 +96,20 @@ export default function AcceptOwnerTermsScreen() {
             </View>
           ))}
 
-          <Text style={styles.fullDocsNote}>{t('acceptOwnerTerms.fullDocsNote')}</Text>
+          {isV2 ? (
+            <Pressable onPress={openFullTerms} accessibilityRole="link">
+              <Text style={styles.readFullLink}>{t('acceptOwnerTerms.readFull', { version: currentTerms.version })}</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.fullDocsNote}>{t('acceptOwnerTerms.fullDocsNote')}</Text>
+          )}
         </View>
 
         <Pressable style={styles.checkboxRow} onPress={() => setChecked((value) => !value)}>
           <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
             {checked ? <Ionicons name="checkmark" size={14} color={colors.blackText} /> : null}
           </View>
-          <Text style={styles.checkboxText}>{t('acceptOwnerTerms.checkboxText')}</Text>
+          <Text style={styles.checkboxText}>{t(isV2 ? 'acceptOwnerTerms.checkboxTextV2' : 'acceptOwnerTerms.checkboxText')}</Text>
         </Pressable>
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -189,6 +206,14 @@ const makeStyles = (colors: AppColors) =>
       fontWeight: '600',
       lineHeight: scaleLine(17),
       marginTop: spacing.sm,
+    },
+    readFullLink: {
+      color: colors.greenLight,
+      fontSize: scaleFont(13),
+      fontWeight: '800',
+      lineHeight: scaleLine(18),
+      marginTop: spacing.sm,
+      textDecorationLine: 'underline',
     },
     checkboxRow: {
       flexDirection: 'row',

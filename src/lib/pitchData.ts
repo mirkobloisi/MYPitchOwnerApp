@@ -164,6 +164,23 @@ export const CURRENT_OWNER_TERMS_VERSION = '1.0';
 export const OWNER_TERMS_CHECKBOX_TEXT_CANONICAL =
   "I confirm that I am authorised to represent this sports facility/operator, and I accept MYPitch's Owner Terms & Conditions (version shown above) and the signed MYPitch Pitch Owner Agreement, including the rules on pricing, reservations, cancellations, refunds, payouts, agenda management, external-reservation responsibility, weather/safety alerts, and data protection.";
 
+// Clause 20.2 of Owner Terms version 2.0 (adds staff and coach access, the
+// Academy features and parents'/children's data). Stored with every acceptance
+// of version 2 or later.
+export const OWNER_TERMS_CHECKBOX_TEXT_V2 =
+  "I confirm that I am authorised to represent this sports facility/operator, and I accept MYPitch's Owner Terms & Conditions (version shown above) and the signed MYPitch Pitch Owner Agreement, including the rules on pricing, reservations, cancellations, refunds, payouts, agenda management, external-reservation responsibility, weather/safety alerts, staff and coach access, the Academy features and the handling of parents' and children's data, and data protection.";
+
+/** True for Owner Terms version 2.0 and later (the wording and key points differ from 1.x). */
+export function isOwnerTermsV2OrLater(version: string): boolean {
+  const major = parseInt(String(version), 10);
+  return Number.isFinite(major) && major >= 2;
+}
+
+/** The canonical (English) tick-box wording that belongs to a given terms version. */
+export function ownerTermsCheckboxTextFor(version: string): string {
+  return isOwnerTermsV2OrLater(version) ? OWNER_TERMS_CHECKBOX_TEXT_V2 : OWNER_TERMS_CHECKBOX_TEXT_CANONICAL;
+}
+
 export type OwnerTermsAcceptance = {
   termsVersion: string;
   acceptedAt: string;
