@@ -142,7 +142,7 @@ export default function AgendaScreen() {
   const { activePitch, pitches, setActivePitchId, pitchOwner } = useAuth();
   const { unread } = useAcademyRealtime();
   const router = useRouter();
-  const { isDesktop } = useBreakpoint();
+  const { isDesktop, isTablet } = useBreakpoint();
   const { height: viewportHeight } = useWindowDimensions();
   const { t, tList } = useTranslation();
   const WEEKDAY_LABELS = tList('agenda.weekdays');
@@ -671,14 +671,14 @@ export default function AgendaScreen() {
               <Text style={styles.weeklineEyebrow}>
                 {visibleMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }).toUpperCase()} · {activePitch?.name}
               </Text>
-              <View style={styles.weeklineStatsRow}>
+              <View style={[styles.weeklineStatsRow, isTablet && { flexWrap: 'wrap', rowGap: 12 }]}>
                 {[
                   { count: monthStats.confirmedMatches, label: t('agenda.statsConfirmedMatches') },
                   { count: monthStats.pendingMatches, label: t('agenda.statsPendingMatches') },
                   { count: monthStats.externalBookings, label: t('agenda.statsExternalBookings') },
                   { count: monthStats.parties, label: t('agenda.statsParties') },
                 ].map((stat) => (
-                  <View key={stat.label} style={styles.weeklineStat}>
+                  <View key={stat.label} style={[styles.weeklineStat, isTablet && { flexGrow: 0, flexBasis: '50%' }]}>
                     <Text style={styles.weeklineStatCount}>{stat.count}</Text>
                     <Text style={styles.weeklineStatLabel} numberOfLines={3}>{stat.label}</Text>
                   </View>

@@ -75,7 +75,7 @@ export default function AcceptOwnerTermsScreen() {
 
   return (
     <Screen contentStyle={styles.screenContent}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.centeredColumn}>
         <View style={styles.header}>
           <View style={styles.logoBadge}>
             <Ionicons name="document-text-outline" size={28} color={colors.greenLight} />
@@ -138,6 +138,12 @@ const makeStyles = (colors: AppColors) =>
     screenContent: {
       flexGrow: 1,
       paddingVertical: spacing.xl,
+    },
+    // Keeps the reading column a comfortable width on an iPad or desktop.
+    centeredColumn: {
+      width: '100%',
+      maxWidth: 640,
+      alignSelf: 'center',
     },
     header: {
       alignItems: 'center',

@@ -10,7 +10,6 @@ import { useAcademyRealtime } from '../lib/academyRealtime';
 import { useAuth } from '../lib/auth';
 import {
   BOTTOM_BAR_HEIGHT,
-  SIDEBAR_WIDTH,
   useBreakpoint,
 } from '../theme/breakpoints';
 import { AppColors, weeklineColors } from '../theme/palettes';
@@ -55,7 +54,7 @@ const ROUTE_TAB_OVERRIDE: Record<string, string> = {
  * (tabs)/_layout.tsx.
  */
 export default function WebAppShell({ children }: { children: ReactNode }) {
-  const { isDesktop } = useBreakpoint();
+  const { isDesktop, sidebarWidth } = useBreakpoint();
   const { t } = useTranslation();
   const pathname = usePathname();
   const isWeeklineDesktop = isDesktop;
@@ -93,14 +92,14 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
         style={[
           styles.content,
           isWeeklineDesktop && styles.weeklineContent,
-          isDesktop ? { paddingLeft: SIDEBAR_WIDTH } : { paddingBottom: BOTTOM_BAR_HEIGHT },
+          isDesktop ? { paddingLeft: sidebarWidth } : { paddingBottom: BOTTOM_BAR_HEIGHT },
         ]}
       >
         {children}
       </View>
 
       {isDesktop ? (
-        <View style={[themed.sidebar, isWeeklineDesktop && styles.weeklineSidebar]}>
+        <View style={[themed.sidebar, isWeeklineDesktop && styles.weeklineSidebar, { width: sidebarWidth }]}>
           {isWeeklineDesktop && (
             <LinearGradient
               colors={['#0B1722', '#0D1B26', '#0A151E']}
@@ -112,7 +111,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
               source={isWeeklineDesktop
                 ? require('../../assets/images/mypitch-weekline-logo.png')
                 : require('../../assets/images/mypitch-logo.png')}
-              style={[themed.brandLogo, isWeeklineDesktop && styles.weeklineBrandLogo]}
+              style={[themed.brandLogo, isWeeklineDesktop && styles.weeklineBrandLogo, isWeeklineDesktop && { width: Math.min(180, sidebarWidth - 26) }]}
               resizeMode="contain"
               accessibilityLabel="MYPitch"
             />
@@ -523,7 +522,6 @@ const makeStyles = (colors: AppColors) =>
       left: 0,
       top: 0,
       bottom: 0,
-      width: SIDEBAR_WIDTH,
       backgroundColor: colors.card,
       borderRightWidth: 1,
       borderRightColor: colors.border,

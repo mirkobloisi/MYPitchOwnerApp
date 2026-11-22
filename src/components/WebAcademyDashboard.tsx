@@ -731,14 +731,15 @@ export default function WebAcademyDashboard({
         </View>
       ) : null}
 
-      <View style={styles.sectionNav}>
+      {/* On an iPad the seven areas are tighter, and can scroll sideways if a language needs more room. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sectionNavScroll} contentContainerStyle={[styles.sectionNav, width < 1400 && styles.sectionNavCompact]}>
         {AREAS.map((area) => (
-          <Pressable key={area.key} onPress={() => showNavDestination(area.key)} style={({ hovered, pressed }: any) => [styles.sectionTab, section === area.key && styles.sectionTabActive, hovered && styles.sectionTabHovered, pressed && styles.pressed]}>
-            <Ionicons name={area.icon} size={17} color={section === area.key ? colors.blueLight : colors.grey} />
-            <Text style={[styles.sectionTabLabel, section === area.key && styles.sectionTabLabelActive]}>{t(area.label)}</Text>
+          <Pressable key={area.key} onPress={() => showNavDestination(area.key)} style={({ hovered, pressed }: any) => [styles.sectionTab, width < 1400 && styles.sectionTabCompact, section === area.key && styles.sectionTabActive, hovered && styles.sectionTabHovered, pressed && styles.pressed]}>
+            {width < 1400 ? null : <Ionicons name={area.icon} size={17} color={section === area.key ? colors.blueLight : colors.grey} />}
+            <Text style={[styles.sectionTabLabel, width < 1400 && styles.sectionTabLabelCompact, section === area.key && styles.sectionTabLabelActive]}>{t(area.label)}</Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       {!selectedAcademy && loading ? (
         <View style={styles.emptyDashboard}><ActivityIndicator size="small" color={colors.blueLight} /></View>
@@ -765,8 +766,8 @@ export default function WebAcademyDashboard({
           onManage={(academyId) => router.push({ pathname: '/academy-details', params: { academyId } } as any)}
         />
       ) : selectedAcademy ? (
-          <View style={[styles.dashboardGrid, width < 1180 && styles.dashboardGridNarrow, width >= 1180 && { ...styles.dashboardGridFill, minHeight: Math.max(420, viewportHeight - 180) }]}>
-          <View style={[styles.leftColumn, width < 1180 && styles.columnFullWidth, width >= 1180 && styles.leftColumnFill]}>
+          <View style={[styles.dashboardGrid, width < 1400 && styles.dashboardGridNarrow, width >= 1180 && { ...styles.dashboardGridFill, minHeight: Math.max(420, viewportHeight - 180) }]}>
+          <View style={[styles.leftColumn, width < 1400 && styles.columnFullWidth, width >= 1180 && styles.leftColumnFill]}>
             <AcademyCard
               academy={selectedAcademy}
               loading={isLoadingAcademy}
@@ -798,7 +799,7 @@ export default function WebAcademyDashboard({
             />
           </View>
 
-          <View style={[styles.middleColumn, width < 1180 && styles.columnFullWidth]}>
+          <View style={[styles.middleColumn, width < 1400 && styles.columnFullWidth]}>
             <MatchesPanel
               title={t('academy.dashboardNextMatches')}
               sessions={upcoming}
@@ -833,7 +834,7 @@ export default function WebAcademyDashboard({
             />
           </View>
 
-          <View style={[styles.rightColumn, width < 1180 && styles.columnFullWidth]}>
+          <View style={[styles.rightColumn, width < 1400 && styles.columnFullWidth]}>
             <CommunicationsPanel
               parents={visibleParentCount}
               coaches={coachesCount}
@@ -1520,6 +1521,10 @@ function makeStyles(colors: AppColors) {
     outlineButton: { minHeight: 43.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7.2, paddingHorizontal: 13.2, borderRadius: 8.4, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardSoft },
     outlineButtonText: { color: colors.greySoft, fontSize: 13.2, fontWeight: '600' },
     sectionNav: { minHeight: 52.8, position: 'relative', zIndex: 0, flexDirection: 'row', alignItems: 'stretch', gap: 16.8, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 14.4 },
+    sectionNavScroll: { flexGrow: 0, flexShrink: 0 },
+    sectionNavCompact: { gap: 2, minWidth: '100%' },
+    sectionTabCompact: { minWidth: 0, paddingHorizontal: 12 },
+    sectionTabLabelCompact: { fontSize: 13.5 },
     sectionTab: { minWidth: 120, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9.6, paddingHorizontal: 14.4, borderBottomWidth: 2, borderBottomColor: 'transparent' },
     sectionTabActive: { borderBottomColor: colors.blueLight },
     sectionTabHovered: { backgroundColor: colors.surfaceMuted },
@@ -1730,7 +1735,7 @@ function makeStyles(colors: AppColors) {
     matchCalendarDayDisabledText: { color: colors.greyDark },
     matchNativeField: { position: 'relative', minWidth: 0, height: 56 },
     matchNativeIcon: { position: 'absolute', left: 14, top: 18, zIndex: 1, pointerEvents: 'none' } as any,
-    matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, padding: '7px 12px 7px 48px', fontSize: 16.8, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
+    matchNativeInputWithIcon: { width: '100%', height: 56, boxSizing: 'border-box', border: '1px solid #385267', borderRadius: 9.6, backgroundColor: colors.cardSoft, color: colors.white, paddingTop: 7, paddingRight: 12, paddingBottom: 7, paddingLeft: 48, fontSize: 16.8, fontFamily: 'inherit', colorScheme: 'dark', outlineStyle: 'none', cursor: 'pointer' } as any,
     matchTimeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14.4 },
     matchTimeField: { flex: 1, minWidth: 0 },
     matchFieldColumn: { width: '100%', gap: 8.4 },

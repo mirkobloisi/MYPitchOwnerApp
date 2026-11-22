@@ -179,7 +179,8 @@ export default function ProfileWebScreen() {
           <Text style={styles.pageTitle}>{t('profile.title')}</Text>
           <Text style={styles.pageSubtitle}>{c.subtitle}</Text>
         </View>
-        {canUseTab('academy') ? (
+        {/* On a phone the floating bell from the app shell is already on screen. */}
+        {canUseTab('academy') && width >= 768 ? (
           <Pressable style={styles.bell} onPress={() => router.push('/(tabs)/inbox' as any)} accessibilityRole="button" accessibilityLabel={t('inbox.notifications')}>
             <Ionicons name="notifications-outline" size={20} color={colors.blueLight} />
           </Pressable>

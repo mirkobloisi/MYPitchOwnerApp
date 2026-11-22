@@ -20,6 +20,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../lib/auth';
 import { getRememberMe, setRememberMe } from '../../lib/rememberMe';
 import { useCurrentOwnerTerms, useTermsDateText } from '../../lib/ownerTerms';
+import { isOwnerTermsV2OrLater } from '../../lib/pitchData';
 import { weeklineColors as colors } from '../../theme/palettes';
 
 const accessCopy = {
@@ -296,7 +297,7 @@ export default function SignupWebScreen() {
               </View>
               <ScrollView style={styles.termsScroll} contentContainerStyle={styles.termsContent}>
                 <Text style={styles.termsIntro}>{t('signup.termsSummaryIntro')}</Text>
-                {tList('acceptOwnerTerms.summaryPoints').map((point, index) => (
+                {tList(isOwnerTermsV2OrLater(currentTerms.version) ? 'acceptOwnerTerms.summaryPointsV2' : 'acceptOwnerTerms.summaryPoints').map((point, index) => (
                   <View key={index} style={styles.termsBulletRow}><View style={styles.termsBullet} /><Text style={styles.termsPoint}>{point}</Text></View>
                 ))}
                 <Text style={styles.termsNote}>{t('signup.termsFullDocumentNote')}</Text>
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
   main: { width: '100%', maxWidth: 1120, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 44, paddingHorizontal: 34, paddingTop: 32, paddingBottom: 50, zIndex: 2 },
   mainCompact: { flexDirection: 'column', alignItems: 'stretch', gap: 23, paddingHorizontal: 22, paddingTop: 15, paddingBottom: 35 },
   intro: { flex: 0.82, minWidth: 0, alignSelf: 'flex-start', paddingTop: 56 },
-  introCompact: { flex: 0, paddingTop: 10 },
+  introCompact: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', paddingTop: 10 },
   kicker: { color: '#70C4FC', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase' },
   headline: { color: '#F5FAFD', fontSize: 43, lineHeight: 49, fontWeight: '800', letterSpacing: -1.5, marginTop: 16, maxWidth: 440 },
   headlineCompact: { fontSize: 31, lineHeight: 36, marginTop: 9, maxWidth: 680 },
@@ -340,7 +341,7 @@ const styles = StyleSheet.create({
   benefitIcon: { width: 42, height: 42, borderRadius: 11, borderWidth: 1, borderColor: '#244E67', backgroundColor: '#123249', alignItems: 'center', justifyContent: 'center' },
   benefitText: { color: '#C9DCE7', fontSize: 14, fontWeight: '600', flexShrink: 1 },
   card: { flex: 1.18, minWidth: 0, maxWidth: 560, borderRadius: 15, borderWidth: 1, borderColor: '#33566A', backgroundColor: '#0D1D29', padding: 27 },
-  cardCompact: { flex: 0, maxWidth: 720, width: '100%', alignSelf: 'center', padding: 20 },
+  cardCompact: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', maxWidth: 720, width: '100%', alignSelf: 'center', padding: 20 },
   cardKicker: { color: '#70C4FC', fontSize: 11, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase' },
   cardTitle: { color: '#F5FAFD', fontSize: 27, fontWeight: '800', letterSpacing: -0.6, marginTop: 7 },
   cardIntro: { color: '#9FB8C8', fontSize: 13, lineHeight: 19, marginTop: 6, marginBottom: 20 },
