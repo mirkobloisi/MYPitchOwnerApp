@@ -630,13 +630,27 @@ export default function WebAcademyDashboard({
     await loadAcademyContent(selectedAcademy.id);
   }
 
+  // On a phone the header is laid out as tidy full-width rows instead of five
+  // items wrapping unpredictably.
+  const isPhoneLayout = width < 768;
+  const createButton = (
+    <Pressable
+      style={({ hovered, pressed }: any) => [styles.primaryButton, isPhoneLayout && styles.phoneFullWidth, hovered && styles.primaryHovered, pressed && styles.pressed]}
+      onPress={createForm.onStartCreate}
+      accessibilityRole="button"
+    >
+      <Ionicons name="add" size={18} color={colors.blackText} />
+      <Text style={styles.primaryButtonText}>{academies.length === 0 ? t('academy.createMainAction') : t('academy.createAction')}</Text>
+    </Pressable>
+  );
+
   return (
-    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} contentStyle={styles.screenContent}>
-      <View style={[styles.topHeader, width < 1280 && styles.topHeaderCompact]}>
-        <Text style={styles.pageTitle}>{t('academy.title')}</Text>
-        <View style={styles.headerPickerWrap}>
+    <Screen maxWidth={WIDE_CONTENT_MAX_WIDTH} contentStyle={[styles.screenContent, isPhoneLayout && styles.screenContentPhone]}>
+      <View style={[styles.topHeader, width < 1280 && styles.topHeaderCompact, isPhoneLayout && styles.topHeaderPhone]}>
+        <Text style={[styles.pageTitle, isPhoneLayout && styles.pageTitlePhone]}>{t('academy.title')}</Text>
+        <View style={[styles.headerPickerWrap, isPhoneLayout && styles.phoneFullWidth]}>
           <Pressable
-            style={({ hovered, pressed }: any) => [styles.headerPicker, width < 1280 && styles.headerPickerCompact, hovered && styles.hovered, pressed && styles.pressed]}
+            style={({ hovered, pressed }: any) => [styles.headerPicker, width < 1280 && styles.headerPickerCompact, isPhoneLayout && styles.headerPickerPhone, hovered && styles.hovered, pressed && styles.pressed]}
             onPress={() => { setShowAcademies((value) => !value); setShowSeasons(false); }}
             accessibilityRole="button"
             accessibilityLabel={t('academy.dashboardSelectAcademy')}
@@ -665,7 +679,7 @@ export default function WebAcademyDashboard({
             </View>
           ) : null}
         </View>
-        <View style={styles.headerPickerWrap}>
+        <View style={[styles.headerPickerWrap, isPhoneLayout && styles.phoneSeasonWrap]}>
           <Pressable
             style={({ hovered, pressed }: any) => [styles.seasonPicker, hovered && styles.hovered, pressed && styles.pressed]}
             onPress={() => { setShowSeasons((value) => !value); setShowAcademies(false); }}
@@ -685,23 +699,18 @@ export default function WebAcademyDashboard({
             </View>
           ) : null}
         </View>
-        <Pressable
-          style={({ hovered, pressed }: any) => [styles.primaryButton, hovered && styles.primaryHovered, pressed && styles.pressed]}
-          onPress={createForm.onStartCreate}
-          accessibilityRole="button"
-        >
-          <Ionicons name="add" size={18} color={colors.blackText} />
-          <Text style={styles.primaryButtonText}>{academies.length === 0 ? t('academy.createMainAction') : t('academy.createAction')}</Text>
-        </Pressable>
-        <View style={styles.headerSpacer} />
+        {isPhoneLayout ? null : createButton}
+        {isPhoneLayout ? null : <View style={styles.headerSpacer} />}
         {onOpenGuide ? (
-          <Pressable style={styles.iconButton} onPress={onOpenGuide} accessibilityRole="button" accessibilityLabel={t('academy.tutorialButton')}>
+          <Pressable style={[styles.iconButton, isPhoneLayout && styles.iconButtonPhone]} onPress={onOpenGuide} accessibilityRole="button" accessibilityLabel={t('academy.tutorialButton')}>
             <Ionicons name="help-circle-outline" size={21} color={colors.greySoft} />
           </Pressable>
         ) : null}
-        <Pressable style={styles.iconButton} onPress={() => setShowSearch((value) => !value)} accessibilityRole="button" accessibilityLabel={t('academy.dashboardSearch')}>
+        <Pressable style={[styles.iconButton, isPhoneLayout && styles.iconButtonPhone]} onPress={() => setShowSearch((value) => !value)} accessibilityRole="button" accessibilityLabel={t('academy.dashboardSearch')}>
           <Ionicons name={showSearch ? 'close' : 'search'} size={19} color={colors.greySoft} />
         </Pressable>
+        {/* With no team yet the empty state below already offers the same button. */}
+        {isPhoneLayout && academies.length > 0 ? createButton : null}
       </View>
 
       {showSearch ? (
@@ -1464,6 +1473,14 @@ function makeStyles(colors: AppColors) {
     topHeader: { minHeight: 84, position: 'relative', zIndex: 40, overflow: 'visible', flexDirection: 'row', alignItems: 'center', gap: 16.8, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 0 },
     topHeaderCompact: { minHeight: 0, flexWrap: 'wrap', justifyContent: 'flex-start', paddingVertical: 12, gap: 9.6 },
     pageTitle: { color: colors.white, fontSize: 32.4, lineHeight: 39.6, fontWeight: '700', marginRight: 9.6 },
+    // Phone: title, academy picker, then season + help + search, then the create button.
+    screenContentPhone: { paddingHorizontal: 16, paddingBottom: 24 },
+    topHeaderPhone: { gap: 10, paddingTop: 14, paddingBottom: 12, borderBottomWidth: 0 },
+    pageTitlePhone: { width: '100%', fontSize: 26, lineHeight: 32, marginRight: 0, paddingRight: 56 },
+    phoneFullWidth: { width: '100%' },
+    phoneSeasonWrap: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+    headerPickerPhone: { width: '100%' },
+    iconButtonPhone: { width: 46, height: 46, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
     headerPickerWrap: { position: 'relative', zIndex: 30 },
     headerPicker: { minHeight: 48, width: 343.2, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14.4, borderRadius: 8.4, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
     headerPickerCompact: { width: 264 },

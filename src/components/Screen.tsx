@@ -46,9 +46,12 @@ export default function Screen({
   safeAreaEdges,
 }: ScreenProps) {
   const { colors: appColors } = useAppTheme();
-  const { isWide, isDesktop } = useBreakpoint();
+  const { isWide } = useBreakpoint();
   const { language } = useLanguage();
-  const isDesktopWeb = Platform.OS === 'web' && isDesktop;
+  // The whole web app (phone included) uses the same dark blue look. Only the
+  // native app keeps the green themed glows, so a phone browser doesn't flip
+  // between blue and green from one screen to the next.
+  const isDesktopWeb = Platform.OS === 'web';
   const colors = isDesktopWeb ? weeklineColors : appColors;
   const styles = makeStyles(colors);
   const screenBackground = background ?? (
@@ -69,7 +72,7 @@ export default function Screen({
   return (
     <AnimatedBackground
       style={[styles.root, isDesktopWeb && styles.desktopWebCanvas, style]}
-      ambientGlows={ambientGlows}
+      ambientGlows={ambientGlows && !isDesktopWeb}
     >
       {screenBackground}
       <SafeAreaView style={styles.safeArea} edges={safeAreaEdges}>

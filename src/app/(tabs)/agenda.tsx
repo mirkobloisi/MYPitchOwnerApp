@@ -698,6 +698,25 @@ export default function AgendaScreen() {
     );
   }
 
+  // The booking / manage pop-ups are used by the desktop AND the phone layout.
+  const webModals = Platform.OS === 'web' && activePitch ? (
+    <>
+      <WebAgendaBookingModal
+        kind={webBookingKind}
+        selectedDate={selectedDate}
+        initialPitchId={activePitch.id}
+        onClose={() => setWebBookingKind(null)}
+        onSaved={loadMonth}
+      />
+      <WebAgendaManageModal
+        blockId={webManageBlockId}
+        pitchName={activePitch.name}
+        onClose={() => setWebManageBlockId(null)}
+        onSaved={() => { void loadMonth(true); }}
+      />
+    </>
+  ) : null;
+
   if (isCompactAgenda) {
     const visibleMobileDays = viewMode === 'week'
       ? mobileWeekDays
@@ -907,6 +926,7 @@ export default function AgendaScreen() {
             <Ionicons name="people-outline" size={22} color={colors.pink} /><Text style={[styles.nativeActionText, { color: colors.pink }]}>{t('agenda.partyShort')}</Text>
           </Pressable>
         </View>
+        {webModals}
       </Screen>
     );
   }
@@ -1486,23 +1506,7 @@ export default function AgendaScreen() {
         </View>
       </View>
       )}
-      {Platform.OS === 'web' && activePitch ? (
-        <WebAgendaBookingModal
-          kind={webBookingKind}
-          selectedDate={selectedDate}
-          initialPitchId={activePitch.id}
-          onClose={() => setWebBookingKind(null)}
-          onSaved={loadMonth}
-        />
-      ) : null}
-      {Platform.OS === 'web' && activePitch ? (
-        <WebAgendaManageModal
-          blockId={webManageBlockId}
-          pitchName={activePitch.name}
-          onClose={() => setWebManageBlockId(null)}
-          onSaved={() => { void loadMonth(true); }}
-        />
-      ) : null}
+      {webModals}
     </Screen>
   );
 }

@@ -37,6 +37,8 @@ export default function AppHeader({
   const { unread } = useAcademyRealtime();
   const totalUnread = unread.players + unread.parents + unread.messages;
   const showNotificationBell = Platform.OS !== 'web' && !showBack;
+  // Phone browser, top-level tab: title sits left (like Agenda and Academy), clear of the floating bell.
+  const phoneTab = Platform.OS === 'web' && !isDesktop && !showBack;
   const styles = makeStyles(colors);
 
   function handleBack() {
@@ -50,7 +52,7 @@ export default function AppHeader({
 
   return (
     <View>
-      <View style={[styles.header, isDesktop && !showBack && styles.desktopTabHeader]}>
+      <View style={[styles.header, isDesktop && !showBack && styles.desktopTabHeader, phoneTab && styles.phoneTabHeader]}>
         {showBack ? (
           <AnimatedPressable
             pressedScale={0.9}
@@ -62,14 +64,14 @@ export default function AppHeader({
             </View>
           </AnimatedPressable>
         ) : (
-          <View style={[styles.headerSide, isDesktop && !showBack && styles.desktopTabHeaderSide]} />
+          <View style={[styles.headerSide, isDesktop && !showBack && styles.desktopTabHeaderSide, phoneTab && styles.desktopTabHeaderSide]} />
         )}
 
-        <Text numberOfLines={1} style={[styles.headerTitle, isDesktop && !showBack && styles.desktopTabTitle]}>
+        <Text numberOfLines={1} style={[styles.headerTitle, isDesktop && !showBack && styles.desktopTabTitle, phoneTab && styles.phoneTabTitle]}>
           {title}
         </Text>
 
-        <View style={[styles.headerSide, isDesktop && !showBack && styles.desktopTabHeaderSide]}>
+        <View style={[styles.headerSide, isDesktop && !showBack && styles.desktopTabHeaderSide, phoneTab && styles.desktopTabHeaderSide]}>
           {showNotificationBell ? (
             <Pressable
               style={[styles.notificationButton, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -84,7 +86,7 @@ export default function AppHeader({
         </View>
       </View>
 
-      {subtitle ? <Text style={[styles.subtitle, isDesktop && !showBack && styles.desktopTabSubtitle]}>{subtitle}</Text> : null}
+      {subtitle ? <Text style={[styles.subtitle, isDesktop && !showBack && styles.desktopTabSubtitle, phoneTab && styles.phoneTabSubtitle]}>{subtitle}</Text> : null}
     </View>
   );
 }
@@ -142,6 +144,20 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     textAlign: 'center',
   },
   desktopTabHeader: { marginTop: 0 },
+  phoneTabHeader: { marginTop: 10 },
+  phoneTabTitle: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: '700',
+    textAlign: 'left',
+    paddingRight: 56,
+  },
+  phoneTabSubtitle: {
+    textAlign: 'left',
+    marginTop: 4,
+    marginBottom: 16,
+    paddingRight: 56,
+  },
   desktopTabHeaderSide: { width: 0, height: 0 },
   desktopTabTitle: {
     fontSize: 32.4,
