@@ -710,7 +710,7 @@ export default function WebAcademyDashboard({
           <Ionicons name={showSearch ? 'close' : 'search'} size={19} color={colors.greySoft} />
         </Pressable>
         {/* With no team yet the empty state below already offers the same button. */}
-        {isPhoneLayout && academies.length > 0 ? createButton : null}
+        {isPhoneLayout && academies.length > 0 && !createForm.visible ? createButton : null}
       </View>
 
       {showSearch ? (
@@ -724,12 +724,12 @@ export default function WebAcademyDashboard({
       {createForm.visible ? (
         <View style={styles.createForm}>
           <View style={styles.createFormHeading}>
-            <View><Text style={styles.panelTitle}>{createForm.isFirstAcademy ? t('academy.firstAcademyTitle') : t('academy.createTitle')}</Text><Text style={styles.panelHint}>{createForm.isFirstAcademy ? t('academy.firstAcademyIntro') : t('academy.dashboardCreateHint')}</Text></View>
+            <View style={styles.createFormCopy}><Text style={styles.panelTitle}>{createForm.isFirstAcademy ? t('academy.firstAcademyTitle') : t('academy.createTitle')}</Text><Text style={styles.panelHint}>{createForm.isFirstAcademy ? t('academy.firstAcademyIntro') : t('academy.dashboardCreateHint')}</Text></View>
             <Pressable onPress={createForm.onCancel} style={styles.iconButton}><Ionicons name="close" size={18} color={colors.grey} /></Pressable>
           </View>
-          <View style={styles.createInputs}>
-            <TextInput value={createForm.name} onChangeText={createForm.onNameChange} placeholder={t('academy.namePlaceholder')} placeholderTextColor={colors.greyDark} style={styles.formInput} />
-            <TextInput value={createForm.city} onChangeText={createForm.onCityChange} placeholder={t('academy.cityPlaceholder')} placeholderTextColor={colors.greyDark} style={styles.formInput} />
+          <View style={[styles.createInputs, isPhoneLayout && styles.createInputsPhone]}>
+            <TextInput value={createForm.name} onChangeText={createForm.onNameChange} placeholder={t('academy.namePlaceholder')} placeholderTextColor={colors.greyDark} style={[styles.formInput, isPhoneLayout && styles.formInputPhone]} />
+            <TextInput value={createForm.city} onChangeText={createForm.onCityChange} placeholder={t('academy.cityPlaceholder')} placeholderTextColor={colors.greyDark} style={[styles.formInput, isPhoneLayout && styles.formInputPhone]} />
             <Pressable style={[styles.primaryButton, !createForm.name.trim() && styles.disabledButton]} disabled={!createForm.name.trim() || createForm.busy} onPress={createForm.onCreate}>
               {createForm.busy ? <ActivityIndicator size="small" color={colors.blackText} /> : <Ionicons name="add" size={18} color={colors.blackText} />}
               <Text style={styles.primaryButtonText}>{createForm.isFirstAcademy ? t('academy.createMainAction') : t('academy.createAction')}</Text>
@@ -1511,6 +1511,10 @@ function makeStyles(colors: AppColors) {
     createForm: { marginTop: 16.8, padding: 16.8, borderRadius: 9.6, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
     createFormHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14.4 },
     createInputs: { flexDirection: 'row', alignItems: 'center', gap: 10.8 },
+    formInputPhone: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%' },
+    createFormCopy: { flex: 1, minWidth: 0, paddingRight: 8 },
+    // Phone: fields and buttons stack, each full width (a row left the inputs squeezed to nothing).
+    createInputsPhone: { flexDirection: 'column', alignItems: 'stretch', gap: 10 },
     formInput: { flex: 1, minWidth: 0, height: 55.2, color: colors.white, fontSize: 16.8, fontWeight: '500', borderRadius: 9.6, borderWidth: 1, borderColor: '#2B4050', backgroundColor: colors.cardSoft, paddingHorizontal: 15.6, outlineStyle: 'none' as any },
     formLabel: { color: colors.greySoft, fontSize: 14.4, fontWeight: '600', marginBottom: 8.4 },
     matchFormLabel: { color: colors.white, fontSize: 15.6, lineHeight: 20, fontWeight: '600', marginBottom: 8.4 },
