@@ -10,7 +10,7 @@ import { radius, spacing } from '../theme/layout';
 import AnimatedPressable from './AnimatedPressable';
 import { scaleFont, scaleLine } from '../theme/typography';
 
-const MAX_YEARS_AHEAD = 2;
+const MAX_YEARS_AHEAD = 10;
 
 export type RecurrenceValue = {
   enabled: boolean;

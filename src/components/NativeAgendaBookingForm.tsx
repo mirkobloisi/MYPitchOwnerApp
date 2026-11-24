@@ -44,6 +44,7 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [weekly, setWeekly] = useState(false);
+  const [forever, setForever] = useState(false);
   const [picker, setPicker] = useState<Picker>(null);
   const [pickerMonth, setPickerMonth] = useState(startOfDay(new Date(initialDay.getFullYear(), initialDay.getMonth(), 1)));
   const [saving, setSaving] = useState(false);
@@ -60,7 +61,7 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
   };
   const selectedDate = picker === 'endDate' ? endDate : picker === 'repeatUntil' ? repeatUntil : startDate;
   const minPickerDate = picker === 'endDate' ? startDate : picker === 'repeatUntil' ? (kind === 'blocked' ? endDate : startDate) : startOfDay(new Date());
-  const maxPickerDate = addDays(startOfDay(new Date()), 730);
+  const maxPickerDate = addDays(startOfDay(new Date()), 3650);
   const firstCalendarDay = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth(), 1);
   firstCalendarDay.setDate(firstCalendarDay.getDate() - ((firstCalendarDay.getDay() + 6) % 7));
   const calendarDays = Array.from({ length: 42 }, (_, index) => addDays(firstCalendarDay, index));
@@ -84,7 +85,7 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
     if (first < startOfDay(new Date()) || from === null || to === null || from >= to || pitchIds.length === 0 || (kind === 'external_booking' && pitchIds.length !== 1)) { setError(l.required); return; }
     if (days < 0 || days > 30) { setError(l.range); return; }
     if (kind === 'blocked' && !reason) { setError(l.reasonRequired); return; }
-    if (weekly && (repeatUntil < last || repeatUntil > addDays(first, 730))) { setError(l.repeatDate); return; }
+    if (weekly && !forever && (repeatUntil < last || repeatUntil > addDays(first, 3650))) { setError(l.repeatDate); return; }
     setSaving(true);
     let saved = 0;
     try {
@@ -109,7 +110,7 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
       for (const { pitchId, day } of targets) {
         const payload = { pitchId, startTime: dateAtMinutes(day, from), endTime: dateAtMinutes(day, to), blockType: kind, reason: valueReason, reference: valueReference || null, notes: valueNotes || null };
         if (weekly) {
-          const result = await createRecurringPitchBlocks({ ...payload, repeatUntil, openEnded: false });
+          const result = await createRecurringPitchBlocks({ ...payload, repeatUntil: forever ? null : repeatUntil, openEnded: forever });
           saved += result.created; skipped += result.skipped.length;
         } else { await createPitchBlock({ ...payload, createdBy: session.user.id }); saved++; }
       }
@@ -145,7 +146,12 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
       {kind !== 'blocked' ? <View style={styles.row}>{field(l.reference, textField(reference, setReference))}{field(l.phone, textField(phone, setPhone, false, 'phone-pad'))}</View> : null}
       {kind !== 'party' ? field(l.notes, textField(notes, setNotes, true)) : null}
       <Pressable style={styles.repeatRow} onPress={() => setWeekly(!weekly)} accessibilityRole="checkbox" accessibilityState={{ checked: weekly }}><Ionicons name={weekly ? 'checkbox' : 'square-outline'} size={21} color={weekly ? c.blueLight : c.grey} /><Text style={styles.repeatText}>{l.repeat}</Text></Pressable>
-      {weekly ? field(l.repeatUntil, selector(formattedDate(repeatUntil), () => openDate('repeatUntil'), 'calendar-outline')) : null}
+      {weekly ? <View style={styles.pitchWrap}>
+        <Pressable style={[styles.pitchChip, !forever && styles.pitchSelected]} onPress={() => setForever(false)} accessibilityRole="radio" accessibilityState={{ selected: !forever }}><Text style={styles.pitchText}>{l.repeatUntilMode}</Text></Pressable>
+        <Pressable style={[styles.pitchChip, forever && styles.pitchSelected]} onPress={() => setForever(true)} accessibilityRole="radio" accessibilityState={{ selected: forever }}><Ionicons name="infinite" size={18} color={forever ? c.blueLight : c.grey} /><Text style={styles.pitchText}>{l.repeatForever}</Text></Pressable>
+      </View> : null}
+      {weekly && !forever ? field(l.repeatUntil, selector(formattedDate(repeatUntil), () => openDate('repeatUntil'), 'calendar-outline')) : null}
+      {weekly && forever ? <Text style={styles.hint}>{l.repeatForeverHint}</Text> : null}
     </ScrollView>
     <View style={styles.footer}>
       {error ? <Text style={styles.error}>{error}</Text> : notice ? <Text style={styles.notice}>{notice}</Text> : null}

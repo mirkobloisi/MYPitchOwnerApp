@@ -43,6 +43,8 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [weekly, setWeekly] = useState(false);
+  // Weekly repeat either stops on a chosen date or never ends.
+  const [forever, setForever] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -52,7 +54,7 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
     if (!kind) return;
     setStartDate(dateValue(selectedDate)); setEndDate(dateValue(selectedDate)); setRepeatUntil('');
     setStartMinutes(''); setEndMinutes(''); setPitchIds([initialPitchId]); setReason('');
-    setTitle(''); setDescription(''); setReference(''); setPhone(''); setNotes(''); setWeekly(false); setError(''); setNotice(''); setFinished(false);
+    setTitle(''); setDescription(''); setReference(''); setPhone(''); setNotes(''); setWeekly(false); setForever(false); setError(''); setNotice(''); setFinished(false);
   }, [kind, selectedDate, initialPitchId]);
   if (!kind) return null;
   const blockType: Kind = kind;
@@ -77,8 +79,8 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
     const days = Math.round((Date.UTC(last.getFullYear(), last.getMonth(), last.getDate()) - Date.UTC(first.getFullYear(), first.getMonth(), first.getDate())) / 86400000);
     if (days < 0 || days > 30) { setError(l.range); return; }
     if (kind === 'blocked' && !reason) { setError(l.reasonRequired); return; }
-    const until = weekly ? parseDate(repeatUntil) : null;
-    if (weekly && (!until || until < last || until > addDays(first, 730))) { setError(l.repeatDate); return; }
+    const until = weekly && !forever ? parseDate(repeatUntil) : null;
+    if (weekly && !forever && (!until || until < last || until > addDays(first, 3650))) { setError(l.repeatDate); return; }
     setSaving(true);
     let saved = 0;
     try {
@@ -103,8 +105,8 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
       let skipped = 0;
       for (const { pitchId, day } of targets) {
         const payload = { pitchId, startTime: dateAtMinutes(day, from), endTime: dateAtMinutes(day, to), blockType, reason: valueReason, reference: valueReference || null, notes: valueNotes || null };
-        if (weekly && until) {
-          const result = await createRecurringPitchBlocks({ ...payload, repeatUntil: until, openEnded: false });
+        if (weekly && (until || forever)) {
+          const result = await createRecurringPitchBlocks({ ...payload, repeatUntil: forever ? null : until, openEnded: forever });
           saved += result.created; skipped += result.skipped.length;
         } else {
           await createPitchBlock({ ...payload, createdBy: session.user.id }); saved++;
@@ -132,7 +134,12 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
           {kind !== 'blocked' ? <View style={styles.row}>{field(l.reference, input('text', reference, setReference))}{field(l.phone, input('tel', phone, setPhone))}</View> : null}
           {kind !== 'party' ? field(l.notes, <WebTextArea value={notes} style={{ ...inputStyle, height: 60, resize: 'vertical' }} onChange={(event: any) => setNotes(event.target.value)} />) : null}
           <Pressable style={styles.repeatRow} onPress={() => setWeekly(!weekly)} accessibilityRole="checkbox" accessibilityState={{ checked: weekly }}><Ionicons name={weekly ? 'checkbox' : 'square-outline'} size={19} color={weekly ? c.blueLight : c.grey} /><Text style={styles.repeatText}>{l.repeat}</Text></Pressable>
-          {weekly ? field(l.repeatUntil, input('date', repeatUntil, setRepeatUntil, kind === 'blocked' ? endDate : startDate)) : null}
+          {weekly ? <View style={styles.repeatModes}>
+            <Pressable style={[styles.pitchChip, !forever && styles.pitchSelected]} onPress={() => setForever(false)} accessibilityRole="radio" accessibilityState={{ selected: !forever }}><Text style={styles.pitchText}>{l.repeatUntilMode}</Text></Pressable>
+            <Pressable style={[styles.pitchChip, forever && styles.pitchSelected]} onPress={() => setForever(true)} accessibilityRole="radio" accessibilityState={{ selected: forever }}><Ionicons name="infinite" size={16} color={forever ? c.blueLight : c.grey} /><Text style={styles.pitchText}>{l.repeatForever}</Text></Pressable>
+          </View> : null}
+          {weekly && !forever ? field(l.repeatUntil, input('date', repeatUntil, setRepeatUntil, kind === 'blocked' ? endDate : startDate)) : null}
+          {weekly && forever ? <Text style={styles.hint}>{l.repeatForeverHint}</Text> : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}{notice ? <Text style={styles.notice}>{notice}</Text> : null}
         </ScrollView>
         <View style={styles.footer}><Pressable style={styles.cancel} onPress={onClose}><Text style={styles.cancelText}>{l.cancel}</Text></Pressable><Pressable style={[styles.submit, saving && styles.disabled]} onPress={finished ? onClose : save} disabled={saving}><Text style={styles.submitText}>{saving ? l.saving : finished ? 'OK' : l.save}</Text>{saving ? <ActivityIndicator size="small" color={c.blackText} /> : null}</Pressable></View>
@@ -148,6 +155,7 @@ const makeStyles = () => StyleSheet.create({
   content: { flexGrow: 0 }, contentInner: { padding: 22, gap: 14 },
   field: { flex: 1, minWidth: 0, gap: 6 }, fieldLabel: { color: c.grey, fontSize: 12, fontWeight: '600' }, row: { flexDirection: 'row', gap: 12 },
   pitches: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 }, pitchChip: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 34, paddingHorizontal: 10, borderWidth: 1, borderRadius: 7, borderColor: c.border, backgroundColor: c.card }, pitchSelected: { borderColor: c.blueLight, backgroundColor: c.blueSoft }, pitchText: { color: c.white, fontSize: 12, fontWeight: '600' },
+  repeatModes: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   repeatRow: { flexDirection: 'row', gap: 9, alignItems: 'center', paddingVertical: 3 }, repeatText: { color: c.white, fontSize: 13, fontWeight: '600' },
   error: { color: c.red, fontSize: 12 }, notice: { color: c.blueLight, fontSize: 12 },
   hint: { color: c.greyDark, fontSize: 11, marginTop: 5 },
