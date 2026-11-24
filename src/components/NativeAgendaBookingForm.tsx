@@ -60,7 +60,7 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
     setPicker(field);
   };
   const selectedDate = picker === 'endDate' ? endDate : picker === 'repeatUntil' ? repeatUntil : startDate;
-  const minPickerDate = picker === 'endDate' ? startDate : picker === 'repeatUntil' ? (kind === 'blocked' ? endDate : startDate) : startOfDay(new Date());
+  const minPickerDate = picker === 'endDate' ? startDate : picker === 'repeatUntil' ? (kind === 'blocked' ? endDate : startDate) : (kind === 'blocked' ? startOfDay(new Date()) : addDays(startOfDay(new Date()), -3650));
   const maxPickerDate = addDays(startOfDay(new Date()), 3650);
   const firstCalendarDay = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth(), 1);
   firstCalendarDay.setDate(firstCalendarDay.getDate() - ((firstCalendarDay.getDay() + 6) % 7));
@@ -82,9 +82,10 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
     const last = kind === 'blocked' ? endDate : first;
     const from = startMinutes, to = endMinutes;
     const days = Math.round((Date.UTC(last.getFullYear(), last.getMonth(), last.getDate()) - Date.UTC(first.getFullYear(), first.getMonth(), first.getDate())) / 86400000);
-    if (first < startOfDay(new Date()) || from === null || to === null || from >= to || pitchIds.length === 0 || (kind === 'external_booking' && pitchIds.length !== 1)) { setError(l.required); return; }
+    if ((kind === 'blocked' && first < startOfDay(new Date())) || from === null || to === null || from >= to || pitchIds.length === 0 || (kind === 'external_booking' && pitchIds.length !== 1)) { setError(l.required); return; }
     if (days < 0 || days > 30) { setError(l.range); return; }
     if (kind === 'blocked' && !reason) { setError(l.reasonRequired); return; }
+    if (weekly && from !== null && dateAtMinutes(first, from) < new Date()) { setError(l.repeatPast); return; }
     if (weekly && !forever && (repeatUntil < last || repeatUntil > addDays(first, 3650))) { setError(l.repeatDate); return; }
     setSaving(true);
     let saved = 0;
@@ -94,8 +95,8 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
         const [availability, agenda] = await Promise.all([fetchAvailability(pitchId), fetchAgendaRange(pitchId, day, addDays(day, 1))]);
         const busy = buildBusyRanges(agenda.matches, agenda.blocks);
         const startsAt = dateAtMinutes(day, from), endsAt = dateAtMinutes(day, to);
-        const available = kind === 'party'
-          ? startsAt >= new Date() && !overlapsBusy(startsAt, endsAt, busy)
+        const available = kind !== 'blocked'
+          ? !overlapsBusy(startsAt, endsAt, busy)
           : buildStartOptions({ availability, day, busy, notBefore: new Date() }).includes(from)
             && buildEndOptions({ availability, day, busy, startMinutes: from }).includes(to);
         if (!available) {

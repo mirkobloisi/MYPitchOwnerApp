@@ -553,7 +553,7 @@ export default function AgendaScreen() {
   }
 
   function openAddParty() {
-    if (!activePitch || selectedDayIsPast) return;
+    if (!activePitch) return;
     if (Platform.OS === 'web') { setWebBookingKind('party'); return; }
     router.push({
       pathname: '/add-external-booking',
@@ -566,7 +566,7 @@ export default function AgendaScreen() {
   }
 
   function openAddExternalBooking() {
-    if (!activePitch || selectedDayIsPast) return;
+    if (!activePitch) return;
     if (Platform.OS === 'web') { setWebBookingKind('external_booking'); return; }
     router.push({
       pathname: '/add-external-booking',
@@ -918,7 +918,7 @@ export default function AgendaScreen() {
                   </View>
                 ))}
                 {openRanges.map(({ start, end }, index) => (
-                  <Pressable key={`open-${index}`} style={[styles.nativeOpenSlot, { top: start + 4, height: Math.max(42, end - start - 8) }]} onPress={openAddExternalBooking} disabled={selectedDayIsPast}>
+                  <Pressable key={`open-${index}`} style={[styles.nativeOpenSlot, { top: start + 4, height: Math.max(42, end - start - 8) }]} onPress={openAddExternalBooking}>
                     <Ionicons name="add" size={15} color={colors.blueLight} />
                     <Text style={styles.nativeOpenSlotText}>{t('agenda.available')}</Text>
                   </Pressable>
@@ -949,13 +949,13 @@ export default function AgendaScreen() {
         </View>
 
         <View style={styles.nativeActions}>
-          <Pressable style={[styles.nativeAction, styles.nativeExternalAction, selectedDayIsPast && styles.actionDisabled]} onPress={openAddExternalBooking} disabled={selectedDayIsPast}>
+          <Pressable style={[styles.nativeAction, styles.nativeExternalAction]} onPress={openAddExternalBooking}>
             <Ionicons name="calendar-outline" size={22} color={colors.blueLight} /><Text style={[styles.nativeActionText, { color: colors.blueLight }]} numberOfLines={1}>{t('agenda.externalShort')}</Text>
           </Pressable>
           {!activePitch?.player_booking_paused ? <Pressable style={[styles.nativeAction, styles.nativeBlockAction, selectedDayIsPast && styles.actionDisabled]} onPress={openBlockSlot} disabled={selectedDayIsPast}>
             <Ionicons name="ban-outline" size={22} color={colors.grey} /><Text style={[styles.nativeActionText, { color: colors.grey }]}>{t('agenda.blockShort')}</Text>
           </Pressable> : null}
-          <Pressable style={[styles.nativeAction, styles.nativePartyAction, selectedDayIsPast && styles.actionDisabled]} onPress={openAddParty} disabled={selectedDayIsPast}>
+          <Pressable style={[styles.nativeAction, styles.nativePartyAction]} onPress={openAddParty}>
             <Ionicons name="people-outline" size={22} color={colors.pink} /><Text style={[styles.nativeActionText, { color: colors.pink }]}>{t('agenda.partyShort')}</Text>
           </Pressable>
         </View>
@@ -996,18 +996,16 @@ export default function AgendaScreen() {
         {/* A party takes the pitch for an evening rather than a playing
             slot, so it gets its own button and its own time selection. */}
         <Pressable
-          style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonOutline, isDesktopAgenda && styles.weeklineActionButton]}
           onPress={openAddParty}
-          disabled={selectedDayIsPast}
         >
           {!isDesktopAgenda && <Ionicons name="balloon-outline" size={16} color={colors.pink} />}
           <Text style={[styles.actionButtonOutlineText, isDesktopAgenda && styles.weeklineActionText]} numberOfLines={1}>{t('agenda.addParty')}</Text>
         </Pressable>
 
         <Pressable
-          style={[styles.actionButtonPrimary, isDesktopAgenda && styles.weeklineActionButton, isDesktopAgenda && styles.weeklinePrimaryButton, selectedDayIsPast && styles.actionDisabled]}
+          style={[styles.actionButtonPrimary, isDesktopAgenda && styles.weeklineActionButton, isDesktopAgenda && styles.weeklinePrimaryButton]}
           onPress={openAddExternalBooking}
-          disabled={selectedDayIsPast}
         >
           <Ionicons name="add" size={isDesktopAgenda ? 15 : 18} color={colors.blackText} />
           <Text style={[styles.actionButtonPrimaryText, isDesktopAgenda && styles.weeklinePrimaryText]} numberOfLines={1}>{t('agenda.addExternalBooking')}</Text>

@@ -104,16 +104,17 @@ export default function WebAgendaManageModal({ blockId, pitchName, onClose, onSa
     if (startsRepeating && !repeatForever && (!untilDate || untilDate < selectedDate || untilDate > addDays(selectedDate, 3650))) { setError(l.repeatDate); return; }
     const originalStart = new Date(block.start_time), originalEnd = new Date(block.end_time);
     const changedSchedule = date !== dateValue(originalStart) || from !== minutes(originalStart) || to !== endMinutes(originalStart, originalEnd);
-    if (isPast && changedSchedule) { setError(w.pastError); return; }
+    const timeIsRestricted = kind === 'blocked';
+    if (isPast && changedSchedule && timeIsRestricted) { setError(w.pastError); return; }
     const startTime = changedSchedule ? dateAtMinutes(selectedDate, from) : originalStart;
     const endTime = changedSchedule ? dateAtMinutes(selectedDate, to) : originalEnd;
-    if (changedSchedule && startTime.getTime() <= Date.now()) { setError(w.pastError); return; }
+    if (changedSchedule && timeIsRestricted && startTime.getTime() <= Date.now()) { setError(w.pastError); return; }
     setSaving(true);
     try {
       if (changedSchedule) {
         const [availability, agenda] = await Promise.all([fetchAvailability(block.pitch_id), fetchAgendaRange(block.pitch_id, startOfDay(selectedDate), addDays(startOfDay(selectedDate), 1))]);
         const busy = buildBusyRanges(agenda.matches, agenda.blocks, block.id);
-        const available = kind === 'party'
+        const available = kind !== 'blocked'
           ? !overlapsBusy(startTime, endTime, busy)
           : buildStartOptions({ availability, day: selectedDate, busy, notBefore: new Date() }).includes(from)
             && buildEndOptions({ availability, day: selectedDate, busy, startMinutes: from }).includes(to);
@@ -155,7 +156,7 @@ export default function WebAgendaManageModal({ blockId, pitchName, onClose, onSa
           : <>
             <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} keyboardShouldPersistTaps="handled">
               <View style={styles.current}><View style={styles.currentIcon}><Ionicons name={kind === 'blocked' ? 'lock-closed-outline' : kind === 'party' ? 'gift-outline' : 'calendar-outline'} size={17} color={c.blueLight} /></View><View style={styles.currentText}><Text style={styles.currentLabel}>{w.current}</Text><Text style={styles.currentValue}>{day} · {time}</Text><Text style={styles.currentPitch}>{pitchName}</Text></View></View>
-              {isPast ? <Text style={styles.hint}>{w.past}</Text> : <>
+              {isPast && kind === 'blocked' ? <Text style={styles.hint}>{w.past}</Text> : <>
                 <Text style={styles.sectionLabel}>{w.schedule}</Text>
                 <View style={styles.fieldsThree}>
                   {label(l.date, <WebInput type="date" value={date} style={inputStyle} onChange={(event: any) => { setDate(event.target.value); setError(''); }} />)}

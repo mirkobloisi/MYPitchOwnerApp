@@ -63,7 +63,8 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
   const input = (type: string, value: string, change: (value: string) => void, min?: string) =>
     <WebInput type={type} value={value} min={min} step={type === 'time' ? 1800 : undefined} style={inputStyle} onChange={(event: any) => change(event.target.value)} />;
   const start = parseDate(startDate);
-  const minDate = dateValue(startOfDay(new Date()));
+  // Blocking a slot is for the future only; an external booking or a party may also be entered after the fact.
+  const minDate = kind === 'blocked' ? dateValue(startOfDay(new Date())) : undefined;
   const dateFields = kind === 'blocked' ? (
     <View><View style={styles.row}>{field(l.startDate, input('date', startDate, setStartDate, minDate))}{field(l.endDate, input('date', endDate, setEndDate, startDate))}</View><Text style={styles.hint}>{l.rangeHint}</Text></View>
   ) : field(l.date, input('date', startDate, setStartDate, minDate));
@@ -75,10 +76,11 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
     const first = parseDate(startDate);
     const last = kind === 'blocked' ? parseDate(endDate) : first;
     const from = Number(startMinutes), to = Number(endMinutes);
-    if (!first || !last || first < startOfDay(new Date()) || !startMinutes || !endMinutes || from >= to || pitchIds.length === 0 || (kind === 'external_booking' && pitchIds.length !== 1)) { setError(l.required); return; }
+    if (!first || !last || (kind === 'blocked' && first < startOfDay(new Date())) || !startMinutes || !endMinutes || from >= to || pitchIds.length === 0 || (kind === 'external_booking' && pitchIds.length !== 1)) { setError(l.required); return; }
     const days = Math.round((Date.UTC(last.getFullYear(), last.getMonth(), last.getDate()) - Date.UTC(first.getFullYear(), first.getMonth(), first.getDate())) / 86400000);
     if (days < 0 || days > 30) { setError(l.range); return; }
     if (kind === 'blocked' && !reason) { setError(l.reasonRequired); return; }
+    if (weekly && dateAtMinutes(first, from) < new Date()) { setError(l.repeatPast); return; }
     const until = weekly && !forever ? parseDate(repeatUntil) : null;
     if (weekly && !forever && (!until || until < last || until > addDays(first, 3650))) { setError(l.repeatDate); return; }
     setSaving(true);
@@ -90,8 +92,9 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
         const [availability, agenda] = await Promise.all([fetchAvailability(pitchId), fetchAgendaRange(pitchId, day, addDays(day, 1))]);
         const busy = buildBusyRanges(agenda.matches, agenda.blocks);
         const startsAt = dateAtMinutes(day, from), endsAt = dateAtMinutes(day, to);
-        const available = kind === 'party'
-          ? startsAt >= new Date() && !overlapsBusy(startsAt, endsAt, busy)
+        // An external booking or a party may fall outside the opening hours and in the past; only a clash with another booking is refused.
+        const available = kind !== 'blocked'
+          ? !overlapsBusy(startsAt, endsAt, busy)
           : buildStartOptions({ availability, day, busy, notBefore: new Date() }).includes(from)
             && buildEndOptions({ availability, day, busy, startMinutes: from }).includes(to);
         if (!available) {
