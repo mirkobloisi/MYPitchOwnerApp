@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AnimatedSelectable from '../../components/AnimatedSelectable';
@@ -24,6 +24,7 @@ import {
 import { isPastDay } from '../../lib/slots';
 import { supabase } from '../../lib/supabase';
 import { useBreakpoint, WIDE_CONTENT_MAX_WIDTH } from '../../theme/breakpoints';
+import { useViewportHeight } from '../../theme/contentZoom';
 import { AppColors, weeklineColors } from '../../theme/palettes';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { radius, spacing } from '../../theme/layout';
@@ -144,7 +145,7 @@ export default function AgendaScreen() {
   const { unread } = useAcademyRealtime();
   const router = useRouter();
   const { isDesktop, isTablet } = useBreakpoint();
-  const { height: viewportHeight } = useWindowDimensions();
+  const viewportHeight = useViewportHeight();
   const { t, tList } = useTranslation();
   const WEEKDAY_LABELS = tList('agenda.weekdays');
   const MONTH_LABELS = tList('agenda.months');

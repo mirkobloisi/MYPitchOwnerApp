@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
-import React, { ReactNode, useEffect, useMemo, useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import WebInboxPanel from './WebInboxPanel';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -12,6 +12,7 @@ import {
   BOTTOM_BAR_HEIGHT,
   useBreakpoint,
 } from '../theme/breakpoints';
+import { CONTENT_ZOOM_WHEN_FULL, ContentZoomContext } from '../theme/contentZoom';
 import { AppColors, weeklineColors } from '../theme/palettes';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius, spacing } from '../theme/layout';
@@ -54,7 +55,7 @@ const ROUTE_TAB_OVERRIDE: Record<string, string> = {
  * (tabs)/_layout.tsx.
  */
 export default function WebAppShell({ children }: { children: ReactNode }) {
-  const { isDesktop, sidebarWidth } = useBreakpoint();
+  const { isDesktop, isTablet, sidebarWidth } = useBreakpoint();
   const { t } = useTranslation();
   const pathname = usePathname();
   const isWeeklineDesktop = isDesktop;
@@ -78,6 +79,23 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
   const themed = useMemo(() => makeStyles(shellColors), [shellColors]);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
+  // On a tablet the side navigation can slide away; the page then gets the
+  // room and grows a little so it is easier to read. The choice is remembered.
+  const [sidebarHidden, setSidebarHidden] = useState(() => {
+    try { return typeof localStorage !== 'undefined' && localStorage.getItem('mypitch.sidebarHidden') === '1'; } catch { return false; }
+  });
+  const collapsed = isTablet && sidebarHidden;
+  const slide = useRef(new Animated.Value(collapsed ? 0 : 1)).current;
+  useEffect(() => {
+    Animated.timing(slide, { toValue: collapsed ? 0 : 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [collapsed, slide]);
+  function toggleSidebar() {
+    const next = !sidebarHidden;
+    setSidebarHidden(next);
+    try { localStorage.setItem('mypitch.sidebarHidden', next ? '1' : '0'); } catch { /* private mode */ }
+  }
+  const contentZoom = collapsed ? CONTENT_ZOOM_WHEN_FULL : 1;
+
   if (Platform.OS !== 'web') return <>{children}</>;
 
   const waiting: Record<string, number> = {
@@ -88,18 +106,48 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
 
   return (
     <View style={styles.root}>
-      <View
+      <Animated.View
         style={[
           styles.content,
           isWeeklineDesktop && styles.weeklineContent,
-          isDesktop ? { paddingLeft: sidebarWidth } : { paddingBottom: BOTTOM_BAR_HEIGHT },
+          isDesktop
+            ? { paddingLeft: isTablet ? slide.interpolate({ inputRange: [0, 1], outputRange: [0, sidebarWidth] }) : sidebarWidth }
+            : { paddingBottom: BOTTOM_BAR_HEIGHT },
         ]}
       >
-        {children}
-      </View>
+        <ContentZoomContext.Provider value={contentZoom}>
+          <View style={[styles.content, contentZoom !== 1 && ({ zoom: contentZoom } as any)]}>
+            {children}
+          </View>
+        </ContentZoomContext.Provider>
+      </Animated.View>
+
+      {isDesktop && isTablet ? (
+        <Animated.View
+          style={[styles.sidebarHandle, { left: slide.interpolate({ inputRange: [0, 1], outputRange: [0, sidebarWidth] }) }]}
+        >
+          <Pressable
+            style={styles.sidebarHandleButton}
+            onPress={toggleSidebar}
+            accessibilityRole="button"
+            accessibilityLabel={collapsed ? t('nav.showMenu') : t('nav.hideMenu')}
+            accessibilityState={{ expanded: !collapsed }}
+          >
+            <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-back'} size={16} color="#A5B8C4" />
+          </Pressable>
+        </Animated.View>
+      ) : null}
 
       {isDesktop ? (
-        <View style={[themed.sidebar, isWeeklineDesktop && styles.weeklineSidebar, { width: sidebarWidth }]}>
+        <Animated.View
+          pointerEvents={collapsed ? 'none' : 'auto'}
+          style={[
+            themed.sidebar,
+            isWeeklineDesktop && styles.weeklineSidebar,
+            { width: sidebarWidth },
+            isTablet && { transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [-sidebarWidth - 2, 0] }) }] },
+          ]}
+        >
           {isWeeklineDesktop && (
             <LinearGradient
               colors={['#0B1722', '#0D1B26', '#0A151E']}
@@ -160,7 +208,7 @@ export default function WebAppShell({ children }: { children: ReactNode }) {
               <Text style={styles.weeklineOwnerCaption}>{t('nav.ownerWorkspace')}</Text>
             </View>
           )}
-        </View>
+        </Animated.View>
       ) : (
         <View style={themed.bottomBar}>
           {primaryNavItems.map((item) => (
@@ -324,6 +372,25 @@ const styles = StyleSheet.create({
   },
   weeklineContent: {
     backgroundColor: '#08111a',
+  },
+  sidebarHandle: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -28,
+    zIndex: 60,
+  },
+  sidebarHandleButton: {
+    width: 20,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+    backgroundColor: '#142637',
+    borderWidth: 1,
+    borderLeftWidth: 0,
+    borderColor: '#30495B',
+    outlineStyle: 'none' as any,
   },
   weeklineSidebar: {
     backgroundColor: weeklineColors.backgroundSoft,

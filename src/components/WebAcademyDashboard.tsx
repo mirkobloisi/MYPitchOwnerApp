@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useViewportHeight } from '../theme/contentZoom';
 
 import Screen from './Screen';
 import { useTranslation } from '../i18n/LanguageContext';
@@ -146,7 +147,7 @@ export default function WebAcademyDashboard({
   const { t } = useTranslation();
   const { unread, messagesVersion, enrolmentsVersion } = useAcademyRealtime();
   const { width } = useBreakpoint();
-  const { height: viewportHeight } = useWindowDimensions();
+  const viewportHeight = useViewportHeight();
   const { colors: appColors } = useAppTheme();
   const colors = Platform.OS === 'web' ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);

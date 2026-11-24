@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import AnimatedPressable from '../../components/AnimatedPressable';
 import AppHeader from '../../components/AppHeader';
@@ -18,6 +18,7 @@ import {
 } from '../../lib/pitchData';
 import { parseTimeToMinutes } from '../../lib/slots';
 import { useBreakpoint, WIDE_CONTENT_MAX_WIDTH } from '../../theme/breakpoints';
+import { useViewportHeight } from '../../theme/contentZoom';
 import { AppColors, weeklineColors } from '../../theme/palettes';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { radius, spacing } from '../../theme/layout';
@@ -108,7 +109,7 @@ export default function AvailabilityScreen() {
   const { colors: appColors } = useAppTheme();
   const { activePitch, pitchOwner } = useAuth();
   const { isDesktop } = useBreakpoint();
-  const { height: viewportHeight } = useWindowDimensions();
+  const viewportHeight = useViewportHeight();
   const desktopDayMinHeight = Math.max(178, Math.round((viewportHeight - 232) / 3));
   const { t, tList } = useTranslation();
   const isDesktopWeb = Platform.OS === 'web' && isDesktop;

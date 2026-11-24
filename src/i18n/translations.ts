@@ -50,6 +50,8 @@ export const translations = {
     },
     nav: {
       workspace: 'Workspace',
+      showMenu: 'Show menu',
+      hideMenu: 'Hide menu',
       ownerWorkspace: 'Owner workspace',
       agenda: 'Agenda',
       availability: 'Availability',
@@ -929,6 +931,8 @@ export const translations = {
     },
     nav: {
       workspace: 'Χώρος εργασίας',
+      showMenu: 'Εμφάνιση μενού',
+      hideMenu: 'Απόκρυψη μενού',
       ownerWorkspace: 'Χώρος ιδιοκτήτη',
       agenda: 'Ατζέντα',
       availability: 'Διαθεσιμότητα',
@@ -1811,6 +1815,8 @@ export const translations = {
     },
     nav: {
       workspace: 'Рабочая область',
+      showMenu: 'Показать меню',
+      hideMenu: 'Скрыть меню',
       ownerWorkspace: 'Кабинет владельца',
       agenda: 'Расписание',
       availability: 'Доступность',
