@@ -657,6 +657,33 @@ export async function createRecurringPitchBlocks(input: {
   return data as RecurringResult;
 }
 
+/** Makes an existing single booking repeat every week, until a date or with no end. */
+export async function repeatPitchBlockWeekly(input: { blockId: string; repeatUntil: Date | null; openEnded: boolean }) {
+  const { data, error } = await withAbortableTimeout(
+    supabase.rpc('repeat_pitch_block_weekly', {
+      block_id_input: input.blockId,
+      repeat_until_input: input.openEnded || !input.repeatUntil ? null : toDateOnly(input.repeatUntil),
+      open_ended_input: input.openEnded,
+    }),
+    REQUEST_TIMEOUT_MS,
+    'repeatPitchBlockWeekly'
+  );
+
+  if (error) throw error;
+  return data as RecurringResult;
+}
+
+/** Stops a weekly series after this booking: later weeks are removed, this and earlier ones stay as plain bookings. */
+export async function stopRepeatingPitchBlock(blockId: string) {
+  const { error } = await withAbortableTimeout(
+    supabase.rpc('stop_repeating_pitch_block', { block_id_input: blockId }),
+    REQUEST_TIMEOUT_MS,
+    'stopRepeatingPitchBlock'
+  );
+
+  if (error) throw error;
+}
+
 /** Deletes this occurrence and every later one in the same weekly series. */
 export async function deleteRecurringSeriesFrom(groupId: string, fromTime: Date) {
   const { error } = await withAbortableTimeout(

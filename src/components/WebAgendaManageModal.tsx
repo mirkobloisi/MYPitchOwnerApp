@@ -4,7 +4,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { useLanguage } from '../i18n/LanguageContext';
 import { composeBookingNotes, readBookingReference } from '../lib/bookingReference';
 import { bookingFormLabels } from '../lib/bookingFormLabels';
-import { countRemainingInSeries, deletePitchBlock, deleteRecurringSeriesFrom, fetchAgendaRange, fetchAvailability, fetchPitchBlock, PitchBlockRow, updatePitchBlock } from '../lib/pitchData';
+import { countRemainingInSeries, deletePitchBlock, deleteRecurringSeriesFrom, fetchAgendaRange, fetchAvailability, fetchPitchBlock, PitchBlockRow, repeatPitchBlockWeekly, stopRepeatingPitchBlock, updatePitchBlock } from '../lib/pitchData';
 import { addDays, buildBusyRanges, buildEndOptions, buildStartOptions, dateAtMinutes, overlapsBusy, startOfDay } from '../lib/slots';
 import { weeklineColors as c } from '../theme/palettes';
 
@@ -16,9 +16,9 @@ const WebTextArea = 'textarea' as any;
 const inputStyle = { width: '100%', height: 39, boxSizing: 'border-box', border: '1px solid ' + c.border, borderRadius: 7, background: c.cardDark, color: c.white, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', colorScheme: 'dark' } as const;
 const TIMES = Array.from({ length: 49 }, (_, index) => ({ value: index * 30, label: String(Math.floor(index / 2)).padStart(2, '0') + ':' + (index % 2 ? '30' : '00') }));
 const words = {
-  en: { manageExternal:'Manage external booking', manageParty:'Manage party', manageBlock:'Manage blocked slot', subtitle:'Update details or remove this event.', current:'Currently scheduled', schedule:'Schedule', bookingDetails:'Booking details', partyDetails:'Party details', blockDetails:'Block details', bookedBy:'Booked by', partyName:'Party name', contact:'Contact name', title:'Title', source:'Source', reason:'Reason', phone:'Phone', notes:'Notes', description:'Description', repeats:'Repeats every', unlimited:'Unlimited', finite:'Weekly series', remaining:'{count} occurrences remaining', occurrenceNote:'Changes here apply only to this occurrence.', remove:'Remove', save:'Save changes', removeQuestion:'Remove this event?', removeHint:'This slot will become available again.', seriesHint:'This is a weekly booking. Remove only this date, or this date and every later one. Earlier dates are kept.', keep:'Keep event', one:'Only this one', future:'This and all future ones', loading:'Loading event…', missing:'This event is no longer available.', invalid:'Choose a valid date and time.', pastError:'A past event cannot be moved. You can still edit its details.', conflict:'That time is unavailable on this pitch.', reasonError:'Enter a reason for the blocked slot.', saveError:'Could not save changes.', removeError:'Could not remove the event.', past:'This event has already taken place. You can edit its details or remove it.' },
-  el: { manageExternal:'Διαχείριση εξωτερικής κράτησης', manageParty:'Διαχείριση πάρτι', manageBlock:'Διαχείριση αποκλεισμένης ώρας', subtitle:'Επεξεργαστείτε τα στοιχεία ή αφαιρέστε το συμβάν.', current:'Τρέχον πρόγραμμα', schedule:'Πρόγραμμα', bookingDetails:'Στοιχεία κράτησης', partyDetails:'Στοιχεία πάρτι', blockDetails:'Στοιχεία αποκλεισμού', bookedBy:'Κράτηση από', partyName:'Όνομα πάρτι', contact:'Όνομα επικοινωνίας', title:'Τίτλος', source:'Πηγή', reason:'Αιτία', phone:'Τηλέφωνο', notes:'Σημειώσεις', description:'Περιγραφή', repeats:'Επαναλαμβάνεται κάθε', unlimited:'Χωρίς λήξη', finite:'Εβδομαδιαία σειρά', remaining:'Απομένουν {count} εμφανίσεις', occurrenceNote:'Οι αλλαγές αφορούν μόνο αυτή την εμφάνιση.', remove:'Αφαίρεση', save:'Αποθήκευση αλλαγών', removeQuestion:'Να αφαιρεθεί αυτό το συμβάν;', removeHint:'Η ώρα θα γίνει ξανά διαθέσιμη.', seriesHint:'Πρόκειται για εβδομαδιαία κράτηση. Αφαιρέστε μόνο αυτή την ημερομηνία ή αυτή και όλες τις επόμενες. Οι προηγούμενες παραμένουν.', keep:'Διατήρηση', one:'Μόνο αυτή', future:'Αυτή και όλες οι επόμενες', loading:'Φόρτωση συμβάντος…', missing:'Το συμβάν δεν είναι πλέον διαθέσιμο.', invalid:'Επιλέξτε έγκυρη ημερομηνία και ώρα.', pastError:'Δεν μπορείτε να μετακινήσετε παλιό συμβάν.', conflict:'Αυτή η ώρα δεν είναι διαθέσιμη σε αυτό το γήπεδο.', reasonError:'Συμπληρώστε αιτία για τον αποκλεισμό.', saveError:'Δεν αποθηκεύτηκαν οι αλλαγές.', removeError:'Δεν αφαιρέθηκε το συμβάν.', past:'Αυτό το συμβάν έχει ολοκληρωθεί. Μπορείτε να αλλάξετε τα στοιχεία του ή να το αφαιρέσετε.' },
-  ru: { manageExternal:'Управление внешним бронированием', manageParty:'Управление мероприятием', manageBlock:'Управление блокировкой', subtitle:'Измените данные или удалите событие.', current:'Текущее время', schedule:'Расписание', bookingDetails:'Данные бронирования', partyDetails:'Данные мероприятия', blockDetails:'Данные блокировки', bookedBy:'Забронировал', partyName:'Название мероприятия', contact:'Контактное лицо', title:'Название', source:'Источник', reason:'Причина', phone:'Телефон', notes:'Заметки', description:'Описание', repeats:'Повторяется каждый', unlimited:'Без даты окончания', finite:'Еженедельная серия', remaining:'Осталось событий: {count}', occurrenceNote:'Изменения затронут только это событие.', remove:'Удалить', save:'Сохранить изменения', removeQuestion:'Удалить это событие?', removeHint:'Это время снова станет доступным.', seriesHint:'Это еженедельное бронирование. Удалите только эту дату или эту и все следующие. Прошедшие сохранятся.', keep:'Оставить', one:'Только это', future:'Эту и все следующие', loading:'Загрузка события…', missing:'Это событие больше недоступно.', invalid:'Выберите правильную дату и время.', pastError:'Прошедшее событие нельзя перенести.', conflict:'Это время недоступно на данном поле.', reasonError:'Укажите причину блокировки.', saveError:'Не удалось сохранить изменения.', removeError:'Не удалось удалить событие.', past:'Это событие уже прошло. Можно изменить его данные или удалить.' },
+  en: { manageExternal:'Manage external booking', manageParty:'Manage party', manageBlock:'Manage blocked slot', subtitle:'Update details or remove this event.', current:'Currently scheduled', schedule:'Schedule', bookingDetails:'Booking details', partyDetails:'Party details', blockDetails:'Block details', bookedBy:'Booked by', partyName:'Party name', contact:'Contact name', title:'Title', source:'Source', reason:'Reason', phone:'Phone', notes:'Notes', description:'Description', repeats:'Repeats every', unlimited:'Unlimited', finite:'Weekly series', remaining:'{count} occurrences remaining', occurrenceNote:'Changes here apply only to this occurrence. Untick to stop the repeat.', stopHint:'Saving will stop the repeat: the later weeks are removed, this booking and earlier ones are kept.', remove:'Remove', save:'Save changes', removeQuestion:'Remove this event?', removeHint:'This slot will become available again.', seriesHint:'This is a weekly booking. Remove only this date, or this date and every later one. Earlier dates are kept.', keep:'Keep event', one:'Only this one', future:'This and all future ones', loading:'Loading event…', missing:'This event is no longer available.', invalid:'Choose a valid date and time.', pastError:'A past event cannot be moved. You can still edit its details.', conflict:'That time is unavailable on this pitch.', reasonError:'Enter a reason for the blocked slot.', saveError:'Could not save changes.', removeError:'Could not remove the event.', past:'This event has already taken place. You can edit its details or remove it.' },
+  el: { manageExternal:'Διαχείριση εξωτερικής κράτησης', manageParty:'Διαχείριση πάρτι', manageBlock:'Διαχείριση αποκλεισμένης ώρας', subtitle:'Επεξεργαστείτε τα στοιχεία ή αφαιρέστε το συμβάν.', current:'Τρέχον πρόγραμμα', schedule:'Πρόγραμμα', bookingDetails:'Στοιχεία κράτησης', partyDetails:'Στοιχεία πάρτι', blockDetails:'Στοιχεία αποκλεισμού', bookedBy:'Κράτηση από', partyName:'Όνομα πάρτι', contact:'Όνομα επικοινωνίας', title:'Τίτλος', source:'Πηγή', reason:'Αιτία', phone:'Τηλέφωνο', notes:'Σημειώσεις', description:'Περιγραφή', repeats:'Επαναλαμβάνεται κάθε', unlimited:'Χωρίς λήξη', finite:'Εβδομαδιαία σειρά', remaining:'Απομένουν {count} εμφανίσεις', occurrenceNote:'Οι αλλαγές αφορούν μόνο αυτή την εμφάνιση. Αποεπιλέξτε για να σταματήσει η επανάληψη.', stopHint:'Με την αποθήκευση η επανάληψη σταματά: οι επόμενες εβδομάδες αφαιρούνται, αυτή η κράτηση και οι προηγούμενες παραμένουν.', remove:'Αφαίρεση', save:'Αποθήκευση αλλαγών', removeQuestion:'Να αφαιρεθεί αυτό το συμβάν;', removeHint:'Η ώρα θα γίνει ξανά διαθέσιμη.', seriesHint:'Πρόκειται για εβδομαδιαία κράτηση. Αφαιρέστε μόνο αυτή την ημερομηνία ή αυτή και όλες τις επόμενες. Οι προηγούμενες παραμένουν.', keep:'Διατήρηση', one:'Μόνο αυτή', future:'Αυτή και όλες οι επόμενες', loading:'Φόρτωση συμβάντος…', missing:'Το συμβάν δεν είναι πλέον διαθέσιμο.', invalid:'Επιλέξτε έγκυρη ημερομηνία και ώρα.', pastError:'Δεν μπορείτε να μετακινήσετε παλιό συμβάν.', conflict:'Αυτή η ώρα δεν είναι διαθέσιμη σε αυτό το γήπεδο.', reasonError:'Συμπληρώστε αιτία για τον αποκλεισμό.', saveError:'Δεν αποθηκεύτηκαν οι αλλαγές.', removeError:'Δεν αφαιρέθηκε το συμβάν.', past:'Αυτό το συμβάν έχει ολοκληρωθεί. Μπορείτε να αλλάξετε τα στοιχεία του ή να το αφαιρέσετε.' },
+  ru: { manageExternal:'Управление внешним бронированием', manageParty:'Управление мероприятием', manageBlock:'Управление блокировкой', subtitle:'Измените данные или удалите событие.', current:'Текущее время', schedule:'Расписание', bookingDetails:'Данные бронирования', partyDetails:'Данные мероприятия', blockDetails:'Данные блокировки', bookedBy:'Забронировал', partyName:'Название мероприятия', contact:'Контактное лицо', title:'Название', source:'Источник', reason:'Причина', phone:'Телефон', notes:'Заметки', description:'Описание', repeats:'Повторяется каждый', unlimited:'Без даты окончания', finite:'Еженедельная серия', remaining:'Осталось событий: {count}', occurrenceNote:'Изменения затронут только это событие. Снимите галочку, чтобы остановить повтор.', stopHint:'После сохранения повтор остановится: следующие недели будут удалены, это и прошлые бронирования сохранятся.', remove:'Удалить', save:'Сохранить изменения', removeQuestion:'Удалить это событие?', removeHint:'Это время снова станет доступным.', seriesHint:'Это еженедельное бронирование. Удалите только эту дату или эту и все следующие. Прошедшие сохранятся.', keep:'Оставить', one:'Только это', future:'Эту и все следующие', loading:'Загрузка события…', missing:'Это событие больше недоступно.', invalid:'Выберите правильную дату и время.', pastError:'Прошедшее событие нельзя перенести.', conflict:'Это время недоступно на данном поле.', reasonError:'Укажите причину блокировки.', saveError:'Не удалось сохранить изменения.', removeError:'Не удалось удалить событие.', past:'Это событие уже прошло. Можно изменить его данные или удалить.' },
 };
 function dateValue(date: Date) { return String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0'); }
 function parseDate(value: string) { const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value); if (!parts) return null; const date = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])); return dateValue(date) === value ? date : null; }
@@ -46,15 +46,22 @@ export default function WebAgendaManageModal({ blockId, pitchName, onClose, onSa
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [seriesRemaining, setSeriesRemaining] = useState<number | null>(null);
+  // Weekly repeat: on/off, and for a booking that does not repeat yet, how it should end.
+  const [repeatOn, setRepeatOn] = useState(false);
+  const [repeatForever, setRepeatForever] = useState(false);
+  const [repeatUntil, setRepeatUntil] = useState('');
+  const [notice, setNotice] = useState('');
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (!blockId) { setBlock(null); setConfirmDelete(false); setError(''); return; }
     let active = true;
-    setLoading(true); setBlock(null); setConfirmDelete(false); setError(''); setSeriesRemaining(null);
+    setLoading(true); setBlock(null); setConfirmDelete(false); setError(''); setSeriesRemaining(null); setRepeatOn(false); setRepeatForever(false); setRepeatUntil(''); setNotice(''); setDone(false);
     fetchPitchBlock(blockId).then((row) => {
       if (!active) return;
       setBlock(row);
       if (!row) return;
+      setRepeatOn(!!row.recurrence_group_id);
       const start = new Date(row.start_time), end = new Date(row.end_time);
       const details = readBookingReference(row.notes);
       setDate(dateValue(start)); setFrom(minutes(start)); setTo(endMinutes(start, end));
@@ -92,6 +99,9 @@ export default function WebAgendaManageModal({ blockId, pitchName, onClose, onSa
     const selectedDate = parseDate(date);
     if (!selectedDate || from < 0 || to > 1440 || to <= from) { setError(w.invalid); return; }
     if (kind === 'blocked' && !reason.trim()) { setError(w.reasonError); return; }
+    const startsRepeating = repeatOn && !isRecurring;
+    const untilDate = startsRepeating && !repeatForever ? parseDate(repeatUntil) : null;
+    if (startsRepeating && !repeatForever && (!untilDate || untilDate < selectedDate || untilDate > addDays(selectedDate, 3650))) { setError(l.repeatDate); return; }
     const originalStart = new Date(block.start_time), originalEnd = new Date(block.end_time);
     const changedSchedule = date !== dateValue(originalStart) || from !== minutes(originalStart) || to !== endMinutes(originalStart, originalEnd);
     if (isPast && changedSchedule) { setError(w.pastError); return; }
@@ -115,6 +125,12 @@ export default function WebAgendaManageModal({ blockId, pitchName, onClose, onSa
         reference: (kind === 'blocked' ? title : reference).trim() || null,
         notes: kind === 'blocked' ? notes.trim() || null : composeBookingNotes(phone, notes, kind === 'party' ? title : '', kind === 'party'),
       });
+      if (startsRepeating) {
+        const result = await repeatPitchBlockWeekly({ blockId: block.id, repeatUntil: untilDate, openEnded: repeatForever });
+        if (result.skipped.length) { setNotice(l.skipped.replace('{count}', String(result.skipped.length))); setDone(true); onSaved(); return; }
+      } else if (isRecurring && !repeatOn) {
+        await stopRepeatingPitchBlock(block.id);
+      }
       onSaved(); onClose();
     } catch (cause) { setError(cause instanceof Error ? cause.message : w.saveError); }
     finally { setSaving(false); }
@@ -160,13 +176,28 @@ export default function WebAgendaManageModal({ blockId, pitchName, onClose, onSa
                 <View style={styles.fieldsTwo}>{label(w.title, input(title, setTitle))}{label(w.reason, input(reason, setReason))}</View>
                 {label(w.notes, <WebTextArea value={notes} style={{ ...inputStyle, height: 62, resize: 'vertical' }} onChange={(event: any) => { setNotes(event.target.value); setError(''); }} />)}
               </>}
-              {isRecurring ? <View style={styles.recurrence}><Ionicons name="repeat" size={17} color={c.blueLight} /><View style={styles.recurrenceText}><Text style={styles.recurrenceTitle}>{w.repeats} {start?.toLocaleDateString(language, { weekday: 'long' })} · {block.recurrence_open_ended ? w.unlimited : seriesRemaining === null ? w.finite : w.remaining.replace('{count}', String(seriesRemaining))}</Text><Text style={styles.recurrenceHint}>{w.occurrenceNote}</Text></View></View> : null}
+              {isRecurring || !isPast ? <View style={styles.recurrence}>
+                <Pressable onPress={() => { setRepeatOn(!repeatOn); setError(''); }} accessibilityRole="checkbox" accessibilityState={{ checked: repeatOn }}><Ionicons name={repeatOn ? 'checkbox' : 'square-outline'} size={19} color={repeatOn ? c.blueLight : c.grey} /></Pressable>
+                <View style={styles.recurrenceText}>
+                  <Pressable onPress={() => { setRepeatOn(!repeatOn); setError(''); }}><Text style={styles.recurrenceTitle}>{isRecurring ? w.repeats + ' ' + (start?.toLocaleDateString(language, { weekday: 'long' }) ?? '') + ' · ' + (block.recurrence_open_ended ? w.unlimited : seriesRemaining === null ? w.finite : w.remaining.replace('{count}', String(seriesRemaining))) : l.repeat}</Text></Pressable>
+                  {isRecurring && repeatOn ? <Text style={styles.recurrenceHint}>{w.occurrenceNote}</Text> : null}
+                  {isRecurring && !repeatOn ? <Text style={styles.recurrenceHint}>{w.stopHint}</Text> : null}
+                  {!isRecurring && repeatOn ? <>
+                    <View style={styles.repeatModes}>
+                      <Pressable style={[styles.modeChip, !repeatForever && styles.modeChipOn]} onPress={() => setRepeatForever(false)} accessibilityRole="radio" accessibilityState={{ selected: !repeatForever }}><Text style={styles.modeText}>{l.repeatUntilMode}</Text></Pressable>
+                      <Pressable style={[styles.modeChip, repeatForever && styles.modeChipOn]} onPress={() => setRepeatForever(true)} accessibilityRole="radio" accessibilityState={{ selected: repeatForever }}><Ionicons name="infinite" size={15} color={repeatForever ? c.blueLight : c.grey} /><Text style={styles.modeText}>{l.repeatForever}</Text></Pressable>
+                    </View>
+                    {repeatForever ? <Text style={styles.recurrenceHint}>{l.repeatForeverHint}</Text> : <View style={{ marginTop: 8 }}>{label(l.repeatUntil, input(repeatUntil, setRepeatUntil, 'date'))}</View>}
+                  </> : null}
+                </View>
+              </View> : null}
+              {notice ? <Text style={styles.hint}>{notice}</Text> : null}
               {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
             </ScrollView>
             <View style={styles.footer}>
               <Pressable style={styles.removeButton} onPress={() => setConfirmDelete(true)} accessibilityRole="button" disabled={saving || deleting}><Ionicons name="trash-outline" size={15} color={c.red} /><Text style={styles.removeText}>{w.remove}</Text></Pressable>
               <View style={styles.footerSpacer} /><Pressable style={styles.cancelButton} onPress={onClose} accessibilityRole="button" disabled={saving || deleting}><Text style={styles.cancelText}>{l.cancel}</Text></Pressable>
-              <Pressable style={[styles.saveButton, (saving || deleting) && styles.disabled]} onPress={save} accessibilityRole="button" disabled={saving || deleting}><Text style={styles.saveText}>{w.save}</Text>{saving ? <ActivityIndicator size="small" color={c.blackText} /> : null}</Pressable>
+              <Pressable style={[styles.saveButton, (saving || deleting) && styles.disabled]} onPress={done ? onClose : save} accessibilityRole="button" disabled={saving || deleting}><Text style={styles.saveText}>{done ? 'OK' : w.save}</Text>{saving ? <ActivityIndicator size="small" color={c.blackText} /> : null}</Pressable>
             </View>
           </>}
         {confirmDelete && block ? <View style={styles.confirmOverlay}><View style={styles.confirmCard}>
@@ -199,6 +230,7 @@ const styles = StyleSheet.create({
   field: { flexGrow: 1, flexBasis: 150, minWidth: 0, gap: 6 }, fieldLabel: { color: '#CBDDE7', fontSize: 12, fontWeight: '700' }, divider: { height: 1, backgroundColor: c.border },
   recurrence: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', borderWidth: 1, borderColor: c.border, borderRadius: 8, padding: 11 },
   recurrenceText: { flex: 1 }, recurrenceTitle: { color: '#D2E1E9', fontSize: 12, fontWeight: '700' }, recurrenceHint: { color: c.grey, fontSize: 11, marginTop: 3 },
+  repeatModes: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 8 }, modeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, paddingHorizontal: 10, borderWidth: 1, borderRadius: 7, borderColor: c.border, backgroundColor: c.card }, modeChipOn: { borderColor: c.blueLight, backgroundColor: c.blueSoft }, modeText: { color: c.white, fontSize: 12, fontWeight: '600' },
   hint: { color: c.grey, fontSize: 12 }, error: { color: c.red, fontSize: 12 },
   footer: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: 15, borderTopWidth: 1, borderTopColor: c.border },
   footerSpacer: { flex: 1 }, removeButton: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: '#6D3D48', backgroundColor: '#2C1C27', borderRadius: 7, paddingHorizontal: 12 },
