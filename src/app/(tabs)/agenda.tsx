@@ -30,11 +30,12 @@ import { radius, spacing } from '../../theme/layout';
 import { scaleFont } from '../../theme/typography';
 
 type AgendaEvent =
-  | { kind: 'match'; id: string; startsAt: Date; endsAt: Date; match: MatchRow }
-  | { kind: 'block'; id: string; startsAt: Date; endsAt: Date; block: PitchBlockRow }
+  | { kind: 'match'; id: string; pitchId: string; startsAt: Date; endsAt: Date; match: MatchRow }
+  | { kind: 'block'; id: string; pitchId: string; startsAt: Date; endsAt: Date; block: PitchBlockRow }
   | {
       kind: 'academy';
       id: string;
+      pitchId: string;
       startsAt: Date;
       endsAt: Date;
       session: AcademySessionOccurrence;
@@ -159,6 +160,8 @@ export default function AgendaScreen() {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [loadedPitchId, setLoadedPitchId] = useState<string | null>(null);
+  // Show every pitch of the owner at once, each in its own colour.
+  const [allPitches, setAllPitches] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [pitchMenuOpen, setPitchMenuOpen] = useState(false);
@@ -177,6 +180,18 @@ export default function AgendaScreen() {
   const isDesktopAgenda = isDesktopWeek || isDesktopMonth;
   const colors = isNativeMobile || Platform.OS === 'web' ? weeklineColors : appColors;
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const showAllPitches = allPitches && pitches.length > 1;
+  const scopeKey = showAllPitches ? 'all:' + pitches.map((pitch) => pitch.id).join(',') : activePitch?.id ?? null;
+  const pitchColorOf = (pitchId: string) => PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === pitchId)) % PITCH_COLORS.length];
+  const pitchNameOf = (pitchId: string) => pitches.find((pitch) => pitch.id === pitchId)?.name ?? '';
+  // Status colours for one pitch; with all pitches shown, the pitch colour wins
+  // so the owner can tell the pitches apart at a glance.
+  const eventMeta = (event: AgendaEvent) => {
+    const meta = eventStatusMeta(event, colors, t);
+    if (!showAllPitches) return meta;
+    const color = pitchColorOf(event.pitchId);
+    return { ...meta, color, background: color + '24' };
+  };
   const desktopHourHeight = Math.min(56, Math.max(34, Math.round((viewportHeight - 247) / HOURS.length)));
   const desktopGridHeight = HOURS.length * desktopHourHeight;
   const monthDayCount = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
@@ -221,10 +236,12 @@ export default function AgendaScreen() {
       const rangeEnd = new Date(rangeStart);
       rangeEnd.setDate(rangeEnd.getDate() + (isNativeMobile ? 49 : 42));
 
-      const { matches, blocks, academySessions } = await fetchAgendaRange(
-        activePitch.id, rangeStart, rangeEnd
+      const scope = showAllPitches ? pitches : [activePitch];
+      const results = await Promise.all(
+        scope.map(async (pitch) => ({ pitchId: pitch.id, ...(await fetchAgendaRange(pitch.id, rangeStart, rangeEnd)) }))
       );
-
+      const nextEvents: AgendaEvent[] = [];
+      for (const { pitchId, matches, blocks, academySessions } of results) {
       // A cancelled match frees up its slot everywhere else (the User App's
       // booking list drops it, and get_pitch_busy_ranges stops counting it as
       // busy) — the calendar should match that instead of still showing a
@@ -234,6 +251,7 @@ export default function AgendaScreen() {
       const matchEvents: AgendaEvent[] = activeMatches.map((match) => ({
         kind: 'match',
         id: match.id,
+        pitchId,
         startsAt: new Date(match.starts_at),
         endsAt: new Date(match.ends_at),
         match,
@@ -242,6 +260,7 @@ export default function AgendaScreen() {
       const blockEvents: AgendaEvent[] = blocks.map((block) => ({
         kind: 'block',
         id: block.id,
+        pitchId,
         startsAt: new Date(block.start_time),
         endsAt: new Date(block.end_time),
         block,
@@ -256,14 +275,18 @@ export default function AgendaScreen() {
           // A weekly session is one row, so its occurrences share an id —
           // the start time makes each one distinct for React's keys.
           id: `${session.id}:${session.starts_at}`,
+          pitchId,
           startsAt: new Date(session.starts_at),
           endsAt: new Date(session.ends_at),
           session,
         }));
 
+      nextEvents.push(...matchEvents, ...blockEvents, ...academyEvents);
+      }
+
       if (loadVersion === loadVersionRef.current) {
-        setEvents([...matchEvents, ...blockEvents, ...academyEvents]);
-        setLoadedPitchId(activePitch.id);
+        setEvents(nextEvents);
+        setLoadedPitchId(scopeKey);
       }
     } catch (error) {
       if (loadVersion === loadVersionRef.current) {
@@ -272,7 +295,7 @@ export default function AgendaScreen() {
     } finally {
       if (loadVersion === loadVersionRef.current) setIsLoading(false);
     }
-  }, [activePitch, visibleMonth, isNativeMobile]);
+  }, [activePitch, visibleMonth, isNativeMobile, scopeKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -288,7 +311,7 @@ export default function AgendaScreen() {
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => { void loadMonth(true); }, 150);
     };
-    const channel = supabase.channel(`agenda-live-${activePitch.id}`)
+    const channel = supabase.channel(`agenda-live-${scopeKey}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pitch_blocks' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'academy', table: 'sessions' }, refresh)
@@ -310,7 +333,7 @@ export default function AgendaScreen() {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       void supabase.removeChannel(channel);
     };
-  }, [activePitch?.id, loadMonth]);
+  }, [scopeKey, loadMonth]);
 
   const gridStart = startOfCalendarGrid(visibleMonth);
   const gridDays = useMemo(() => {
@@ -342,7 +365,7 @@ export default function AgendaScreen() {
   }, [weekStart]);
 
   // Never show the previous pitch's bookings while a newly selected pitch loads.
-  const pitchEvents = loadedPitchId === activePitch?.id ? events : EMPTY_EVENTS;
+  const pitchEvents = loadedPitchId === scopeKey ? events : EMPTY_EVENTS;
   const eventsByDay = useMemo(() => {
     const map = new Map<string, AgendaEvent[]>();
     pitchEvents.forEach((event) => {
@@ -580,7 +603,7 @@ export default function AgendaScreen() {
   // Shared between the day panel and List view so both render bookings
   // identically instead of maintaining two copies of the same card markup.
   function renderEventCard(event: AgendaEvent) {
-    const meta = eventStatusMeta(event, colors, t);
+    const meta = eventMeta(event);
     const showPlayers = event.kind === 'match';
 
     return (
@@ -619,7 +642,7 @@ export default function AgendaScreen() {
           </Text>
         ) : event.kind === 'block' ? (
           <Text style={styles.eventDetail}>
-            {event.block.block_type === 'external_booking'
+            {showAllPitches ? pitchNameOf(event.pitchId) + ' · ' : ''}{event.block.block_type === 'external_booking'
               ? event.block.reference || t('agenda.externalBookingDefault')
               : event.block.reference || event.block.reason || t('agenda.blockedDefault')}
             {event.block.recurrence_group_id ? t('agenda.repeatsWeekly') : ''}
@@ -642,7 +665,7 @@ export default function AgendaScreen() {
                 {selectedDayEvents.length === 0 ? (
                   <Text style={styles.emptyDayText}>{t('agenda.nothingScheduled')}</Text>
                 ) : selectedDayEvents.map((event) => {
-                  const meta = eventStatusMeta(event, colors, t);
+                  const meta = eventMeta(event);
                   return (
                     <AnimatedPressable
                       key={event.id}
@@ -654,6 +677,7 @@ export default function AgendaScreen() {
                         <View style={styles.weeklineEventRowText}>
                           <Text style={styles.weeklineRowTime}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
                           <Text style={styles.weeklineRowLabel}>{meta.label}</Text>
+                          {showAllPitches ? <Text style={[styles.weeklineReference, { color: meta.color }]}>{pitchNameOf(event.pitchId)}</Text> : null}
                           {event.kind === 'block' && (event.block.block_type === 'party' || event.block.block_type === 'external_booking') && (event.block.reference || readBookingReference(event.block.notes).phone) ? (
                             <Text style={styles.weeklineReference}>
                               {[event.block.reference, readBookingReference(event.block.notes).phone].filter(Boolean).join(' · ')}
@@ -669,7 +693,7 @@ export default function AgendaScreen() {
             </View>
             <View style={styles.weeklineStatsCard}>
               <Text style={styles.weeklineEyebrow}>
-                {visibleMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }).toUpperCase()} · {activePitch?.name}
+                {visibleMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }).toUpperCase()} · {showAllPitches ? t('agenda.allPitches') : activePitch?.name}
               </Text>
               <View style={[styles.weeklineStatsRow, isTablet && { flexWrap: 'wrap', rowGap: 12 }]}>
                 {[
@@ -710,7 +734,7 @@ export default function AgendaScreen() {
       />
       <WebAgendaManageModal
         blockId={webManageBlockId}
-        pitchName={activePitch.name}
+        pitchName={pitchNameOf(events.find((event) => event.kind === 'block' && event.block.id === webManageBlockId)?.pitchId ?? activePitch.id) || activePitch.name}
         onClose={() => setWebManageBlockId(null)}
         onSaved={() => { void loadMonth(true); }}
       />
@@ -799,17 +823,24 @@ export default function AgendaScreen() {
         <View style={styles.nativePitchWrap}>
           <View style={styles.nativePitchPicker}>
             <Pressable style={styles.nativePitchTrigger} onPress={() => { setPitchMenuOpen((open) => !open); setMonthMenuOpen(false); }} accessibilityRole="button" accessibilityState={{ expanded: pitchMenuOpen }}>
-              <View style={[styles.nativePitchDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
-              <Text style={styles.nativePitchName} numberOfLines={1}>{activePitch.name}</Text>
+              {showAllPitches ? <Ionicons name="layers-outline" size={15} color={colors.blueLight} /> : <View style={[styles.nativePitchDot, { backgroundColor: pitchColorOf(activePitch.id) }]} />}
+              <Text style={styles.nativePitchName} numberOfLines={1}>{showAllPitches ? t('agenda.allPitches') : activePitch.name}</Text>
               <Ionicons name={pitchMenuOpen ? 'chevron-up' : 'chevron-down'} size={17} color={colors.grey} />
             </Pressable>
             {pitchMenuOpen ? (
               <View style={styles.nativePitchMenu}>
+                {pitches.length > 1 ? (
+                  <Pressable style={styles.nativePitchOption} onPress={() => { setAllPitches(true); setPitchMenuOpen(false); }}>
+                    <Ionicons name="layers-outline" size={15} color={colors.blueLight} />
+                    <Text style={styles.nativePitchName} numberOfLines={1}>{t('agenda.allPitches')}</Text>
+                    {showAllPitches ? <Ionicons name="checkmark" size={17} color={colors.blueLight} /> : null}
+                  </Pressable>
+                ) : null}
                 {pitches.map((pitch, index) => (
-                  <Pressable key={pitch.id} style={styles.nativePitchOption} onPress={() => { setActivePitchId(pitch.id); setPitchMenuOpen(false); }}>
+                  <Pressable key={pitch.id} style={styles.nativePitchOption} onPress={() => { setAllPitches(false); setActivePitchId(pitch.id); setPitchMenuOpen(false); }}>
                     <View style={[styles.nativePitchDot, { backgroundColor: PITCH_COLORS[index % PITCH_COLORS.length] }]} />
                     <Text style={styles.nativePitchName} numberOfLines={1}>{pitch.name}</Text>
-                    {pitch.id === activePitch.id ? <Ionicons name="checkmark" size={17} color={colors.blueLight} /> : null}
+                    {!showAllPitches && pitch.id === activePitch.id ? <Ionicons name="checkmark" size={17} color={colors.blueLight} /> : null}
                   </Pressable>
                 ))}
               </View>
@@ -861,7 +892,7 @@ export default function AgendaScreen() {
                   >
                     <Text style={[styles.nativeDayName, isSelected && styles.nativeDayTextSelected]}>{WEEKDAY_LABELS[(day.getDay() + 6) % 7]}</Text>
                     <Text style={[styles.nativeDayNumber, isSelected && styles.nativeDayTextSelected]}>{day.getDate()}</Text>
-                    <View style={styles.nativeDayDots}>{dayEvents.slice(0, 3).map((event) => <View key={event.id} style={[styles.nativeDayDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />)}</View>
+                    <View style={styles.nativeDayDots}>{dayEvents.slice(0, 3).map((event) => <View key={event.id} style={[styles.nativeDayDot, { backgroundColor: eventMeta(event).color }]} />)}</View>
                   </Pressable>
                 );
               })}
@@ -892,18 +923,19 @@ export default function AgendaScreen() {
                   </Pressable>
                 ))}
                 {eventRanges.map(({ event, start, end }) => {
-                  const meta = eventStatusMeta(event, colors, t);
+                  const meta = eventMeta(event);
                   const detail = event.kind === 'match'
                       ? t('agenda.playersLabel', { paid: event.match.players_paid_count, required: event.match.players_required })
                     : event.kind === 'block'
                       ? event.block.block_type === 'external_booking' ? (event.block.reference || t('agenda.externalBookingDefault')) : (event.block.reference || event.block.reason || t('agenda.blockedDefault'))
                       : event.session.title;
+                  const detailText = showAllPitches ? pitchNameOf(event.pitchId) + ' · ' + detail : detail;
                   return (
                     <Pressable key={event.id} style={[styles.nativeEventCard, { top: start + 4, height: Math.max(52, end - start - 8), borderColor: meta.color, backgroundColor: meta.background }]} onPress={() => openEventDetails(event)}>
                       <View style={[styles.nativeEventAccent, { backgroundColor: meta.color }]} />
                       <View style={styles.nativeEventCopy}>
                         <Text style={styles.nativeEventTitle} numberOfLines={1}>{meta.label}</Text>
-                        <Text style={styles.nativeEventDetail} numberOfLines={1}>{detail}</Text>
+                        <Text style={styles.nativeEventDetail} numberOfLines={1}>{detailText}</Text>
                       </View>
                       <Text style={[styles.nativeEventTime, { color: meta.color }]}>{formatTime(event.startsAt)} – {formatTime(event.endsAt)}</Text>
                     </Pressable>
@@ -993,22 +1025,33 @@ export default function AgendaScreen() {
                 accessibilityLabel={t('agenda.choosePitch')}
                 accessibilityState={{ expanded: pitchMenuOpen }}
               >
-                <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[Math.max(0, pitches.findIndex((pitch) => pitch.id === activePitch.id)) % PITCH_COLORS.length] }]} />
-                <Text style={styles.pitchDropdownText} numberOfLines={1}>{activePitch.name}</Text>
+                {showAllPitches ? <Ionicons name="layers-outline" size={14} color={colors.greenLight} /> : <View style={[styles.pitchColorDot, { backgroundColor: pitchColorOf(activePitch.id) }]} />}
+                <Text style={styles.pitchDropdownText} numberOfLines={1}>{showAllPitches ? t('agenda.allPitches') : activePitch.name}</Text>
                 <Ionicons name={pitchMenuOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.grey} />
               </Pressable>
               {pitchMenuOpen && (
                 <View style={styles.pitchDropdownMenu}>
+                  {pitches.length > 1 ? (
+                    <Pressable
+                      style={[styles.pitchDropdownOption, showAllPitches && styles.pitchDropdownOptionActive]}
+                      onPress={() => { setAllPitches(true); setPitchMenuOpen(false); }}
+                      accessibilityRole="menuitem"
+                    >
+                      <Ionicons name="layers-outline" size={14} color={colors.greenLight} />
+                      <Text style={styles.pitchDropdownText} numberOfLines={1}>{t('agenda.allPitches')}</Text>
+                      {showAllPitches && <Ionicons name="checkmark" size={15} color={colors.greenLight} />}
+                    </Pressable>
+                  ) : null}
                   {pitches.map((pitch, index) => (
                     <Pressable
                       key={pitch.id}
-                      style={[styles.pitchDropdownOption, pitch.id === activePitch.id && styles.pitchDropdownOptionActive]}
-                      onPress={() => { setActivePitchId(pitch.id); setPitchMenuOpen(false); }}
+                      style={[styles.pitchDropdownOption, !showAllPitches && pitch.id === activePitch.id && styles.pitchDropdownOptionActive]}
+                      onPress={() => { setAllPitches(false); setActivePitchId(pitch.id); setPitchMenuOpen(false); }}
                       accessibilityRole="menuitem"
                     >
                       <View style={[styles.pitchColorDot, { backgroundColor: PITCH_COLORS[index % PITCH_COLORS.length] }]} />
                       <Text style={styles.pitchDropdownText} numberOfLines={1}>{pitch.name}</Text>
-                      {pitch.id === activePitch.id && <Ionicons name="checkmark" size={15} color={colors.greenLight} />}
+                      {!showAllPitches && pitch.id === activePitch.id && <Ionicons name="checkmark" size={15} color={colors.greenLight} />}
                     </Pressable>
                   ))}
                 </View>
@@ -1142,7 +1185,7 @@ export default function AgendaScreen() {
                     <View key={hour} style={[styles.weeklineHourRule, { top: index * desktopHourHeight }]} />
                   ))}
                   {(eventsByDay.get(day.toDateString()) ?? []).map((event) => {
-                    const meta = eventStatusMeta(event, colors, t);
+                    const meta = eventMeta(event);
                     const top = clamp((hourFraction(event.startsAt) - HOURS_START) * desktopHourHeight, 0, desktopGridHeight);
                     const bottom = clamp((hourFraction(event.endsAt) - HOURS_START) * desktopHourHeight, 0, desktopGridHeight);
                     if (bottom <= top) return null;
@@ -1200,7 +1243,7 @@ export default function AgendaScreen() {
                 const inMonth = day.getMonth() === visibleMonth.getMonth();
                 const isSelected = isSameDay(day, selectedDate);
                 const firstEvent = dayEvents[0];
-                const meta = firstEvent ? eventStatusMeta(firstEvent, colors, t) : null;
+                const meta = firstEvent ? eventMeta(firstEvent) : null;
                 return (
                   <Pressable
                     key={day.toISOString()}
@@ -1219,7 +1262,7 @@ export default function AgendaScreen() {
                     {dayEvents.length > 1 && (
                       <View style={styles.weeklineMonthDots}>
                         {dayEvents.slice(1, 4).map((event) => (
-                          <View key={event.id} style={[styles.weeklineMonthDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />
+                          <View key={event.id} style={[styles.weeklineMonthDot, { backgroundColor: eventMeta(event).color }]} />
                         ))}
                       </View>
                     )}
@@ -1318,7 +1361,7 @@ export default function AgendaScreen() {
                 <Text style={[styles.mobileMonthDayNumber, isSelected && styles.mobileMonthDayTextSelected]}>{day.getDate()}</Text>
                 <View style={styles.mobileMonthDayDots}>
                   {dayEvents.slice(0, 3).map((event) => (
-                    <View key={event.id} style={[styles.mobileMonthDayDot, { backgroundColor: eventStatusMeta(event, colors, t).color }]} />
+                    <View key={event.id} style={[styles.mobileMonthDayDot, { backgroundColor: eventMeta(event).color }]} />
                   ))}
                 </View>
               </Pressable>
@@ -1375,7 +1418,7 @@ export default function AgendaScreen() {
                     ))}
 
                     {dayEvents.map((event) => {
-                      const meta = eventStatusMeta(event, colors, t);
+                      const meta = eventMeta(event);
                       const top = clamp(
                         (hourFraction(event.startsAt) - HOURS_START) * HOUR_ROW_HEIGHT,
                         0,
