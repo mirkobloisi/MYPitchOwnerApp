@@ -172,6 +172,16 @@ export default function AgendaScreen() {
   const [webManageBlockId, setWebManageBlockId] = useState<string | null>(null);
   const [monthStripWidth, setMonthStripWidth] = useState(0);
   const monthStripRef = useRef<ScrollView>(null);
+  // The week grid scrolls and its scrollbar narrows the columns; the weekday
+  // headers reserve exactly the same width so each one sits over its column.
+  const gridScrollRef = useRef<ScrollView>(null);
+  const [gridScrollbar, setGridScrollbar] = useState(0);
+  const measureGridScrollbar = useCallback(() => {
+    const node = (gridScrollRef.current as any)?.getScrollableNode?.() ?? (gridScrollRef.current as any);
+    if (!node || typeof node.offsetWidth !== 'number') return;
+    const width = Math.max(0, node.offsetWidth - node.clientWidth);
+    setGridScrollbar((current) => (current === width ? current : width));
+  }, []);
   const mobileTimelineRef = useRef<ScrollView>(null);
   const loadVersionRef = useRef(0);
   const isNativeMobile = Platform.OS !== 'web';
@@ -1143,7 +1153,7 @@ export default function AgendaScreen() {
               </View>
             </View>
 
-            <View style={styles.weeklineDayHead}>
+            <View style={[styles.weeklineDayHead, { paddingRight: gridScrollbar }]}>
               <View style={styles.weeklineTimeGutter} />
               {weekDays.map((day) => {
                 const isSelected = isSameDay(day, selectedDate);
@@ -1162,7 +1172,7 @@ export default function AgendaScreen() {
               })}
             </View>
 
-            <ScrollView style={styles.weeklineGridScroll} nestedScrollEnabled showsVerticalScrollIndicator>
+            <ScrollView ref={gridScrollRef} style={styles.weeklineGridScroll} nestedScrollEnabled showsVerticalScrollIndicator onLayout={measureGridScrollbar} onContentSizeChange={measureGridScrollbar}>
             <View style={[styles.weeklineGrid, { height: desktopGridHeight }]}>
               <View style={[styles.weeklineTimeGutter, { height: desktopGridHeight }]}>
                 {HOURS.map((hour, index) => (
@@ -2159,9 +2169,6 @@ const makeStyles = (colors: AppColors) =>
     weeklineDayHead: {
       flexDirection: 'row',
       height: 48,
-      // The grid's vertical scrollbar narrows its viewport. Match that
-      // reserved gutter so weekday headers line up with the time columns.
-      paddingRight: 14,
       borderTopWidth: 1,
       borderBottomWidth: 1,
       borderColor: colors.border,
