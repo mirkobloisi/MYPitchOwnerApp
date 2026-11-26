@@ -93,7 +93,7 @@ export default function NativeAgendaBookingForm({ kind, initialPitchId, initialD
       const targets = pitchIds.flatMap((pitchId) => Array.from({ length: days + 1 }, (_, index) => ({ pitchId, day: addDays(first, index) })));
       for (const { pitchId, day } of targets) {
         const [availability, agenda] = await Promise.all([fetchAvailability(pitchId), fetchAgendaRange(pitchId, day, addDays(day, 1))]);
-        const busy = buildBusyRanges(agenda.matches, agenda.blocks);
+        const busy = buildBusyRanges(agenda.matches, agenda.blocks, undefined, agenda.academySessions);
         const startsAt = dateAtMinutes(day, from), endsAt = dateAtMinutes(day, to);
         const available = kind !== 'blocked'
           ? !overlapsBusy(startsAt, endsAt, busy)

@@ -9,6 +9,7 @@ export type StaffMember = {
   email: string;
   allowed_tabs: string[];
   status: 'active' | 'inactive' | string;
+  is_coach: boolean;
   created_at: string;
 };
 
@@ -16,6 +17,7 @@ export type StaffInvite = {
   id: string;
   invited_email: string | null;
   allowed_tabs: string[];
+  is_coach: boolean;
   expires_at: string;
   created_at: string;
 };
@@ -33,7 +35,7 @@ export async function fetchStaffMembers(): Promise<StaffMember[]> {
   // Row level security narrows this to the signed-in owner's own staff.
   const { data, error } = await supabase
     .from('owner_staff_memberships')
-    .select('id, user_id, full_name, email, allowed_tabs, status, created_at')
+    .select('id, user_id, full_name, email, allowed_tabs, status, created_at, is_coach')
     .order('created_at', { ascending: true });
   if (error) throw error;
   return (data as StaffMember[] | null) ?? [];
@@ -42,7 +44,7 @@ export async function fetchStaffMembers(): Promise<StaffMember[]> {
 export async function fetchPendingStaffInvites(): Promise<StaffInvite[]> {
   const { data, error } = await supabase
     .from('owner_staff_invites')
-    .select('id, invited_email, allowed_tabs, expires_at, created_at')
+    .select('id, invited_email, allowed_tabs, expires_at, created_at, is_coach')
     .is('accepted_at', null)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false });

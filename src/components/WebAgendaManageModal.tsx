@@ -113,7 +113,7 @@ export default function WebAgendaManageModal({ blockId, pitchName, onClose, onSa
     try {
       if (changedSchedule) {
         const [availability, agenda] = await Promise.all([fetchAvailability(block.pitch_id), fetchAgendaRange(block.pitch_id, startOfDay(selectedDate), addDays(startOfDay(selectedDate), 1))]);
-        const busy = buildBusyRanges(agenda.matches, agenda.blocks, block.id);
+        const busy = buildBusyRanges(agenda.matches, agenda.blocks, block.id, agenda.academySessions);
         const available = kind !== 'blocked'
           ? !overlapsBusy(startTime, endTime, busy)
           : buildStartOptions({ availability, day: selectedDate, busy, notBefore: new Date() }).includes(from)

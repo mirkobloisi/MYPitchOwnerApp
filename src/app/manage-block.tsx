@@ -162,7 +162,7 @@ export default function ManageBlockScreen() {
         if (isMounted) {
           setAvailability(availabilityRows);
           // Exclude this booking so it doesn't collide with itself.
-          setBusy(buildBusyRanges(agenda.matches, agenda.blocks, block.id));
+          setBusy(buildBusyRanges(agenda.matches, agenda.blocks, block.id, agenda.academySessions));
         }
       } catch (error) {
         if (isMounted) {

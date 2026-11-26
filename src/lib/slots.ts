@@ -103,7 +103,8 @@ export function rangesForDay(availability: AvailabilityRow[], day: Date) {
 export function buildBusyRanges(
   matches: MatchRow[],
   blocks: PitchBlockRow[],
-  excludeBlockId?: string
+  excludeBlockId?: string,
+  academySessions: { starts_at: string; ends_at: string; is_cancelled: boolean }[] = []
 ): BusyRange[] {
   return [
     ...matches
@@ -112,6 +113,9 @@ export function buildBusyRanges(
     ...blocks
       .filter((block) => block.id !== excludeBlockId)
       .map((block) => ({ start: new Date(block.start_time), end: new Date(block.end_time) })),
+    ...academySessions
+      .filter((session) => !session.is_cancelled)
+      .map((session) => ({ start: new Date(session.starts_at), end: new Date(session.ends_at) })),
   ];
 }
 

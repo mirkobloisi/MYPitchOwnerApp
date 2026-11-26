@@ -105,7 +105,7 @@ function LegacyAddExternalBookingScreen() {
 
         if (isMounted) {
           setAvailability(availabilityRows);
-          setBusy(buildBusyRanges(agenda.matches, agenda.blocks));
+          setBusy(buildBusyRanges(agenda.matches, agenda.blocks, undefined, agenda.academySessions));
         }
       } catch (error) {
         if (isMounted) {

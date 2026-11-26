@@ -72,7 +72,7 @@ export async function markSessionNoticesRead() {
   return academy()
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
-    .eq('type', 'session')
+    .in('type', ['session', 'match_reminder'])
     .is('read_at', null);
 }
 

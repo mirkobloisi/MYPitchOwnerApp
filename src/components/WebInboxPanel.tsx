@@ -47,6 +47,7 @@ function noticeIcon(type: string): keyof typeof Ionicons.glyphMap {
   if (type === 'enrolment_request') return 'person-add-outline';
   if (type === 'enrolment') return 'checkmark-circle-outline';
   if (type === 'session') return 'trophy-outline';
+  if (type === 'match_reminder') return 'alarm-outline';
   return 'notifications-outline';
 }
 
@@ -87,11 +88,10 @@ export default function WebInboxPanel({ initialTab = 'messages', fullScreen = fa
   }, []);
 
   const loadNotices = useCallback(async () => {
-    // Dedicated to academy matches and bookings — 'session' is the notice
-    // type notify_session_change raises for a scheduled, moved or cancelled
-    // match. Messages and enrolment activity live elsewhere.
+    // Dedicated to academy matches: scheduled, changed or cancelled ('session')
+    // and their reminders. Messages and enrolment activity live elsewhere.
     const rows = await fetchNotices();
-    setNotices(rows.filter((row) => row.type === 'session'));
+    setNotices(rows.filter((row) => row.type === 'session' || row.type === 'match_reminder'));
   }, []);
 
   useEffect(() => {

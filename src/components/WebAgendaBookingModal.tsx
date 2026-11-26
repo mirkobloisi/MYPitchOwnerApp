@@ -90,7 +90,7 @@ export default function WebAgendaBookingModal({ kind, selectedDate, initialPitch
       // Validate every first occurrence before writing any row. The server still checks concurrent changes.
       for (const { pitchId, day } of targets) {
         const [availability, agenda] = await Promise.all([fetchAvailability(pitchId), fetchAgendaRange(pitchId, day, addDays(day, 1))]);
-        const busy = buildBusyRanges(agenda.matches, agenda.blocks);
+        const busy = buildBusyRanges(agenda.matches, agenda.blocks, undefined, agenda.academySessions);
         const startsAt = dateAtMinutes(day, from), endsAt = dateAtMinutes(day, to);
         // An external booking or a party may fall outside the opening hours and in the past; only a clash with another booking is refused.
         const available = kind !== 'blocked'

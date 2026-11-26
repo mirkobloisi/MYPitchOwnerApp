@@ -5,6 +5,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View 
 
 import Screen from '../components/Screen';
 import { useTranslation } from '../i18n/LanguageContext';
+import { fill, useAcademyHubLabels } from '../lib/academyHubLabels';
 import { supabase } from '../lib/supabase';
 import { weeklineColors as colors } from '../theme/palettes';
 
@@ -20,6 +21,7 @@ export default function JoinStaffScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const hub = useAcademyHubLabels();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -30,7 +32,7 @@ export default function JoinStaffScreen() {
   const [done, setDone] = useState<null | { needsConfirmation: boolean; email: string }>(null);
   // What the owner set up for this link: the business, and the email they
   // invited (so the new staff member does not have to type it).
-  const [invite, setInvite] = useState<'loading' | 'invalid' | { business: string; email: string | null }>('loading');
+  const [invite, setInvite] = useState<'loading' | 'invalid' | { business: string; email: string | null; isCoach: boolean; academy: string | null }>('loading');
 
   useEffect(() => {
     if (!token) { setInvite('invalid'); return; }
@@ -39,7 +41,7 @@ export default function JoinStaffScreen() {
       if (cancelled) return;
       const row = Array.isArray(data) ? data[0] : null;
       if (previewError || !row) { setInvite('invalid'); return; }
-      setInvite({ business: row.business_name, email: row.invited_email ?? null });
+      setInvite({ business: row.business_name, email: row.invited_email ?? null, isCoach: !!row.is_coach, academy: row.academy_name ?? null });
       if (row.invited_email) setEmail(row.invited_email);
     });
     return () => { cancelled = true; };
@@ -134,9 +136,10 @@ export default function JoinStaffScreen() {
       <View style={styles.stack}>
       {header}
       <View style={styles.card}>
-        <Text style={styles.title}>{t('joinStaff.heading')}</Text>
+        <Text style={styles.title}>{invite.isCoach ? hub.coachJoinHeading : t('joinStaff.heading')}</Text>
         <Text style={styles.subtitle}>{t('joinStaff.invitedBy').replace('{business}', invite.business)}</Text>
-        <Text style={styles.intro}>{t('joinStaff.intro')}</Text>
+        {invite.academy ? <Text style={styles.subtitle}>{fill(hub.coachJoinAcademy, { academy: invite.academy })}</Text> : null}
+        <Text style={styles.intro}>{invite.isCoach ? hub.coachJoinIntro : t('joinStaff.intro')}</Text>
 
         <Field label={t('joinStaff.nameLabel')} value={fullName} onChangeText={setFullName} autoComplete="name" />
         <Field label={t('joinStaff.emailLabel')} value={email} onChangeText={setEmail} autoComplete="email" keyboardType="email-address" editable={!emailLocked} />

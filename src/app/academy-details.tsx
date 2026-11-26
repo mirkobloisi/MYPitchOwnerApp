@@ -19,7 +19,6 @@ import {
   EnrolmentRow,
   SessionRow,
   ageFromDateOfBirth,
-  cancelSession,
   deleteAcademy,
   deleteSession,
   fetchAcademy,
@@ -40,13 +39,13 @@ import {
   cropAndUploadAcademyLogo,
   signedMemberAvatars,
 } from '../lib/avatarUpload';
+import { parentJoinLink, setMatchCancelled } from '../lib/academyHub';
 import { AppColors, weeklineColors } from '../theme/palettes';
 import { WIDE_CONTENT_MAX_WIDTH, useBreakpoint } from '../theme/breakpoints';
 import { useAppTheme } from '../theme/ThemeContext';
 import { radius, spacing } from '../theme/layout';
 import { scaleFont } from '../theme/typography';
 
-const JOIN_LINK_BASE = 'https://mypitch-owner-app.vercel.app/join';
 const REMOVE_VALUE = '__remove__';
 
 export default function AcademyDetailsScreen() {
@@ -235,7 +234,7 @@ export default function AcademyDetailsScreen() {
 
   async function copyInviteLink() {
     if (!item) return;
-    await Clipboard.setStringAsync(`${JOIN_LINK_BASE}/${item.invite_token}`);
+    await Clipboard.setStringAsync(parentJoinLink(item.invite_token));
     setCopiedMessage(t('academy.inviteCopied'));
     setTimeout(() => setCopiedMessage(''), 2500);
   }
@@ -358,7 +357,7 @@ export default function AcademyDetailsScreen() {
 
           <View style={styles.linkRow}>
             <Text style={styles.linkText} numberOfLines={1}>
-              {`${JOIN_LINK_BASE}/${item!.invite_token}`}
+              {parentJoinLink(item!.invite_token)}
             </Text>
           </View>
 
@@ -413,7 +412,11 @@ export default function AcademyDetailsScreen() {
             session={session}
             t={t}
             onToggleCancel={async () => {
-              await cancelSession(session.id, !session.is_cancelled);
+              try {
+                await setMatchCancelled(session.id, !session.is_cancelled);
+              } catch (error) {
+                setErrorMessage(error instanceof Error ? error.message : String(error));
+              }
               if (academyId) fetchSessions(academyId, 'match').then(setMatches);
             }}
             onDelete={async () => {

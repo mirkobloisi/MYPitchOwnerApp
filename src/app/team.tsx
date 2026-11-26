@@ -14,6 +14,7 @@ import {
 import ConfirmDialog from '../components/ConfirmDialog';
 import Screen from '../components/Screen';
 import { useTranslation } from '../i18n/LanguageContext';
+import { useAcademyHubLabels } from '../lib/academyHubLabels';
 import { STAFF_ASSIGNABLE_TABS, useAuth } from '../lib/auth';
 import {
   StaffInvite,
@@ -36,6 +37,7 @@ export default function TeamScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isStaff } = useAuth();
+  const hub = useAcademyHubLabels();
 
   const [members, setMembers] = useState<StaffMember[]>([]);
   const [invites, setInvites] = useState<StaffInvite[]>([]);
@@ -204,7 +206,7 @@ export default function TeamScreen() {
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={styles.rowTitle} numberOfLines={1}>{invite.invited_email || t('team.anyoneWithLink')}</Text>
                 <Text style={styles.rowMeta}>
-                  {invite.allowed_tabs.map((tab) => t(`nav.${tab}`)).join(', ')}  ·  {t('team.expires').replace('{date}', new Date(invite.expires_at).toLocaleDateString())}
+                  {invite.is_coach ? hub.coachRole : invite.allowed_tabs.map((tab) => t(`nav.${tab}`)).join(', ')}  ·  {t('team.expires').replace('{date}', new Date(invite.expires_at).toLocaleDateString())}
                 </Text>
               </View>
               <Pressable
@@ -239,7 +241,11 @@ export default function TeamScreen() {
                 </Text>
               </View>
 
-              <TabChips selected={member.allowed_tabs} onToggle={(tab) => changeMemberTab(member, tab)} disabled={busy} />
+              {member.is_coach ? (
+                <Text style={styles.coachAccess}>{hub.coachRole} · {hub.coachAccess}</Text>
+              ) : (
+                <TabChips selected={member.allowed_tabs} onToggle={(tab) => changeMemberTab(member, tab)} disabled={busy} />
+              )}
 
               <View style={styles.memberActions}>
                 <Pressable
@@ -334,6 +340,7 @@ const styles = StyleSheet.create({
   chipOn: { borderColor: colors.blueLight, backgroundColor: colors.blueSoft },
   chipText: { color: colors.grey, fontSize: 13, fontWeight: '700' },
   chipTextOn: { color: colors.white },
+  coachAccess: { color: colors.blueLight, fontSize: 13, fontWeight: '700' },
   primaryButton: { minHeight: 42, marginTop: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 9, backgroundColor: colors.blueLight, alignSelf: 'flex-start' },
   primaryButtonText: { color: colors.blackText, fontSize: 14, fontWeight: '800' },
   outlineButton: { minHeight: 38, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: colors.border, borderRadius: 9, backgroundColor: colors.backgroundSoft },
